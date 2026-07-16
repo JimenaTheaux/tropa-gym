@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #0d160b;
+    --foreground: #dbe6d3;
+    --card: #192216;
+    --card-foreground: #dbe6d3;
+    --popover: #081006;
+    --popover-foreground: #dbe6d3;
+    --primary: #40e432;
+    --primary-foreground: #003a00;
+    --secondary: #8fd87f;
+    --secondary-foreground: #003a00;
+    --muted: #232c20;
+    --muted-foreground: #bbcbb2;
+    --accent: #232c20;
+    --accent-foreground: #dbe6d3;
+    --destructive: #93000a;
+    --destructive-foreground: #ffdad6;
+    --border: #3d4b37;
+    --input: #151e12;
+    --ring: #40e432;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings:
+    'FILL' 0.35,
+    'wght' 300,
+    'GRAD' 0,
+    'opsz' 24;
+}
