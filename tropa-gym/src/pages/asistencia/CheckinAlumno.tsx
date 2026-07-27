@@ -164,14 +164,14 @@ export function CheckinAlumno() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center gap-6 bg-background px-gutter py-10">
-      <img src="/logo_tropa_blanco.png" alt="Tropa Gym" className="h-auto w-full max-w-[220px]" />
+    <div className="flex min-h-screen flex-col items-center gap-3 bg-background px-gutter py-4">
+      <img src="/logo_tropa_blanco.png" alt="Tropa Gym" className="h-auto w-full max-w-[130px]" />
 
-      <div className="w-full max-w-lg rounded-card border border-outline-variant bg-surface-container p-6">
+      <div className="w-full max-w-2xl rounded-card border border-outline-variant bg-surface-container p-4">
         {/* Paso 1: buscar alumno */}
         {!alumno && !resultado && (
-          <div className="flex flex-col items-center gap-4">
-            <h1 className="font-oswald text-xl font-bold uppercase tracking-[0.02em] text-on-surface">
+          <div className="flex flex-col items-center gap-3">
+            <h1 className="font-oswald text-lg font-bold uppercase tracking-[0.02em] text-on-surface">
               Marcar asistencia
             </h1>
             <input
@@ -179,7 +179,7 @@ export function CheckinAlumno() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="DNI, nombre o apellido…"
-              className="w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-3 text-center font-inter text-lg text-on-surface outline-none focus:border-primary"
+              className="w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-center font-inter text-lg text-on-surface outline-none focus:border-primary"
             />
 
             {buscando && <p className="font-inter text-xs text-on-surface-variant">Buscando…</p>}
@@ -191,7 +191,7 @@ export function CheckinAlumno() {
                     key={a.id}
                     type="button"
                     onClick={() => seleccionarAlumno(a)}
-                    className="border-b border-outline-variant bg-surface-container-low px-3 py-3 text-left font-inter text-sm text-on-surface last:border-b-0 hover:bg-surface-container-high"
+                    className="border-b border-outline-variant bg-surface-container-low px-3 py-2 text-left font-inter text-sm text-on-surface last:border-b-0 hover:bg-surface-container-high"
                   >
                     {a.nombre} {a.apellido} <span className="text-on-surface-variant">— DNI {a.dni}</span>
                   </button>
@@ -211,7 +211,7 @@ export function CheckinAlumno() {
 
         {/* Paso 2: disciplina / turno / fecha */}
         {alumno && !resultado && (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3">
             <div className="text-center">
               <p className="font-oswald text-lg font-bold uppercase text-on-surface">
                 {alumno.nombre} {alumno.apellido}
@@ -232,7 +232,7 @@ export function CheckinAlumno() {
                       setDisciplinaId(d.id)
                       setTurnoId('')
                     }}
-                    className={`rounded-lg border px-4 py-2 font-inter text-sm transition-colors ${
+                    className={`rounded-lg border px-3 py-1.5 font-inter text-sm transition-colors ${
                       disciplinaId === d.id
                         ? 'border-primary bg-primary text-[#06210a]'
                         : 'border-outline-variant bg-surface-container-low text-on-surface hover:bg-surface-container-high'
@@ -255,7 +255,7 @@ export function CheckinAlumno() {
                       key={t.id}
                       type="button"
                       onClick={() => setTurnoId(t.id)}
-                      className={`flex items-center gap-2 rounded-lg border px-4 py-2 font-inter text-sm transition-colors ${
+                      className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 font-inter text-sm transition-colors ${
                         turnoId === t.id
                           ? 'border-primary bg-primary text-[#06210a]'
                           : 'border-outline-variant bg-surface-container-low text-on-surface hover:bg-surface-container-high'
@@ -301,14 +301,14 @@ export function CheckinAlumno() {
 
         {/* Paso 3: resultado — historial simple + estado de deuda */}
         {resultado && alumno && (
-          <div className="flex flex-col items-center gap-5 text-center">
-            <span className="material-symbols-outlined !text-[48px] text-primary">check_circle</span>
+          <div className="flex flex-col items-center gap-3 text-center">
+            <span className="material-symbols-outlined !text-[36px] text-primary">check_circle</span>
             <p className="font-oswald text-lg font-bold uppercase text-on-surface">
               ¡Listo, {alumno.nombre}!
             </p>
 
             <div
-              className={`rounded-lg border px-4 py-2 font-inter text-sm ${
+              className={`rounded-lg border px-4 py-1.5 font-inter text-sm ${
                 resultado.debe
                   ? 'border-error text-error'
                   : 'border-primary text-primary'
