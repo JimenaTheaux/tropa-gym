@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { NumericKeypad } from '@/components/ui/NumericKeypad'
 import { FormDateInput, FormTimeInput } from '@/components/ui/FormField'
+import { Footer } from '@/components/layout/Footer'
 
 async function buscarAlumnos(term: string): Promise<Alumno[]> {
   const { data, error } = await supabase
@@ -347,6 +348,8 @@ export function CheckinAlumno() {
       >
         Salir del modo check-in
       </button>
+
+      <Footer prominent />
     </div>
   )
 }
