@@ -6,6 +6,7 @@ import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { FormInput } from '@/components/ui/FormField'
 import { TrendChart } from '@/components/ui/TrendChart'
+import { EstadoEvolucionChart } from '@/components/ui/EstadoEvolucionChart'
 
 function money(v: number): string {
   return `$${Math.round(v).toLocaleString('es-AR')}`
@@ -87,18 +88,15 @@ export function KpiPanel() {
           formatValue={money}
           diverging
         />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <TrendChart
-            title="Alumnos activos por período"
-            data={trend.map((t) => ({ periodo: t.periodo, label: periodoLabel(t.periodo), value: t.alumnosActivos }))}
-            formatValue={(v) => String(Math.round(v))}
-          />
-          <TrendChart
-            title="Alumnos inactivos por período"
-            data={trend.map((t) => ({ periodo: t.periodo, label: periodoLabel(t.periodo), value: t.alumnosInactivos }))}
-            formatValue={(v) => String(Math.round(v))}
-          />
-        </div>
+        <EstadoEvolucionChart
+          title="Alumnos activos vs. inactivos por período"
+          data={trend.map((t) => ({
+            periodo: t.periodo,
+            label: periodoLabel(t.periodo),
+            activos: t.alumnosActivos,
+            inactivos: t.alumnosInactivos,
+          }))}
+        />
       </div>
 
       <div className="rounded-card border border-outline-variant bg-surface-container p-5">
