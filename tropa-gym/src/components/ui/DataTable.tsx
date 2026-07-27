@@ -48,12 +48,12 @@ export function DataTable<T>({
               {columns.map((col) => (
                 <th
                   key={col.header}
-                  className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant"
+                  className="px-4 py-2.5 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant"
                 >
                   {col.header}
                 </th>
               ))}
-              <th className="px-4 py-3 text-right font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+              <th className="px-4 py-2.5 text-right font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
                 Acciones
               </th>
             </tr>
@@ -66,11 +66,11 @@ export function DataTable<T>({
                 className={`border-t border-outline-variant hover:bg-surface-container-high/50 ${onRowClick ? 'cursor-pointer' : ''}`}
               >
                 {columns.map((col) => (
-                  <td key={col.header} className="px-4 py-3 font-inter text-sm text-on-surface">
+                  <td key={col.header} className="px-4 py-2.5 font-inter text-sm text-on-surface">
                     {col.cell(row)}
                   </td>
                 ))}
-                <td className="px-4 py-3">
+                <td className="px-4 py-2.5">
                   <div className="flex justify-end gap-3">
                     <button
                       type="button"

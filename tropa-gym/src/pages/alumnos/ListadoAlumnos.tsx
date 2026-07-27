@@ -40,7 +40,11 @@ function toPayload(form: AlumnoInsert): AlumnoInsert {
   }
 }
 
-export function ListadoAlumnos() {
+interface ListadoAlumnosProps {
+  busqueda?: string
+}
+
+export function ListadoAlumnos({ busqueda = '' }: ListadoAlumnosProps) {
   const { data: alumnos = [], isLoading: loading } = useAlumnos()
   const { data: disciplinas = [] } = useDisciplinasActivas()
   const { data: combos = [] } = useCombosActivos()
@@ -56,10 +60,14 @@ export function ListadoAlumnos() {
   const saving = crear.isPending || actualizar.isPending
   const deleteLoading = eliminar.isPending
 
-  const alumnosFiltrados = useMemo(
-    () => (estadoFiltro === 'todos' ? alumnos : alumnos.filter((a) => a.estado === estadoFiltro)),
-    [alumnos, estadoFiltro],
-  )
+  const alumnosFiltrados = useMemo(() => {
+    const term = busqueda.trim().toLowerCase()
+    return alumnos.filter((a) => {
+      if (estadoFiltro !== 'todos' && a.estado !== estadoFiltro) return false
+      if (term && !`${a.nombre} ${a.apellido}`.toLowerCase().includes(term)) return false
+      return true
+    })
+  }, [alumnos, estadoFiltro, busqueda])
 
   function openCreate() {
     setEditing(null)
@@ -115,7 +123,7 @@ export function ListadoAlumnos() {
     { header: 'Nombre', cell: (a) => `${a.nombre} ${a.apellido}` },
     { header: 'DNI', cell: (a) => a.dni },
     { header: 'Teléfono', cell: (a) => a.telefono ?? '—' },
-    { header: 'Estado', cell: (a) => <EstadoToggleButton alumno={a} /> },
+    { header: 'Estado', cell: (a) => <EstadoToggleButton alumno={a} compact /> },
   ]
 
   return (
@@ -150,7 +158,9 @@ export function ListadoAlumnos() {
         onDelete={setDeleting}
         onRowClick={setViewing}
         loading={loading}
-        emptyMessage="Todavía no hay alumnos cargados."
+        emptyMessage={
+          alumnos.length === 0 ? 'Todavía no hay alumnos cargados.' : 'No se encontraron alumnos con ese filtro.'
+        }
       />
 
       <FichaAlumnoDrawer alumno={viewing} onClose={() => setViewing(null)} />

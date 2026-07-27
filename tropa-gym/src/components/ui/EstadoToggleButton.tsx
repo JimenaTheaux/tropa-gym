@@ -12,6 +12,9 @@ import { FormDateInput, FormInput } from '@/components/ui/FormField'
 
 interface EstadoToggleButtonProps {
   alumno: Alumno
+  // Oculta la fecha "desde" debajo del badge (uso en tablas densas — el
+  // dato sigue disponible en el title del botón y en la ficha del alumno).
+  compact?: boolean
 }
 
 const ESTADO_CONFIG: Record<EstadoAlumno, { color: string; icon: string; label: string }> = {
@@ -30,7 +33,7 @@ function hoyIso(): string {
 // permite backdatear, ej. "de baja desde el lunes") y motivo si va a
 // inactivo (ver migración 11/12). El resto de los roles ve el badge de solo
 // lectura, sin acción.
-export function EstadoToggleButton({ alumno }: EstadoToggleButtonProps) {
+export function EstadoToggleButton({ alumno, compact }: EstadoToggleButtonProps) {
   const { perfil } = useAuth()
   const puedeCambiar = perfil?.rol === 'admin' || perfil?.rol === 'profesor'
   const [modalOpen, setModalOpen] = useState(false)
@@ -82,6 +85,9 @@ export function EstadoToggleButton({ alumno }: EstadoToggleButtonProps) {
     </span>
   )
 
+  const desdeLabel = `desde ${formatFecha(alumno.estado_desde.slice(0, 10))}`
+  const accionLabel = `Marcar como ${nuevoEstado === 'activo' ? 'Activo' : 'Inactivo'}`
+
   return (
     <div className="flex flex-col items-center gap-1">
       {puedeCambiar ? (
@@ -91,8 +97,8 @@ export function EstadoToggleButton({ alumno }: EstadoToggleButtonProps) {
             e.stopPropagation()
             abrir()
           }}
-          aria-label={`Marcar como ${nuevoEstado === 'activo' ? 'Activo' : 'Inactivo'}`}
-          title={`Marcar como ${nuevoEstado === 'activo' ? 'Activo' : 'Inactivo'}`}
+          aria-label={`${accionLabel} — ${desdeLabel}`}
+          title={compact ? `${accionLabel} — ${desdeLabel}` : accionLabel}
           className="cursor-pointer transition-opacity hover:opacity-70"
         >
           {badge}
@@ -100,9 +106,7 @@ export function EstadoToggleButton({ alumno }: EstadoToggleButtonProps) {
       ) : (
         badge
       )}
-      <span className="font-inter text-[11px] text-on-surface-variant">
-        desde {formatFecha(alumno.estado_desde.slice(0, 10))}
-      </span>
+      {!compact && <span className="font-inter text-[11px] text-on-surface-variant">{desdeLabel}</span>}
 
       {modalOpen &&
         createPortal(
