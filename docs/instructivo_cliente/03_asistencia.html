@@ -1,0 +1,182 @@
+<style>
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 760px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-direction: column; gap: 28px; }
+  .eyebrow { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--primary); }
+  h1 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 900; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.01em; line-height: 1.08; margin: 6px 0 0; text-wrap: balance; }
+  .lede { font-size: 16px; line-height: 1.6; color: var(--text-muted); max-width: 62ch; margin: 0; }
+  h2 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; }
+  h3 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 19px; letter-spacing: -0.005em; margin: 0 0 8px; color: var(--text); }
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; }
+  .card p { color: var(--text-muted); }
+  .callout { border: 1px solid var(--error-dim); background: var(--surface-high); border-radius: 14px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; }
+  .callout p { color: var(--text-muted); }
+  .callout .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--error); margin-top: 7px; }
+  .callout strong { color: var(--error); }
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+
+  /* Pasos del check-in */
+  .recorrido { display: flex; flex-direction: column; gap: 0; }
+  .paso-r { display: grid; grid-template-columns: 32px 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid var(--border); }
+  .paso-r:first-child { border-top: none; }
+  .paso-r .num {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--surface-high);
+    border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center;
+    font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 13px; color: var(--primary);
+  }
+  .paso-r .txt p { color: var(--text-muted); font-size: 14.5px; }
+  .paso-r .txt strong { color: var(--text); }
+
+  /* Línea de tiempo de estado del alumno */
+  .linea-estado { position: relative; margin-top: 30px; padding: 0 10px 10px; }
+  .linea-track { position: relative; height: 6px; background: var(--border); border-radius: 999px; }
+  .linea-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 999px; background: var(--primary); width: 60%; }
+  .linea-fill.alerta { background: var(--text-muted); width: 100%; }
+  .marca { position: absolute; top: -26px; font-size: 11.5px; color: var(--text-muted); white-space: nowrap; }
+  .marca.dia0 { left: 0%; }
+  .marca.dia15 { left: 60%; transform: translateX(-50%); }
+  .marca.dia25 { left: 100%; transform: translateX(-100%); }
+  .marca strong { display: block; color: var(--text); font-size: 12.5px; }
+  .leyenda { display: flex; gap: 20px; margin-top: 22px; flex-wrap: wrap; }
+  .leyenda .item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); }
+  .leyenda .dot2 { width: 10px; height: 10px; border-radius: 50%; }
+  .dot2.activo { background: var(--primary); }
+  .dot2.alerta { background: var(--text-muted); }
+  .dot2.inactivo { background: var(--border-strong); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
+  footer { border-top: 1px solid var(--border); padding-top: 18px; font-size: 12.5px; color: var(--text-muted); }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Asistencia</div>
+    <h1>El check-in, y lo que dispara solo</h1>
+    <p class="lede">
+      Marcar presente es el gesto más simple del sistema — pero es el que
+      arranca todo lo demás: la deuda del mes, el plan que se muestra, y el
+      estado de actividad del alumno.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>1 — Check-in de un alumno</h2>
+    <h3>Cuatro pasos, siempre los mismos</h3>
+    <div class="recorrido">
+      <div class="paso-r">
+        <div class="num">1</div>
+        <div class="txt"><p><strong>Buscar</strong> al alumno por DNI o por nombre.</p></div>
+      </div>
+      <div class="paso-r">
+        <div class="num">2</div>
+        <div class="txt"><p>El sistema muestra su <strong>estado de cuenta y su plan actual</strong> (disciplina + combo) — para que quien lo recibe sepa de un vistazo si debe algo.</p></div>
+      </div>
+      <div class="paso-r">
+        <div class="num">3</div>
+        <div class="txt"><p><strong>Elegir el turno</strong> — el horario en el que está entrenando ahora.</p></div>
+      </div>
+      <div class="paso-r">
+        <div class="num">4</div>
+        <div class="txt"><p><strong>Confirmar.</strong> Listo — la asistencia queda registrada.</p></div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top: 18px;">
+      <div class="dot"></div>
+      <p>
+        <strong>La deuda nunca frena el check-in.</strong> Si un alumno debe
+        dos meses, igual puede marcar presente sin ningún paso extra — el
+        sistema muestra la deuda, no la usa como traba para entrenar.
+      </p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2 — Lo que se dispara solo con la primera asistencia del mes</h2>
+    <h3>El alumno no "pide" que le generen la deuda — ya está generada</h3>
+    <p>
+      La primera vez que un alumno marca presente en el mes, el sistema ya sabe
+      que tiene que pagar ese período, y calcula automáticamente si le
+      corresponde <strong>cuota completa</strong> o <strong>media cuota</strong>,
+      mirando el día del mes de esa primera asistencia.
+    </p>
+    <div class="grid-2" style="margin-top: 14px;">
+      <div><p><strong>Asiste entre el día 1 y el 14</strong><br />se genera la cuota completa.</p></div>
+      <div><p><strong>Asiste del día 15 en adelante</strong><br />se genera media cuota.</p></div>
+    </div>
+    <p style="margin-top: 14px;">
+      El monto exacto en pesos sale del combo del alumno (ver módulo Cargos
+      para el detalle completo de este cálculo).
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>3 — Estado del alumno: Activo, Alerta, Inactivo</h2>
+    <h3>Se calcula solo mirando la última vez que vino</h3>
+    <div class="linea-estado">
+      <div class="marca dia0"><strong>Día 0</strong>Última asistencia</div>
+      <div class="marca dia15"><strong>Día 15</strong>Alerta preventiva</div>
+      <div class="marca dia25"><strong>Día 25</strong>Pasa a Inactivo</div>
+      <div class="linea-track">
+        <div class="linea-fill"></div>
+      </div>
+    </div>
+    <div class="leyenda">
+      <div class="item"><div class="dot2 activo"></div>Activo</div>
+      <div class="item"><div class="dot2 alerta"></div>Alerta (15 a 24 días sin venir)</div>
+      <div class="item"><div class="dot2 inactivo"></div>Inactivo (25+ días sin venir)</div>
+    </div>
+    <p style="margin-top: 20px;">
+      La "alerta" no es un estado formal del alumno — es un aviso visual. Esos
+      alumnos aparecen listados en <strong>"Próximos a inactivarse"</strong>,
+      dentro del Centro de Resumen Mensual del Dashboard, para poder
+      contactarlos antes de que se corte la racha.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>4 — Asistencia de profesores</h2>
+    <h3>Entrada y salida, para llevar sus horas</h3>
+    <p>
+      Cada profesor registra su propia entrada y su propia salida (fecha y
+      hora). No hay más que eso: sin turno, sin selección de alumno. Ese
+      registro es el insumo directo de <strong>"Horas por profesor"</strong>
+      en el Dashboard — la suma de las horas trabajadas en el mes, y cuántas
+      asistencias de alumnos atendió en ese lapso.
+    </p>
+    <p style="margin-top: 10px;">
+      Varios profesores pueden compartir el mismo login (ver módulo Roles y
+      permisos): cada uno igual aparece listado por separado para marcar su
+      propia entrada/salida.
+    </p>
+  </section>
+
+  <footer>
+    Tropa Gym — módulo Asistencia. Ver también: Alumnos y fichas, Cargos, Dashboard.
+  </footer>
+
+</div>

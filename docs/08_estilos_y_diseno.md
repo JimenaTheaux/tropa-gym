@@ -123,6 +123,21 @@ family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,300,0..1
 
 Regla: por pantalla, como máximo un botón "Sólido". El resto usa Primario o Ghost. Evitar 3+ botones sólidos de color en la misma vista.
 
+## Segmented control (validado — grupos de 2-4 opciones excluyentes)
+Reemplaza `<select>` cuando el campo tiene entre 2 y 4 opciones mutuamente excluyentes (ej. método de pago, sí/no, tipo de operación). Con más de ~6 opciones, se mantiene `<select>`.
+
+Mismo criterio de color que los botones Primario/Ghost — no es una variante nueva, es la aplicación de esas dos a un grupo de botones:
+
+| Estado | Fondo | Borde | Texto |
+|---|---|---|---|
+| Opción seleccionada | `surface-container-high` | 1px `primary` | `primary` |
+| Opción no seleccionada | transparente | 1px `outline-variant` | `on-surface-variant` |
+
+- Label del grupo: mismo estilo que el label de un `FormInput`/`FormSelect` (Oswald 11px uppercase, tracking 0.05em, `on-surface-variant`).
+- Botones en fila (`flex-wrap`), `gap-2`, `rounded-lg`, mismo padding/tipografía que el componente `Button` (Oswald 13px, uppercase, tracking 0.03em).
+- Accesibilidad: contenedor `role="radiogroup"`, cada botón `role="radio"` + `aria-checked`.
+- Implementado como componente reutilizable `SegmentedControl` (`src/components/ui/SegmentedControl.tsx`), usado por ejemplo en el método de pago de los forms de Pagos.
+
 ## Badges (validado — solo borde, sin fondo de color)
 - Fondo: transparente o `surface-container-high`.
 - Borde 1px + ícono + texto en el color de estado (ver tabla de colores de estado arriba).

@@ -1,0 +1,403 @@
+<style>
+  /* ---- Tokens: paleta real de Tropa Gym (doc 08) — tema oscuro único,
+     a propósito: es la identidad ya fija del producto, no se invierte. ---- */
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .eyebrow {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+
+  h1 {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 900;
+    font-size: clamp(28px, 5vw, 40px);
+    letter-spacing: -0.01em;
+    line-height: 1.08;
+    margin: 6px 0 0;
+    text-wrap: balance;
+  }
+
+  .lede {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  h2 {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 14px;
+  }
+
+  h3 {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 19px;
+    letter-spacing: -0.005em;
+    margin: 0 0 8px;
+    color: var(--text);
+  }
+
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 26px 28px;
+  }
+
+  .card p { color: var(--text-muted); }
+
+  .callout {
+    border: 1px solid var(--error-dim);
+    background: var(--surface-high);
+    border-radius: 14px;
+    padding: 18px 22px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .callout p { color: var(--text-muted); }
+  .callout .dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--error);
+    margin-top: 7px;
+  }
+  .callout strong { color: var(--error); }
+
+  /* ---- Diagrama de 3 estados: círculo = proporción pagada ---- */
+  .estados {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 6px;
+  }
+  .estado {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+  }
+  .estado .ring {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .estado .ring::after {
+    content: "";
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--surface);
+  }
+  .ring--0 { background: conic-gradient(var(--border-strong) 0deg, var(--border-strong) 360deg); }
+  .ring--50 { background: conic-gradient(var(--text-muted) 0deg 180deg, var(--border) 180deg 360deg); }
+  .ring--100 { background: conic-gradient(var(--primary) 0deg 360deg); }
+  .estado .nombre {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .estado.pagado .nombre { color: var(--primary); }
+  .estado .desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; min-height: 3em; }
+
+  /* ---- Ejemplo numérico ---- */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .paso {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  .paso:first-child { border-top: none; }
+  .paso .bolita {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--border-strong);
+    justify-self: center;
+  }
+  .paso.pagado .bolita { background: var(--primary); }
+  .paso .texto { font-size: 14.5px; }
+  .paso .texto .sub { color: var(--text-muted); font-size: 13px; display: block; margin-top: 2px; }
+  .paso .monto {
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    font-size: 16px;
+    white-space: nowrap;
+  }
+  .paso .estado-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 2px;
+  }
+  .paso.pagado .estado-tag { color: var(--primary); }
+
+  .tabla-resumen {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 18px;
+    font-size: 14px;
+  }
+  .tabla-resumen th {
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tabla-resumen td {
+    padding: 10px 10px;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+  .tabla-resumen tr:last-child td { border-bottom: none; }
+
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 560px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .estados { grid-template-columns: 1fr; }
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Pagos y cargos</div>
+    <h1>Cómo funciona la deuda de cada alumno</h1>
+    <p class="lede">
+      Guía corta para entender qué es un "cargo", cómo se genera solo, cómo se
+      calcula lo que hay que pagar, y qué pasa con los pagos parciales o de más.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>1 — Qué es un cargo</h2>
+    <h3>La deuda del mes, no el pago</h3>
+    <p>
+      Un <strong>cargo</strong> es lo que un alumno tiene que pagar en un período
+      (un mes). No es un pago — es la cuenta que se le abre. Un <strong>pago</strong>
+      es distinto: es la plata que efectivamente entra, y puede cubrir un cargo
+      de una vez, en partes, o incluso de más.
+    </p>
+    <p>
+      Separar estas dos cosas es lo que permite que un alumno pague en dos veces,
+      o pague de más un mes y eso se descuente del que viene, sin romper nada.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>2 — Cuándo se genera</h2>
+    <h3>La asistencia dispara la deuda</h3>
+    <p>
+      Apenas un alumno marca presente por primera vez en el mes, el sistema ya
+      sabe que tiene que pagar — no hace falta que nadie lo cargue a mano.
+    </p>
+    <div class="grid-2" style="margin-top: 14px;">
+      <div>
+        <p><strong>Asiste entre el día 1 y el 14</strong><br />se le cobra el mes completo.</p>
+      </div>
+      <div>
+        <p><strong>Asiste del día 15 en adelante</strong><br />se le cobra medio mes.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3 — Cuánto hay que pagar</h2>
+    <h3>El monto sale del plan del alumno</h3>
+    <p>
+      El monto del cargo depende de su combo (plan) y el precio vigente de ese
+      combo. Si el alumno ya venía pagando, el sistema usa el mismo plan de la
+      última vez; si es nuevo, usa el plan que tiene asignado en su ficha.
+    </p>
+    <p>
+      Y esa ficha se mantiene sola: cada vez que se registra un pago Individual
+      o Familiar, el plan de la ficha del alumno se actualiza con lo que se
+      cargó en ese pago — así siempre queda mostrando el plan real, sin que
+      nadie tenga que ir a corregirlo a mano.
+    </p>
+    <div class="callout" style="margin-top: 16px;">
+      <div class="dot"></div>
+      <p>
+        <strong>¿Y si el sistema no sabe qué plan tiene?</strong> El cargo se genera
+        igual — nunca se pierde el registro de que ese alumno debe pagar. Queda
+        marcado <strong>"a definir"</strong>, con el mes calculado bien (completo o
+        medio), pero sin el monto en $. El encargado lo completa a mano apenas lo ve
+        en la lista de "Cargos sin monto definido".
+      </p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>4 — Los tres estados del cargo</h2>
+    <h3>Se calculan solos, según lo que se pagó</h3>
+    <div class="estados">
+      <div class="estado">
+        <div class="ring ring--0"></div>
+        <div class="nombre">Pendiente</div>
+        <div class="desc">Todavía no pagó nada de este cargo.</div>
+      </div>
+      <div class="estado">
+        <div class="ring ring--50"></div>
+        <div class="nombre">Parcial</div>
+        <div class="desc">Pagó una parte. Queda saldo de ese mes.</div>
+      </div>
+      <div class="estado pagado">
+        <div class="ring ring--100"></div>
+        <div class="nombre">Pagado</div>
+        <div class="desc">Cubrió el total (o más) de ese cargo.</div>
+      </div>
+    </div>
+    <p style="margin-top: 18px;">
+      El sistema suma <strong>todo</strong> lo que el alumno pagó contra ese cargo
+      puntual — no solo el último pago — y lo compara contra el monto. No hace
+      falta que nadie marque el estado a mano, se recalcula solo cada vez que
+      entra un pago nuevo.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>5 — Pagos parciales y pagos de más</h2>
+    <p>
+      Un alumno puede pagar en varias veces. Y si en algún momento paga de más,
+      ese excedente no se pierde: queda como <strong>saldo a favor</strong> del
+      alumno, visible en su cuenta general, para el mes que viene.
+    </p>
+
+    <h3 style="margin-top: 22px;">Ejemplo: una cuota de $10.000</h3>
+    <div class="timeline">
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">
+          Se genera el cargo del mes
+          <span class="sub">Cuota completa, combo de 3 días</span>
+        </div>
+        <div>
+          <div class="monto">$10.000</div>
+          <div class="estado-tag">Pendiente</div>
+        </div>
+      </div>
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">
+          Primer pago
+          <span class="sub">Paga una parte</span>
+        </div>
+        <div>
+          <div class="monto">$6.000</div>
+          <div class="estado-tag">Sigue parcial · debe $4.000</div>
+        </div>
+      </div>
+      <div class="paso pagado">
+        <div class="bolita"></div>
+        <div class="texto">
+          Segundo pago — completa la cuota
+          <span class="sub">Cubre lo que faltaba</span>
+        </div>
+        <div>
+          <div class="monto">$4.000</div>
+          <div class="estado-tag">Pagado</div>
+        </div>
+      </div>
+      <div class="paso pagado">
+        <div class="bolita"></div>
+        <div class="texto">
+          Pago de más, ya con la cuota cubierta
+          <span class="sub">Paga $2.000 extra por adelantado</span>
+        </div>
+        <div>
+          <div class="monto">+$2.000</div>
+          <div class="estado-tag">Sigue pagado · $2.000 a favor</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>6 — Dónde se ve todo esto en el sistema</h2>
+    <ul class="lista-simple">
+      <li><strong>Ficha del alumno</strong> — estado de cuenta mes a mes, con el estado de cada cargo y la opción de corregir un monto si hace falta.</li>
+      <li><strong>Historial de pagos</strong> — cada pago registrado, con acción para editar un monto cargado mal, o completar un pago que quedó parcial.</li>
+      <li><strong>Centro de Resumen Mensual</strong> — quiénes deben, cuánto, y los cargos que quedaron "a definir" esperando que se les cargue el monto.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Tropa Gym — lógica de cargos y pagos.
+  </footer>
+
+</div>

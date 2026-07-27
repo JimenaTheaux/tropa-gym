@@ -16,7 +16,7 @@ export const navItems: NavItem[] = [
     label: 'Asistencia',
     path: '/asistencia-alumnos',
     icon: 'event_available',
-    roles: ['admin', 'profesor', 'kiosco'],
+    roles: ['admin', 'profesor'],
   },
   {
     label: 'Asist. Profesores',
@@ -24,14 +24,15 @@ export const navItems: NavItem[] = [
     icon: 'badge',
     roles: ['admin', 'profesor'],
   },
+  { label: 'Cargos', path: '/cargos', icon: 'request_quote', roles: ['admin'] },
   { label: 'Egresos', path: '/egresos', icon: 'receipt_long', roles: ['admin'] },
   { label: 'Configuración', path: '/configuracion', icon: 'settings', roles: ['admin'] },
 ]
 
 const homeByRole: Record<RolUsuario, string> = {
   admin: '/dashboard',
-  profesor: '/alumnos',
-  kiosco: '/asistencia-alumnos',
+  profesor: '/asistencia-profesores',
+  kiosco: '/checkin',
 }
 
 export function getHomePath(rol: RolUsuario): string {

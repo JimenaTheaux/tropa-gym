@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { getHomePath } from '@/config/nav'
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,14 @@ export function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-gutter">
       <div className="w-full max-w-sm rounded-card border border-outline-variant bg-surface-container p-8">
+        <Link
+          to="/"
+          className="mb-6 inline-flex items-center gap-1 font-inter text-sm text-on-surface-variant hover:text-on-surface"
+        >
+          <span className="material-symbols-outlined !text-[18px]">arrow_back</span>
+          Volver
+        </Link>
+
         <div className="mb-8 flex justify-center">
           <img src="/logo_tropa_blanco.png" alt="Tropa Gym" className="h-auto w-full max-w-[280px]" />
         </div>

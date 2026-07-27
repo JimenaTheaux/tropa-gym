@@ -1,0 +1,2149 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Manual de Usuario — Tropa Gym</title>
+<style>
+
+  /* ---- Tokens: paleta real de Tropa Gym (doc 08) — tema oscuro único,
+     a propósito: es la identidad ya fija del producto, no se invierte. ---- */
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .eyebrow {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+
+  h1 {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 900;
+    font-size: clamp(28px, 5vw, 40px);
+    letter-spacing: -0.01em;
+    line-height: 1.08;
+    margin: 6px 0 0;
+    text-wrap: balance;
+  }
+
+  .lede {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  h2 {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 14px;
+  }
+
+  h3 {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 19px;
+    letter-spacing: -0.005em;
+    margin: 0 0 8px;
+    color: var(--text);
+  }
+
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 26px 28px;
+  }
+  .card p { color: var(--text-muted); }
+
+  .callout {
+    border: 1px solid var(--error-dim);
+    background: var(--surface-high);
+    border-radius: 14px;
+    padding: 18px 22px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .callout p { color: var(--text-muted); }
+  .callout .dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--error);
+    margin-top: 7px;
+  }
+  .callout strong { color: var(--error); }
+
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+
+  /* ---- Roles: 3 tarjetas ---- */
+  .roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .rol {
+    background: var(--surface-high);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 18px 20px;
+  }
+  .rol .nombre {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 8px;
+  }
+  .rol p { font-size: 13.5px; color: var(--text-muted); }
+
+  /* ---- Recorrido / pasos numerados ---- */
+  .recorrido { display: flex; flex-direction: column; gap: 0; }
+  .paso-r {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 16px;
+    padding: 16px 0;
+    border-top: 1px solid var(--border);
+  }
+  .paso-r:first-child { border-top: none; }
+  .paso-r .num {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--surface-high);
+    border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--primary);
+  }
+  .paso-r .txt p { color: var(--text-muted); font-size: 14.5px; }
+  .paso-r .txt strong { color: var(--text); }
+
+  /* ---- Índice de módulos ---- */
+  .indice { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .modulo {
+    display: block;
+    background: var(--surface-high);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    text-decoration: none;
+    transition: border-color .15s ease;
+  }
+  .modulo:hover { border-color: var(--border-strong); }
+  .modulo .tag {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+  .modulo .titulo {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--text);
+    margin: 4px 0 3px;
+  }
+  .modulo .desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+  .modulo.complejo { border-color: var(--primary-dim); }
+
+  @media (max-width: 620px) {
+    .roles { grid-template-columns: 1fr; }
+    .indice { grid-template-columns: 1fr; }
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+
+
+
+  /* ---- Tokens: paleta real de Tropa Gym (doc 08) — tema oscuro único,
+     a propósito: es la identidad ya fija del producto, no se invierte. ---- */
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .eyebrow {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+
+  h1 {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 900;
+    font-size: clamp(28px, 5vw, 40px);
+    letter-spacing: -0.01em;
+    line-height: 1.08;
+    margin: 6px 0 0;
+    text-wrap: balance;
+  }
+
+  .lede {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  h2 {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 14px;
+  }
+
+  h3 {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 19px;
+    letter-spacing: -0.005em;
+    margin: 0 0 8px;
+    color: var(--text);
+  }
+
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 26px 28px;
+  }
+
+  .card p { color: var(--text-muted); }
+
+  .callout {
+    border: 1px solid var(--error-dim);
+    background: var(--surface-high);
+    border-radius: 14px;
+    padding: 18px 22px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .callout p { color: var(--text-muted); }
+  .callout .dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--error);
+    margin-top: 7px;
+  }
+  .callout strong { color: var(--error); }
+
+  /* ---- Diagrama de 3 estados: círculo = proporción pagada ---- */
+  .estados {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 6px;
+  }
+  .estado {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+  }
+  .estado .ring {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .estado .ring::after {
+    content: "";
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--surface);
+  }
+  .ring--0 { background: conic-gradient(var(--border-strong) 0deg, var(--border-strong) 360deg); }
+  .ring--50 { background: conic-gradient(var(--text-muted) 0deg 180deg, var(--border) 180deg 360deg); }
+  .ring--100 { background: conic-gradient(var(--primary) 0deg 360deg); }
+  .estado .nombre {
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .estado.pagado .nombre { color: var(--primary); }
+  .estado .desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; min-height: 3em; }
+
+  /* ---- Ejemplo numérico ---- */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .paso {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  .paso:first-child { border-top: none; }
+  .paso .bolita {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--border-strong);
+    justify-self: center;
+  }
+  .paso.pagado .bolita { background: var(--primary); }
+  .paso .texto { font-size: 14.5px; }
+  .paso .texto .sub { color: var(--text-muted); font-size: 13px; display: block; margin-top: 2px; }
+  .paso .monto {
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    font-size: 16px;
+    white-space: nowrap;
+  }
+  .paso .estado-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 2px;
+  }
+  .paso.pagado .estado-tag { color: var(--primary); }
+
+  .tabla-resumen {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 18px;
+    font-size: 14px;
+  }
+  .tabla-resumen th {
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tabla-resumen td {
+    padding: 10px 10px;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+  .tabla-resumen tr:last-child td { border-bottom: none; }
+
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 560px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .estados { grid-template-columns: 1fr; }
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+
+
+
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 760px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-direction: column; gap: 28px; }
+  .eyebrow { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--primary); }
+  h1 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 900; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.01em; line-height: 1.08; margin: 6px 0 0; text-wrap: balance; }
+  .lede { font-size: 16px; line-height: 1.6; color: var(--text-muted); max-width: 62ch; margin: 0; }
+  h2 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; }
+  h3 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 19px; letter-spacing: -0.005em; margin: 0 0 8px; color: var(--text); }
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; }
+  .card p { color: var(--text-muted); }
+  .callout { border: 1px solid var(--error-dim); background: var(--surface-high); border-radius: 14px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; }
+  .callout p { color: var(--text-muted); }
+  .callout .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--error); margin-top: 7px; }
+  .callout strong { color: var(--error); }
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .campo-grupo { display: flex; flex-direction: column; gap: 10px; }
+  .campo {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 10px 0; border-top: 1px solid var(--border); gap: 12px;
+  }
+  .campo:first-child { border-top: none; }
+  .campo .nombre { font-size: 14.5px; font-weight: 700; color: var(--text); }
+  .campo .tipo { font-size: 12px; color: var(--text-muted); text-align: right; }
+  .badge {
+    display: inline-block; font-family: Arial, "Helvetica Neue", sans-serif;
+    font-weight: 800; font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 999px;
+  }
+  .badge.obligatorio { background: rgba(64,228,50,0.14); color: var(--primary); }
+  .badge.opcional { background: var(--surface-high); color: var(--text-muted); border: 1px solid var(--border); }
+  /* Estado de cuenta ejemplo */
+  .tabla-resumen { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  .tabla-resumen th { text-align: left; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .tabla-resumen td { padding: 10px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  .tabla-resumen tr:last-child td { border-bottom: none; }
+  .estado-pill { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; display: inline-block; }
+  .estado-pill.pendiente { background: var(--surface-high); color: var(--text-muted); border: 1px solid var(--border-strong); }
+  .estado-pill.parcial { background: rgba(219,230,211,0.1); color: var(--text); border: 1px solid var(--border-strong); }
+  .estado-pill.pagado { background: rgba(64,228,50,0.14); color: var(--primary); }
+  .estado-pill.definir { background: rgba(255,180,171,0.14); color: var(--error); }
+  @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
+  footer { border-top: 1px solid var(--border); padding-top: 18px; font-size: 12.5px; color: var(--text-muted); }
+
+
+
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 760px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-direction: column; gap: 28px; }
+  .eyebrow { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--primary); }
+  h1 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 900; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.01em; line-height: 1.08; margin: 6px 0 0; text-wrap: balance; }
+  .lede { font-size: 16px; line-height: 1.6; color: var(--text-muted); max-width: 62ch; margin: 0; }
+  h2 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; }
+  h3 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 19px; letter-spacing: -0.005em; margin: 0 0 8px; color: var(--text); }
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; }
+  .card p { color: var(--text-muted); }
+  .callout { border: 1px solid var(--error-dim); background: var(--surface-high); border-radius: 14px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; }
+  .callout p { color: var(--text-muted); }
+  .callout .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--error); margin-top: 7px; }
+  .callout strong { color: var(--error); }
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+
+  /* Pasos del check-in */
+  .recorrido { display: flex; flex-direction: column; gap: 0; }
+  .paso-r { display: grid; grid-template-columns: 32px 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid var(--border); }
+  .paso-r:first-child { border-top: none; }
+  .paso-r .num {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--surface-high);
+    border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center;
+    font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 13px; color: var(--primary);
+  }
+  .paso-r .txt p { color: var(--text-muted); font-size: 14.5px; }
+  .paso-r .txt strong { color: var(--text); }
+
+  /* Línea de tiempo de estado del alumno */
+  .linea-estado { position: relative; margin-top: 30px; padding: 0 10px 10px; }
+  .linea-track { position: relative; height: 6px; background: var(--border); border-radius: 999px; }
+  .linea-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 999px; background: var(--primary); width: 60%; }
+  .linea-fill.alerta { background: var(--text-muted); width: 100%; }
+  .marca { position: absolute; top: -26px; font-size: 11.5px; color: var(--text-muted); white-space: nowrap; }
+  .marca.dia0 { left: 0%; }
+  .marca.dia15 { left: 60%; transform: translateX(-50%); }
+  .marca.dia25 { left: 100%; transform: translateX(-100%); }
+  .marca strong { display: block; color: var(--text); font-size: 12.5px; }
+  .leyenda { display: flex; gap: 20px; margin-top: 22px; flex-wrap: wrap; }
+  .leyenda .item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); }
+  .leyenda .dot2 { width: 10px; height: 10px; border-radius: 50%; }
+  .dot2.activo { background: var(--primary); }
+  .dot2.alerta { background: var(--text-muted); }
+  .dot2.inactivo { background: var(--border-strong); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
+  footer { border-top: 1px solid var(--border); padding-top: 18px; font-size: 12.5px; color: var(--text-muted); }
+
+
+
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 780px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-direction: column; gap: 28px; }
+  .eyebrow { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--primary); }
+  h1 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 900; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.01em; line-height: 1.08; margin: 6px 0 0; text-wrap: balance; }
+  .lede { font-size: 16px; line-height: 1.6; color: var(--text-muted); max-width: 62ch; margin: 0; }
+  h2 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; }
+  h3 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 19px; letter-spacing: -0.005em; margin: 0 0 8px; color: var(--text); }
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; }
+  .card p { color: var(--text-muted); }
+  .callout { border: 1px solid var(--error-dim); background: var(--surface-high); border-radius: 14px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; }
+  .callout p { color: var(--text-muted); }
+  .callout .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--error); margin-top: 7px; }
+  .callout strong { color: var(--error); }
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+
+  /* Tres tipos de pago, tarjetas */
+  .tipos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .tipo-card {
+    background: var(--surface-high); border: 1px solid var(--border); border-radius: 14px;
+    padding: 16px 16px 18px;
+  }
+  .tipo-card .nombre {
+    font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 13px;
+    letter-spacing: 0.03em; text-transform: uppercase; color: var(--primary); margin-bottom: 8px;
+  }
+  .tipo-card p { font-size: 13px; color: var(--text-muted); }
+
+  /* Tabla de ejemplo familiar */
+  .tabla-resumen { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  .tabla-resumen th { text-align: left; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .tabla-resumen td { padding: 10px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  .tabla-resumen tr:last-child td { border-bottom: none; }
+  .tabla-resumen tfoot td { border-top: 1px solid var(--border-strong); border-bottom: none; font-weight: 800; color: var(--text); }
+
+  /* Selector visual completa/media */
+  .selector { display: flex; gap: 10px; margin-top: 10px; }
+  .opcion {
+    flex: 1; border: 1px solid var(--border-strong); border-radius: 10px; padding: 12px 14px;
+    font-size: 13.5px; text-align: center; color: var(--text-muted);
+  }
+  .opcion.elegida { border-color: var(--primary); color: var(--primary); font-weight: 700; background: rgba(64,228,50,0.08); }
+
+  /* Timeline adelantado */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .paso { display: grid; grid-template-columns: 28px 1fr auto; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); }
+  .paso:first-child { border-top: none; }
+  .paso .bolita { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); justify-self: center; }
+  .paso .texto { font-size: 14.5px; }
+  .paso .texto .sub { color: var(--text-muted); font-size: 13px; display: block; margin-top: 2px; }
+  .paso .monto { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 15px; white-space: nowrap; }
+
+  @media (max-width: 620px) {
+    .tipos { grid-template-columns: 1fr; }
+  }
+  footer { border-top: 1px solid var(--border); padding-top: 18px; font-size: 12.5px; color: var(--text-muted); }
+
+
+
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 800px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-direction: column; gap: 28px; }
+  .eyebrow { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--primary); }
+  h1 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 900; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.01em; line-height: 1.08; margin: 6px 0 0; text-wrap: balance; }
+  .lede { font-size: 16px; line-height: 1.6; color: var(--text-muted); max-width: 62ch; margin: 0; }
+  h2 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; }
+  h3 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 19px; letter-spacing: -0.005em; margin: 0 0 8px; color: var(--text); }
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; }
+  .card p { color: var(--text-muted); }
+  .callout { border: 1px solid var(--error-dim); background: var(--surface-high); border-radius: 14px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; }
+  .callout p { color: var(--text-muted); }
+  .callout .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--error); margin-top: 7px; }
+  .callout strong { color: var(--error); }
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+
+  /* KPI cards */
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .kpi {
+    background: var(--surface-high); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 10px; text-align: center;
+  }
+  .kpi .valor { font-weight: 800; font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .kpi .etiqueta { font-size: 10.5px; color: var(--text-muted); margin-top: 4px; line-height: 1.3; }
+
+  /* Secciones del centro de resumen, con letra */
+  .seccion-letra {
+    display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start;
+    padding: 18px 0; border-top: 1px solid var(--border);
+  }
+  .seccion-letra:first-child { border-top: none; padding-top: 0; }
+  .seccion-letra .letra {
+    width: 34px; height: 34px; border-radius: 10px; background: var(--surface-high);
+    border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center;
+    font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 14px; color: var(--primary);
+  }
+  .seccion-letra h3 { margin: 0 0 6px; }
+  .seccion-letra p { color: var(--text-muted); font-size: 14.5px; }
+
+  /* Mini cards de preview */
+  .preview-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+  .pv { background: var(--surface-low); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .pv .n { font-weight: 800; font-size: 16px; color: var(--primary); }
+  .pv .l { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .tabla-resumen { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13.5px; }
+  .tabla-resumen th { text-align: left; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .tabla-resumen td { padding: 9px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  .tabla-resumen tr:last-child td { border-bottom: none; }
+  .wa-btn {
+    display: inline-block; font-size: 11.5px; font-weight: 700; color: var(--primary);
+    border: 1px solid var(--primary-dim); border-radius: 999px; padding: 3px 10px;
+  }
+
+  @media (max-width: 680px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .preview-cards { grid-template-columns: repeat(2, 1fr); }
+  }
+  footer { border-top: 1px solid var(--border); padding-top: 18px; font-size: 12.5px; color: var(--text-muted); }
+
+
+
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 760px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-direction: column; gap: 28px; }
+  .eyebrow { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--primary); }
+  h1 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 900; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.01em; line-height: 1.08; margin: 6px 0 0; text-wrap: balance; }
+  .lede { font-size: 16px; line-height: 1.6; color: var(--text-muted); max-width: 62ch; margin: 0; }
+  h2 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; }
+  h3 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 19px; letter-spacing: -0.005em; margin: 0 0 8px; color: var(--text); }
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; }
+  .card p { color: var(--text-muted); }
+  .callout { border: 1px solid var(--error-dim); background: var(--surface-high); border-radius: 14px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; }
+  .callout p { color: var(--text-muted); }
+  .callout .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--error); margin-top: 7px; }
+  .callout strong { color: var(--error); }
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+
+  .tabla-resumen { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  .tabla-resumen th { text-align: left; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .tabla-resumen td { padding: 10px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  .tabla-resumen tr:last-child td { border-bottom: none; }
+
+  .timeline { display: flex; flex-direction: column; gap: 0; margin-top: 6px; }
+  .paso { display: grid; grid-template-columns: 28px 1fr auto; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); }
+  .paso:first-child { border-top: none; }
+  .paso .bolita { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); justify-self: center; }
+  .paso.activo .bolita { background: var(--primary); }
+  .paso .texto { font-size: 14.5px; }
+  .paso .texto .sub { color: var(--text-muted); font-size: 13px; display: block; margin-top: 2px; }
+  .paso .monto { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 15px; white-space: nowrap; }
+
+  .grid-modulos { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .mini { background: var(--surface-high); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .mini .t { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 13px; color: var(--text); margin-bottom: 4px; }
+  .mini p { font-size: 13px; color: var(--text-muted); }
+  @media (max-width: 560px) { .grid-modulos { grid-template-columns: 1fr; } }
+  footer { border-top: 1px solid var(--border); padding-top: 18px; font-size: 12.5px; color: var(--text-muted); }
+
+
+
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 760px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-direction: column; gap: 28px; }
+  .eyebrow { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--primary); }
+  h1 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 900; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.01em; line-height: 1.08; margin: 6px 0 0; text-wrap: balance; }
+  .lede { font-size: 16px; line-height: 1.6; color: var(--text-muted); max-width: 62ch; margin: 0; }
+  h2 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; }
+  h3 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 19px; letter-spacing: -0.005em; margin: 0 0 8px; color: var(--text); }
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; }
+  .card p { color: var(--text-muted); }
+  .callout { border: 1px solid var(--error-dim); background: var(--surface-high); border-radius: 14px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; }
+  .callout p { color: var(--text-muted); }
+  .callout .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--error); margin-top: 7px; }
+  .callout strong { color: var(--error); }
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+
+  .matriz { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 13.5px; }
+  .matriz th { text-align: left; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .matriz td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: center; }
+  .matriz td:first-child { text-align: left; color: var(--text); font-weight: 600; }
+  .matriz tr:last-child td { border-bottom: none; }
+  .si { color: var(--primary); font-weight: 800; }
+  .no { color: var(--text-muted); }
+
+  .roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .rol { background: var(--surface-high); border: 1px solid var(--border); border-radius: 14px; padding: 18px 18px 20px; }
+  .rol .nombre { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--primary); margin-bottom: 8px; }
+  .rol ul { margin: 0; padding-left: 18px; }
+  .rol li { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; line-height: 1.5; }
+
+  @media (max-width: 620px) { .roles { grid-template-columns: 1fr; } .matriz { font-size: 12px; } }
+  footer { border-top: 1px solid var(--border); padding-top: 18px; font-size: 12.5px; color: var(--text-muted); }
+
+
+
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 760px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-direction: column; gap: 28px; }
+  .eyebrow { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--primary); }
+  h1 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 900; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.01em; line-height: 1.08; margin: 6px 0 0; text-wrap: balance; }
+  .lede { font-size: 16px; line-height: 1.6; color: var(--text-muted); max-width: 62ch; margin: 0; }
+  h2 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; }
+  h3 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 19px; letter-spacing: -0.005em; margin: 0 0 8px; color: var(--text); }
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; }
+  .card p { color: var(--text-muted); }
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+
+  .tabla-resumen { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  .tabla-resumen th { text-align: left; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .tabla-resumen td { padding: 10px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  .tabla-resumen tr:last-child td { border-bottom: none; }
+  footer { border-top: 1px solid var(--border); padding-top: 18px; font-size: 12.5px; color: var(--text-muted); }
+
+
+/* ===== Extra: manual combinado — portada, índice, impresión ===== */
+* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+
+@page { size: A4; margin: 20mm 16mm 30mm; }
+
+.page.capitulo { break-before: page; }
+
+/* No cortar tarjetas/tablas a la mitad entre páginas — si no entra completo,
+   pasa entero a la página siguiente en vez de quedar tapado por el pie fijo. */
+.card,
+.callout,
+.tabla-resumen,
+.tipo-card,
+.mini,
+.rol,
+.modulo,
+.pv,
+.kpi,
+.estados,
+.paso,
+.paso-r,
+.seccion-letra,
+.campo-grupo,
+.roles,
+.tipos,
+.grid-modulos,
+.preview-cards,
+.kpis {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+}
+tr { break-inside: avoid; }
+
+.portada {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 24px;
+  break-after: page;
+}
+.portada .marca-eyebrow {
+  font-family: Arial, "Helvetica Neue", sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 18px;
+}
+.portada h1 {
+  font-size: clamp(36px, 7vw, 58px);
+  margin: 0;
+}
+.portada .sub {
+  margin-top: 18px;
+  font-size: 18px;
+  color: var(--text-muted);
+  max-width: 46ch;
+  line-height: 1.55;
+}
+.portada .meta {
+  margin-top: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.portada .meta strong { color: var(--text); }
+.portada .linea {
+  margin-top: 40px;
+  width: 64px;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+}
+
+.indice-manual { break-after: page; padding-top: 40px; }
+.indice-manual h2 {
+  font-family: Arial, "Helvetica Neue", sans-serif;
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 24px;
+}
+.indice-manual ol { list-style: none; margin: 0; padding: 0; counter-reset: cap; }
+.indice-manual li {
+  counter-increment: cap;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  font-size: 15.5px;
+}
+.indice-manual li:first-child { border-top: none; }
+.indice-manual li::before {
+  content: counter(cap, decimal-leading-zero);
+  font-family: Arial, "Helvetica Neue", sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text-muted);
+  flex: none;
+  width: 28px;
+}
+.indice-manual li .desc { color: var(--text-muted); font-size: 13px; margin-left: auto; text-align: right; max-width: 34ch; }
+
+.pie-manual {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  gap: 8px;
+  padding: 9px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  z-index: 10;
+}
+.pie-manual img { height: 13px; width: auto; flex: none; opacity: 0.7; display: block; position: static; }
+.pie-manual .df-marca { position: static; top: auto; font-weight: 700; color: var(--text-muted); flex: none; white-space: nowrap; }
+.pie-manual span { flex: none; }
+
+</style>
+</head>
+<body>
+
+<section class="page portada">
+  <div class="marca-eyebrow">Tropa Gym</div>
+  <h1>Manual de<br />Usuario</h1>
+  <p class="sub">
+    Guía completa del sistema de gestión: alumnos, asistencia, pagos,
+    cargos, dashboard y configuración — explicado en lenguaje simple,
+    con ejemplos.
+  </p>
+  <div class="linea"></div>
+  <div class="meta">
+    <div><strong>Versión</strong> — 2026</div>
+    <div><strong>Desarrollado por</strong> — deciDATA</div>
+  </div>
+</section>
+
+
+<section class="page indice-manual">
+  <h2>Índice</h2>
+  <ol>
+    <li><span>Instructivo general</span><span class="desc"></span></li>
+    <li><span>Cargos y pagos</span><span class="desc"></span></li>
+    <li><span>Alumnos y fichas</span><span class="desc"></span></li>
+    <li><span>Asistencia</span><span class="desc"></span></li>
+    <li><span>Pagos</span><span class="desc"></span></li>
+    <li><span>Dashboard y Resumen Mensual</span><span class="desc"></span></li>
+    <li><span>Configuración</span><span class="desc"></span></li>
+    <li><span>Roles y permisos</span><span class="desc"></span></li>
+    <li><span>Egresos</span><span class="desc"></span></li>
+  </ol>
+</section>
+
+<div class="page capitulo">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Instructivo general</div>
+    <h1>Cómo funciona el sistema, de un vistazo</h1>
+    <p class="lede">
+      Esta es la guía de entrada. Explica la idea general del sistema y cómo se
+      conectan sus partes. Cada tema con más detalle tiene su propia guía corta,
+      con ejemplos — las vas a encontrar en el índice al final.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>La idea de fondo</h2>
+    <h3>El sistema sigue el mismo recorrido que hace un alumno en el gimnasio</h3>
+    <p>
+      Un alumno se anota, va entrenando, y a fin de mes tiene que pagar. El
+      sistema está armado para acompañar exactamente ese recorrido: registra
+      cuándo asiste, calcula solo cuánto debe pagar ese mes, y lleva la cuenta
+      de lo que va abonando. Vos (o tu equipo) casi no tenés que cargar nada a
+      mano — el sistema hace los cálculos, y el trabajo humano se limita a
+      cobrar, confirmar y, si hace falta, corregir alguna excepción puntual.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Quién puede hacer qué</h2>
+    <h3>Tres accesos, cada uno con lo justo y necesario</h3>
+    <div class="roles">
+      <div class="rol">
+        <div class="nombre">Administrador</div>
+        <p>Acceso a todo: liquida el mes, ve el Dashboard completo, maneja precios, combos, turnos y egresos.</p>
+      </div>
+      <div class="rol">
+        <div class="nombre">Profesor</div>
+        <p>Trabaja el día a día: alumnos, asistencia y pagos. No ve el Dashboard, Configuración ni Egresos.</p>
+      </div>
+      <div class="rol">
+        <div class="nombre">Kiosco</div>
+        <p>Un solo botón: registrar la asistencia de un alumno cuando llega. Nada más.</p>
+      </div>
+    </div>
+    <p style="margin-top: 14px;">
+      Más detalle de cada permiso, y por qué los logins son compartidos entre
+      personas del mismo rol, en el módulo <strong>Roles y permisos</strong>.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>El recorrido completo, paso a paso</h2>
+    <div class="recorrido">
+      <div class="paso-r">
+        <div class="num">1</div>
+        <div class="txt">
+          <p><strong>El alumno se anota</strong> — se carga su ficha (nombre, DNI, y opcionalmente su plan: disciplina + combo).</p>
+        </div>
+      </div>
+      <div class="paso-r">
+        <div class="num">2</div>
+        <div class="txt">
+          <p><strong>El alumno asiste</strong> — marca presente por DNI o nombre. Esa asistencia es la que, ese mes, dispara todo lo demás.</p>
+        </div>
+      </div>
+      <div class="paso-r">
+        <div class="num">3</div>
+        <div class="txt">
+          <p><strong>La deuda se genera sola</strong> — con la primera asistencia del mes, el sistema ya sabe que ese alumno tiene que pagar, y calcula cuánto según su plan.</p>
+        </div>
+      </div>
+      <div class="paso-r">
+        <div class="num">4</div>
+        <div class="txt">
+          <p><strong>Se registra el pago</strong> — individual, familiar o adelantado. El sistema actualiza sola la cuenta del alumno (pendiente, parcial o pagado).</p>
+        </div>
+      </div>
+      <div class="paso-r">
+        <div class="num">5</div>
+        <div class="txt">
+          <p><strong>A fin de mes, el Administrador liquida el período</strong> — confirma la generación de todas las deudas del mes desde un solo botón, con vista previa antes de confirmar.</p>
+        </div>
+      </div>
+      <div class="paso-r">
+        <div class="num">6</div>
+        <div class="txt">
+          <p><strong>El Dashboard muestra el panorama</strong> — quién debe, quién está por dejar de venir, cuánto se ganó, cuántas horas trabajó cada profesor.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="callout">
+    <div class="dot"></div>
+    <p>
+      <strong>Regla de oro del sistema:</strong> deber plata nunca le impide a
+      un alumno entrenar. La deuda se muestra siempre, pero no bloquea el
+      ingreso — el check-in de asistencia se hace igual.
+    </p>
+  </div>
+
+  <section>
+    <h2>Índice de módulos</h2>
+    <div class="indice">
+      <a class="modulo" href="02_alumnos_y_fichas.html">
+        <div class="tag">Módulo</div>
+        <div class="titulo">Alumnos y fichas</div>
+        <div class="desc">Alta, datos, plan actual y estado de cuenta de cada alumno.</div>
+      </a>
+      <a class="modulo" href="03_asistencia.html">
+        <div class="tag">Módulo</div>
+        <div class="titulo">Asistencia</div>
+        <div class="desc">Check-in de alumnos, entrada/salida de profesores, y el estado activo/inactivo.</div>
+      </a>
+      <a class="modulo complejo" href="04_pagos.html">
+        <div class="tag">Módulo · lógica clave</div>
+        <div class="titulo">Pagos</div>
+        <div class="desc">Individual, familiar, adelantado — tipos, métodos y la decisión de cuota completa o media.</div>
+      </a>
+      <a class="modulo complejo" href="01_cargos_y_pagos.html">
+        <div class="tag">Módulo · lógica clave</div>
+        <div class="titulo">Cargos (la deuda mensual)</div>
+        <div class="desc">Cómo se genera sola la deuda de cada mes, y sus tres estados.</div>
+      </a>
+      <a class="modulo complejo" href="05_dashboard_resumen_mensual.html">
+        <div class="tag">Módulo · lógica clave</div>
+        <div class="titulo">Dashboard y Resumen Mensual</div>
+        <div class="desc">KPIs del negocio, liquidación del mes, deudores y alertas.</div>
+      </a>
+      <a class="modulo" href="06_configuracion.html">
+        <div class="tag">Módulo</div>
+        <div class="titulo">Configuración</div>
+        <div class="desc">Combos, precios, disciplinas, turnos, descuentos y profesores.</div>
+      </a>
+      <a class="modulo" href="07_roles_y_permisos.html">
+        <div class="tag">Módulo</div>
+        <div class="titulo">Roles y permisos</div>
+        <div class="desc">Qué puede hacer cada acceso, y cómo funcionan los logins compartidos.</div>
+      </a>
+      <a class="modulo" href="08_egresos.html">
+        <div class="tag">Módulo</div>
+        <div class="titulo">Egresos</div>
+        <div class="desc">Registro simple de gastos del gimnasio.</div>
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    Tropa Gym — instructivo general. Los módulos marcados "lógica clave" son los
+    que vale la pena leer con más atención — son los que hacen cálculos solos.
+  </footer>
+
+</div>
+
+<div class="page capitulo">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Pagos y cargos</div>
+    <h1>Cómo funciona la deuda de cada alumno</h1>
+    <p class="lede">
+      Guía corta para entender qué es un "cargo", cómo se genera solo, cómo se
+      calcula lo que hay que pagar, y qué pasa con los pagos parciales o de más.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>1 — Qué es un cargo</h2>
+    <h3>La deuda del mes, no el pago</h3>
+    <p>
+      Un <strong>cargo</strong> es lo que un alumno tiene que pagar en un período
+      (un mes). No es un pago — es la cuenta que se le abre. Un <strong>pago</strong>
+      es distinto: es la plata que efectivamente entra, y puede cubrir un cargo
+      de una vez, en partes, o incluso de más.
+    </p>
+    <p>
+      Separar estas dos cosas es lo que permite que un alumno pague en dos veces,
+      o pague de más un mes y eso se descuente del que viene, sin romper nada.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>2 — Cuándo se genera</h2>
+    <h3>La asistencia dispara la deuda</h3>
+    <p>
+      Apenas un alumno marca presente por primera vez en el mes, el sistema ya
+      sabe que tiene que pagar — no hace falta que nadie lo cargue a mano.
+    </p>
+    <div class="grid-2" style="margin-top: 14px;">
+      <div>
+        <p><strong>Asiste entre el día 1 y el 14</strong><br />se le cobra el mes completo.</p>
+      </div>
+      <div>
+        <p><strong>Asiste del día 15 en adelante</strong><br />se le cobra medio mes.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3 — Cuánto hay que pagar</h2>
+    <h3>El monto sale del plan del alumno</h3>
+    <p>
+      El monto del cargo depende de su combo (plan) y el precio vigente de ese
+      combo. Si el alumno ya venía pagando, el sistema usa el mismo plan de la
+      última vez; si es nuevo, usa el plan que tiene asignado en su ficha.
+    </p>
+    <p>
+      Y esa ficha se mantiene sola: cada vez que se registra un pago Individual
+      o Familiar, el plan de la ficha del alumno se actualiza con lo que se
+      cargó en ese pago — así siempre queda mostrando el plan real, sin que
+      nadie tenga que ir a corregirlo a mano.
+    </p>
+    <div class="callout" style="margin-top: 16px;">
+      <div class="dot"></div>
+      <p>
+        <strong>¿Y si el sistema no sabe qué plan tiene?</strong> El cargo se genera
+        igual — nunca se pierde el registro de que ese alumno debe pagar. Queda
+        marcado <strong>"a definir"</strong>, con el mes calculado bien (completo o
+        medio), pero sin el monto en $. El encargado lo completa a mano apenas lo ve
+        en la lista de "Cargos sin monto definido".
+      </p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>4 — Los tres estados del cargo</h2>
+    <h3>Se calculan solos, según lo que se pagó</h3>
+    <div class="estados">
+      <div class="estado">
+        <div class="ring ring--0"></div>
+        <div class="nombre">Pendiente</div>
+        <div class="desc">Todavía no pagó nada de este cargo.</div>
+      </div>
+      <div class="estado">
+        <div class="ring ring--50"></div>
+        <div class="nombre">Parcial</div>
+        <div class="desc">Pagó una parte. Queda saldo de ese mes.</div>
+      </div>
+      <div class="estado pagado">
+        <div class="ring ring--100"></div>
+        <div class="nombre">Pagado</div>
+        <div class="desc">Cubrió el total (o más) de ese cargo.</div>
+      </div>
+    </div>
+    <p style="margin-top: 18px;">
+      El sistema suma <strong>todo</strong> lo que el alumno pagó contra ese cargo
+      puntual — no solo el último pago — y lo compara contra el monto. No hace
+      falta que nadie marque el estado a mano, se recalcula solo cada vez que
+      entra un pago nuevo.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>5 — Pagos parciales y pagos de más</h2>
+    <p>
+      Un alumno puede pagar en varias veces. Y si en algún momento paga de más,
+      ese excedente no se pierde: queda como <strong>saldo a favor</strong> del
+      alumno, visible en su cuenta general, para el mes que viene.
+    </p>
+
+    <h3 style="margin-top: 22px;">Ejemplo: una cuota de $10.000</h3>
+    <div class="timeline">
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">
+          Se genera el cargo del mes
+          <span class="sub">Cuota completa, combo de 3 días</span>
+        </div>
+        <div>
+          <div class="monto">$10.000</div>
+          <div class="estado-tag">Pendiente</div>
+        </div>
+      </div>
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">
+          Primer pago
+          <span class="sub">Paga una parte</span>
+        </div>
+        <div>
+          <div class="monto">$6.000</div>
+          <div class="estado-tag">Sigue parcial · debe $4.000</div>
+        </div>
+      </div>
+      <div class="paso pagado">
+        <div class="bolita"></div>
+        <div class="texto">
+          Segundo pago — completa la cuota
+          <span class="sub">Cubre lo que faltaba</span>
+        </div>
+        <div>
+          <div class="monto">$4.000</div>
+          <div class="estado-tag">Pagado</div>
+        </div>
+      </div>
+      <div class="paso pagado">
+        <div class="bolita"></div>
+        <div class="texto">
+          Pago de más, ya con la cuota cubierta
+          <span class="sub">Paga $2.000 extra por adelantado</span>
+        </div>
+        <div>
+          <div class="monto">+$2.000</div>
+          <div class="estado-tag">Sigue pagado · $2.000 a favor</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>6 — Dónde se ve todo esto en el sistema</h2>
+    <ul class="lista-simple">
+      <li><strong>Ficha del alumno</strong> — estado de cuenta mes a mes, con el estado de cada cargo y la opción de corregir un monto si hace falta.</li>
+      <li><strong>Historial de pagos</strong> — cada pago registrado, con acción para editar un monto cargado mal, o completar un pago que quedó parcial.</li>
+      <li><strong>Centro de Resumen Mensual</strong> — quiénes deben, cuánto, y los cargos que quedaron "a definir" esperando que se les cargue el monto.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Tropa Gym — lógica de cargos y pagos.
+  </footer>
+
+</div>
+
+<div class="page capitulo">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Alumnos</div>
+    <h1>La ficha del alumno y cómo se mantiene sola</h1>
+    <p class="lede">
+      Qué datos tiene un alumno, qué es su "plan actual", y por qué casi nunca
+      hace falta ir a editarlo a mano.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>1 — Datos del alta</h2>
+    <h3>Lo mínimo para anotar a alguien</h3>
+    <div class="campo-grupo">
+      <div class="campo">
+        <div class="nombre">Nombre y Apellido</div>
+        <div class="tipo"><span class="badge obligatorio">Obligatorio</span></div>
+      </div>
+      <div class="campo">
+        <div class="nombre">DNI</div>
+        <div class="tipo"><span class="badge obligatorio">Obligatorio</span></div>
+      </div>
+      <div class="campo">
+        <div class="nombre">Teléfono</div>
+        <div class="tipo"><span class="badge opcional">Opcional</span></div>
+      </div>
+      <div class="campo">
+        <div class="nombre">Fecha de nacimiento</div>
+        <div class="tipo"><span class="badge opcional">Opcional</span></div>
+      </div>
+      <div class="campo">
+        <div class="nombre">Plan (disciplina + combo)</div>
+        <div class="tipo"><span class="badge opcional">Opcional</span></div>
+      </div>
+    </div>
+    <p style="margin-top: 14px;">
+      Con nombre y DNI ya se puede dar de alta a un alumno. El teléfono conviene
+      cargarlo porque es lo que se usa para contactarlo por WhatsApp si queda
+      debiendo (ver módulo Dashboard). No hace falta saber todavía qué plan va
+      a pagar — eso se puede completar después, o directamente dejar que se
+      complete solo con el primer pago.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>2 — El "plan actual" se actualiza solo</h2>
+    <h3>No hace falta ir a corregirlo cuando un alumno cambia de plan</h3>
+    <p>
+      El plan actual (disciplina + combo) es lo que se muestra cuando el alumno
+      marca asistencia, y sirve para saber cuánto le corresponde pagar. La
+      única vez que alguien lo toca a mano es en el alta, si se sabe de
+      entrada. Después, <strong>cada vez que se le registra un pago Individual
+      o Familiar</strong>, el sistema toma la disciplina y el combo de ese pago
+      y actualiza la ficha sola.
+    </p>
+    <div class="callout" style="margin-top: 14px;">
+      <div class="dot"></div>
+      <p>
+        <strong>Ejemplo:</strong> Juan está anotado en Funcional, combo 3 días.
+        En marzo decide pasarse a Boxeo, combo 5 días, y así se le cobra el
+        pago de marzo. Nadie tiene que ir a editar la ficha de Juan — apenas
+        se registra ese pago, su ficha ya muestra "Boxeo · 5 días" como plan
+        actual, listo para el check-in del mes que viene.
+      </p>
+    </div>
+    <p style="margin-top: 14px;">
+      Ojo con un caso puntual: si a Juan le registran un pago <strong>Adelantado</strong>
+      (varios meses de una), la ficha <strong>no</strong> se actualiza con ese
+      pago — a propósito, porque un adelantado paga meses que todavía no
+      arrancaron, y mostrar ese plan antes de tiempo generaría confusión en el
+      check-in de hoy.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>3 — Estado del alumno: Activo / Inactivo</h2>
+    <h3>Se calcula solo, mirando la última asistencia</h3>
+    <p>
+      Nadie marca a un alumno como "inactivo" a mano. El sistema mira cuándo
+      fue su última asistencia:
+    </p>
+    <ul class="lista-simple" style="margin-top: 10px;">
+      <li><strong>Activo</strong> — asistió en los últimos 25 días.</li>
+      <li><strong>Inactivo</strong> — pasaron 25 días sin que asista.</li>
+    </ul>
+    <p style="margin-top: 10px;">
+      El detalle completo (incluida la alerta preventiva a los 15 días) está en
+      el módulo <strong>Asistencia</strong>.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>4 — Estado de cuenta, dentro de la ficha</h2>
+    <h3>Cuánto debe cada mes, mes por mes</h3>
+    <p>
+      Entrando a la ficha de un alumno se ve su historial: un renglón por
+      período, con el estado del cargo de ese mes.
+    </p>
+    <table class="tabla-resumen">
+      <thead>
+        <tr><th>Período</th><th>Plan</th><th>Monto</th><th>Estado</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Mayo 2026</td><td>Funcional · 3 días</td><td>$10.000</td><td><span class="estado-pill pagado">Pagado</span></td></tr>
+        <tr><td>Junio 2026</td><td>Boxeo · 5 días</td><td>$14.000</td><td><span class="estado-pill parcial">Parcial</span></td></tr>
+        <tr><td>Julio 2026</td><td>Boxeo · 5 días</td><td>—</td><td><span class="estado-pill definir">A definir</span></td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top: 14px;">
+      El badge rojo <strong>"Monto sin definir"</strong> quiere decir que el
+      alumno sí tiene que pagar ese mes, pero el sistema no pudo calcular
+      cuánto todavía (le falta un combo o precio de referencia). Se completa
+      ahí mismo, en la ficha, sin ir a otra pantalla — lo puede hacer
+      Administrador o Profesor.
+    </p>
+  </section>
+
+  <footer>
+    Tropa Gym — módulo Alumnos y fichas. Ver también: Pagos, Asistencia, Cargos.
+  </footer>
+
+</div>
+
+<div class="page capitulo">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Asistencia</div>
+    <h1>El check-in, y lo que dispara solo</h1>
+    <p class="lede">
+      Marcar presente es el gesto más simple del sistema — pero es el que
+      arranca todo lo demás: la deuda del mes, el plan que se muestra, y el
+      estado de actividad del alumno.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>1 — Check-in de un alumno</h2>
+    <h3>Cuatro pasos, siempre los mismos</h3>
+    <div class="recorrido">
+      <div class="paso-r">
+        <div class="num">1</div>
+        <div class="txt"><p><strong>Buscar</strong> al alumno por DNI o por nombre.</p></div>
+      </div>
+      <div class="paso-r">
+        <div class="num">2</div>
+        <div class="txt"><p>El sistema muestra su <strong>estado de cuenta y su plan actual</strong> (disciplina + combo) — para que quien lo recibe sepa de un vistazo si debe algo.</p></div>
+      </div>
+      <div class="paso-r">
+        <div class="num">3</div>
+        <div class="txt"><p><strong>Elegir el turno</strong> — el horario en el que está entrenando ahora.</p></div>
+      </div>
+      <div class="paso-r">
+        <div class="num">4</div>
+        <div class="txt"><p><strong>Confirmar.</strong> Listo — la asistencia queda registrada.</p></div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top: 18px;">
+      <div class="dot"></div>
+      <p>
+        <strong>La deuda nunca frena el check-in.</strong> Si un alumno debe
+        dos meses, igual puede marcar presente sin ningún paso extra — el
+        sistema muestra la deuda, no la usa como traba para entrenar.
+      </p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2 — Lo que se dispara solo con la primera asistencia del mes</h2>
+    <h3>El alumno no "pide" que le generen la deuda — ya está generada</h3>
+    <p>
+      La primera vez que un alumno marca presente en el mes, el sistema ya sabe
+      que tiene que pagar ese período, y calcula automáticamente si le
+      corresponde <strong>cuota completa</strong> o <strong>media cuota</strong>,
+      mirando el día del mes de esa primera asistencia.
+    </p>
+    <div class="grid-2" style="margin-top: 14px;">
+      <div><p><strong>Asiste entre el día 1 y el 14</strong><br />se genera la cuota completa.</p></div>
+      <div><p><strong>Asiste del día 15 en adelante</strong><br />se genera media cuota.</p></div>
+    </div>
+    <p style="margin-top: 14px;">
+      El monto exacto en pesos sale del combo del alumno (ver módulo Cargos
+      para el detalle completo de este cálculo).
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>3 — Estado del alumno: Activo, Alerta, Inactivo</h2>
+    <h3>Se calcula solo mirando la última vez que vino</h3>
+    <div class="linea-estado">
+      <div class="marca dia0"><strong>Día 0</strong>Última asistencia</div>
+      <div class="marca dia15"><strong>Día 15</strong>Alerta preventiva</div>
+      <div class="marca dia25"><strong>Día 25</strong>Pasa a Inactivo</div>
+      <div class="linea-track">
+        <div class="linea-fill"></div>
+      </div>
+    </div>
+    <div class="leyenda">
+      <div class="item"><div class="dot2 activo"></div>Activo</div>
+      <div class="item"><div class="dot2 alerta"></div>Alerta (15 a 24 días sin venir)</div>
+      <div class="item"><div class="dot2 inactivo"></div>Inactivo (25+ días sin venir)</div>
+    </div>
+    <p style="margin-top: 20px;">
+      La "alerta" no es un estado formal del alumno — es un aviso visual. Esos
+      alumnos aparecen listados en <strong>"Próximos a inactivarse"</strong>,
+      dentro del Centro de Resumen Mensual del Dashboard, para poder
+      contactarlos antes de que se corte la racha.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>4 — Asistencia de profesores</h2>
+    <h3>Entrada y salida, para llevar sus horas</h3>
+    <p>
+      Cada profesor registra su propia entrada y su propia salida (fecha y
+      hora). No hay más que eso: sin turno, sin selección de alumno. Ese
+      registro es el insumo directo de <strong>"Horas por profesor"</strong>
+      en el Dashboard — la suma de las horas trabajadas en el mes, y cuántas
+      asistencias de alumnos atendió en ese lapso.
+    </p>
+    <p style="margin-top: 10px;">
+      Varios profesores pueden compartir el mismo login (ver módulo Roles y
+      permisos): cada uno igual aparece listado por separado para marcar su
+      propia entrada/salida.
+    </p>
+  </section>
+
+  <footer>
+    Tropa Gym — módulo Asistencia. Ver también: Alumnos y fichas, Cargos, Dashboard.
+  </footer>
+
+</div>
+
+<div class="page capitulo">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Pagos · lógica clave</div>
+    <h1>Cómo se registra un pago</h1>
+    <p class="lede">
+      Este es uno de los módulos más importantes: acá es donde entra la plata.
+      Tres tipos de pago, un precio que sale siempre del combo, y una decisión
+      manual — completa o media — que conviene entender bien.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>1 — Los tres tipos de pago</h2>
+    <div class="tipos">
+      <div class="tipo-card">
+        <div class="nombre">Individual</div>
+        <p>Un alumno, un pago. El caso de todos los días: alguien viene a pagar su cuota.</p>
+      </div>
+      <div class="tipo-card">
+        <div class="nombre">Familiar</div>
+        <p>Un solo comprobante, pero cubre a varios alumnos (por ejemplo, hermanos). Cada uno con su propio plan y su propio monto.</p>
+      </div>
+      <div class="tipo-card">
+        <div class="nombre">Adelantado</div>
+        <p>Un alumno paga varios meses de una sola vez, por adelantado. Cada mes queda registrado como si se hubiera pagado por separado.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2 — De dónde sale el monto</h2>
+    <h3>Siempre del combo, nunca de la disciplina</h3>
+    <p>
+      El precio que hay que pagar depende exclusivamente del <strong>combo</strong>
+      elegido (por ejemplo, "3 días" o "5 días" por semana). Que el alumno
+      haga Funcional o Boxeo no cambia nada en el precio — la disciplina es
+      solo el nombre de la actividad, el combo es lo que define cuánto sale.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>3 — Cuota completa o media: una decisión, no una adivinanza</h2>
+    <h3>Este es el punto que más conviene tener claro</h3>
+    <p>
+      Cuando se genera la deuda automáticamente al final del mes (ver módulo
+      Cargos), el sistema calcula solo si corresponde completa o media, según
+      el día en que el alumno asistió por primera vez. Pero cuando alguien del
+      staff <strong>registra un pago a mano</strong> (Individual, o cada
+      alumno dentro de un Familiar), tiene que elegir de nuevo entre completa
+      y media — el sistema no lo detecta solo en este paso.
+    </p>
+    <div class="selector">
+      <div class="opcion elegida">Cuota completa</div>
+      <div class="opcion">Media cuota</div>
+    </div>
+    <p style="margin-top: 14px;">
+      ¿Por qué es una decisión manual y no automática? Porque quien cobra
+      puede necesitar corregir algo puntual (un alumno que faltó, una
+      excepción acordada, un pago que corresponde a un mes distinto al que
+      está calculando el sistema). Es una <strong>regla de facturación</strong>,
+      no un descuento — se aplica sobre el precio del combo <em>antes</em> de
+      cualquier descuento comercial que se sume después.
+    </p>
+    <div class="callout" style="margin-top: 14px;">
+      <div class="dot"></div>
+      <p>
+        <strong>El pago Adelantado no tiene este selector.</strong> Al pagar
+        varios meses de una, se asume el mismo plan completo para todos los
+        períodos futuros — no aplica media cuota en ningún mes del adelanto.
+      </p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>4 — Métodos de pago</h2>
+    <p>
+      Efectivo, Transferencia, o Combinado (una parte de cada uno). En el caso
+      combinado, la suma de ambos importes tiene que coincidir con lo que
+      efectivamente se cobró — que puede ser menos que el precio de la cuota
+      (pago parcial) o más (el excedente queda a favor del alumno para el mes
+      que viene).
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>5 — El pago actualiza la ficha del alumno</h2>
+    <p>
+      Cada pago <strong>Individual</strong> o <strong>Familiar</strong>
+      actualiza automáticamente el plan actual (disciplina + combo) de la
+      ficha de cada alumno involucrado, con lo que se cargó en ese pago. El
+      <strong>Adelantado no</strong> — ver el porqué en el módulo Alumnos y
+      fichas.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Ejemplo — Pago Familiar</h2>
+    <h3>Un comprobante, dos hermanos, dos planes distintos</h3>
+    <table class="tabla-resumen">
+      <thead>
+        <tr><th>Alumno</th><th>Disciplina · Combo</th><th>Cuota</th><th>Monto</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Martina</td><td>Funcional · 3 días</td><td>Completa</td><td>$10.000</td></tr>
+        <tr><td>Tomás</td><td>Boxeo · 5 días</td><td>Media</td><td>$7.000</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="3">Total del comprobante</td><td>$17.000</td></tr>
+      </tfoot>
+    </table>
+    <p style="margin-top: 14px;">
+      Se registra un único pago, pero cada alumno queda con su propio cargo
+      cancelado y su propia ficha actualizada por separado.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Ejemplo — Pago Adelantado</h2>
+    <h3>Tres meses, en un solo momento</h3>
+    <div class="timeline">
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">Junio 2026 <span class="sub">Combo 3 días</span></div>
+        <div class="monto">$10.000</div>
+      </div>
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">Julio 2026 <span class="sub">Combo 3 días</span></div>
+        <div class="monto">$10.000</div>
+      </div>
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">Agosto 2026 <span class="sub">Combo 3 días</span></div>
+        <div class="monto">$10.000</div>
+      </div>
+    </div>
+    <p style="margin-top: 14px;">
+      Cada mes queda registrado como su propio cargo pagado — cuando llegue
+      agosto, ese período ya va a figurar "Pagado" sin que nadie tenga que
+      hacer nada.
+    </p>
+  </section>
+
+  <footer>
+    Tropa Gym — módulo Pagos. Ver también: Cargos (la deuda), Alumnos y fichas, Configuración (combos y precios).
+  </footer>
+
+</div>
+
+<div class="page capitulo">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Dashboard · lógica clave</div>
+    <h1>El panorama del negocio, y la liquidación del mes</h1>
+    <p class="lede">
+      El Dashboard tiene dos vistas: una de números para mirar el negocio en
+      general (KPI), y un centro de alertas mensual donde se cierra el mes y
+      se ve quién necesita atención.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>1 — Vista KPI</h2>
+    <h3>El estado del negocio, en un vistazo, filtrable por período</h3>
+    <div class="kpis">
+      <div class="kpi"><div class="valor">128</div><div class="etiqueta">Alumnos activos</div></div>
+      <div class="kpi"><div class="valor">$980.000</div><div class="etiqueta">Ingresos</div></div>
+      <div class="kpi"><div class="valor">$65.000</div><div class="etiqueta">Saldo a cobrar</div></div>
+      <div class="kpi"><div class="valor">$210.000</div><div class="etiqueta">Egresos</div></div>
+      <div class="kpi"><div class="valor">$770.000</div><div class="etiqueta">Ganancia neta</div></div>
+    </div>
+    <p style="margin-top: 16px;">
+      Además hay un gráfico que muestra la evolución mes a mes de la ganancia
+      neta y de la cantidad de alumnos activos, y una card con los horarios
+      (turnos) que más se llenan — útil para decidir si conviene abrir un
+      turno nuevo o reforzar uno existente.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>2 — Centro de Resumen Mensual</h2>
+    <h3>Un centro de alertas, pensado para revisar una vez al mes</h3>
+
+    <div class="seccion-letra">
+      <div class="letra">A</div>
+      <div>
+        <h3>Liquidación del período</h3>
+        <p>
+          Es la acción principal de esta pantalla: generar la deuda de todos
+          los alumnos del mes, de una sola vez. Antes de confirmar, se ve una
+          <strong>vista previa</strong> con lo que va a pasar:
+        </p>
+        <div class="preview-cards">
+          <div class="pv"><div class="n">84</div><div class="l">Cuotas completas</div></div>
+          <div class="pv"><div class="n">12</div><div class="l">Medias cuotas</div></div>
+          <div class="pv"><div class="n">6</div><div class="l">Sin asistencia (no se les cobra)</div></div>
+          <div class="pv"><div class="n">$860.000</div><div class="l">Monto a generar</div></div>
+        </div>
+        <p style="margin-top: 12px;">
+          "Cuotas completas" son los alumnos que asistieron por primera vez
+          entre el día 1 y el 14 del mes; "medias cuotas", los que asistieron
+          del día 15 en adelante (ver módulo Asistencia). Recién después de
+          revisar esta vista previa se confirma con el botón
+          <strong>"Generar cargos del período"</strong> — es la única forma de
+          liquidar el mes, para evitar duplicados o cobros a mitad de camino.
+        </p>
+      </div>
+    </div>
+
+    <div class="seccion-letra">
+      <div class="letra">B</div>
+      <div>
+        <h3>Fila de alertas</h3>
+        <p>Tres números chicos, de un vistazo: alumnos con deuda (y cuánto suman), alumnos próximos a inactivarse, y horas totales trabajadas por los profesores en el período.</p>
+      </div>
+    </div>
+
+    <div class="seccion-letra">
+      <div class="letra">C</div>
+      <div>
+        <h3>Panel Deudores</h3>
+        <p>Lista de quién debe, cuánto, y hace cuántos días vencido. Cada uno tiene un botón para contactarlo directo por WhatsApp:</p>
+        <table class="tabla-resumen">
+          <thead><tr><th>Alumno</th><th>Debe</th><th>Vencido hace</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Lucas Medina</td><td>$10.000</td><td>18 días</td><td><span class="wa-btn">WhatsApp</span></td></tr>
+            <tr><td>Ana Ríos</td><td>$7.000</td><td>5 días</td><td><span class="wa-btn">WhatsApp</span></td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top: 10px;">
+          El botón abre WhatsApp directo en el chat de ese alumno, usando el
+          teléfono que se cargó en su ficha — sin mensaje escrito de
+          antemano, para que quien contacta escriba lo que corresponda.
+        </p>
+      </div>
+    </div>
+
+    <div class="seccion-letra">
+      <div class="letra">D</div>
+      <div>
+        <h3>Panel Próximos a inactivarse</h3>
+        <p>Alumnos con 15 días o más sin asistir — la alerta preventiva del módulo Asistencia, acá agrupada para poder actuar antes de perderlos.</p>
+      </div>
+    </div>
+
+    <div class="seccion-letra">
+      <div class="letra">E</div>
+      <div>
+        <h3>Panel Horas por profesor</h3>
+        <p>Tabla con las horas trabajadas y la cantidad de asistencias de alumnos atendidas por cada profesor en el mes.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="callout">
+    <div class="dot"></div>
+    <p>
+      <strong>El Centro de Resumen Mensual y la pantalla Cargos calculan
+      exactamente lo mismo.</strong> La diferencia es que el Centro muestra un
+      resumen rápido (sin tabla ni edición), mientras que la pantalla Cargos
+      es la vía completa: tabla alumno por alumno, y ahí es donde se
+      completan los montos que quedaron "a definir". Ambas viven en la
+      liquidación del mismo período.
+    </p>
+  </div>
+
+  <footer>
+    Tropa Gym — módulo Dashboard y Resumen Mensual. Ver también: Cargos, Asistencia, Alumnos y fichas.
+  </footer>
+
+</div>
+
+<div class="page capitulo">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Configuración</div>
+    <h1>Los ingredientes detrás del precio</h1>
+    <p class="lede">
+      Acá se arma todo lo que después usan Pagos y Cargos para calcular solos.
+      Es la parte que menos se toca en el día a día, pero la más importante
+      cuando hay que subir un precio o abrir un turno nuevo.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>1 — Combos: lo único que define el precio</h2>
+    <h3>El combo, no la disciplina</h3>
+    <p>
+      Un combo es la frecuencia semanal de entrenamiento — por ejemplo "2
+      días", "3 días" o "5 días". El precio de la cuota sale exclusivamente
+      del combo. La disciplina (Funcional, Boxeo, etc.) es solo el nombre de
+      la actividad — no cambia lo que se paga.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>2 — Precios: uno por combo, con vigencia</h2>
+    <h3>Subir un precio no reescribe el pasado</h3>
+    <p>
+      Cada combo tiene un precio, que puede cambiar con el tiempo. Cuando se
+      sube un precio, <strong>los pagos y cargos ya generados no se tocan</strong>
+      — el sistema guarda una "foto" del precio en el momento de cada cobro.
+      Solo los cargos nuevos, de ahí en adelante, usan el precio actualizado.
+    </p>
+    <div class="timeline">
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">Marzo 2026 <span class="sub">Cargo generado con el precio vigente en marzo</span></div>
+        <div class="monto">$10.000</div>
+      </div>
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">1° de abril <span class="sub">Se actualiza el precio del combo "3 días"</span></div>
+        <div class="monto">$12.000</div>
+      </div>
+      <div class="paso activo">
+        <div class="bolita"></div>
+        <div class="texto">Abril 2026 <span class="sub">Cargo nuevo, ya con el precio actualizado</span></div>
+        <div class="monto">$12.000</div>
+      </div>
+    </div>
+    <p style="margin-top: 14px;">
+      El cargo de marzo queda en $10.000 para siempre — no se recalcula
+      retroactivamente por más que suba el precio del combo en abril.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>3 — El resto de Configuración</h2>
+    <div class="grid-modulos">
+      <div class="mini">
+        <div class="t">Disciplinas</div>
+        <p>Nombre y activar/desactivar. No afectan el precio, solo identifican la actividad.</p>
+      </div>
+      <div class="mini">
+        <div class="t">Descuentos</div>
+        <p>Nombre, descripción y porcentaje. Se aplican en Pagos, después de resolver completa/media.</p>
+      </div>
+      <div class="mini">
+        <div class="t">Turnos</div>
+        <p>Nombre y un horario único cada uno. Activar/desactivar según se necesite.</p>
+      </div>
+      <div class="mini">
+        <div class="t">Profesores</div>
+        <p>Alta de cada profesor y asociación a un login compartido (ver módulo Roles y permisos).</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Tropa Gym — módulo Configuración. Ver también: Pagos, Cargos, Roles y permisos.
+  </footer>
+
+</div>
+
+<div class="page capitulo">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Roles y permisos</div>
+    <h1>Quién puede hacer qué</h1>
+    <p class="lede">
+      Tres accesos, pensados para que cada uno vea solo lo que necesita para
+      su tarea del día.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>1 — Los tres roles</h2>
+    <div class="roles">
+      <div class="rol">
+        <div class="nombre">Administrador</div>
+        <ul>
+          <li>Acceso a todo el sistema</li>
+          <li>Liquida el mes (Cargos)</li>
+          <li>Maneja Configuración y Egresos</li>
+          <li>Ve el Dashboard completo</li>
+        </ul>
+      </div>
+      <div class="rol">
+        <div class="nombre">Profesor</div>
+        <ul>
+          <li>Alumnos, Asistencia y Pagos</li>
+          <li>Registra su propia entrada/salida</li>
+          <li>Sin Dashboard, Configuración ni Egresos</li>
+          <li>Puede corregir un monto de deuda, como excepción</li>
+        </ul>
+      </div>
+      <div class="rol">
+        <div class="nombre">Kiosco</div>
+        <ul>
+          <li>Solo registrar asistencia (por DNI o nombre)</li>
+          <li>Ve el estado de cuenta durante ese registro</li>
+          <li>Ningún otro módulo</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2 — Matriz de acceso por módulo</h2>
+    <table class="matriz">
+      <thead><tr><th>Módulo</th><th>Admin</th><th>Profesor</th><th>Kiosco</th></tr></thead>
+      <tbody>
+        <tr><td>Dashboard</td><td class="si">Sí</td><td class="no">No</td><td class="no">No</td></tr>
+        <tr><td>Alumnos</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td></tr>
+        <tr><td>Pagos</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td></tr>
+        <tr><td>Asistencia Alumnos</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td></tr>
+        <tr><td>Asistencia Profesores</td><td class="si">Sí</td><td class="si">Propia</td><td class="no">No</td></tr>
+        <tr><td>Cargos</td><td class="si">Sí</td><td class="no">No</td><td class="no">No</td></tr>
+        <tr><td>Egresos</td><td class="si">Sí</td><td class="no">No</td><td class="no">No</td></tr>
+        <tr><td>Configuración</td><td class="si">Sí</td><td class="no">No</td><td class="no">No</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>3 — Cómo funcionan los accesos (logins)</h2>
+    <h3>Un login por rol, no uno por persona</h3>
+    <p>
+      Hoy el sistema usa <strong>tres logins compartidos</strong>: uno para
+      Administrador, uno para Profesor y uno para Kiosco. Si tenés varios
+      profesores, todos entran con el mismo usuario de Profesor — no hace
+      falta crear un acceso por cada persona.
+    </p>
+    <p style="margin-top: 10px;">
+      Dar de alta a un <strong>profesor nuevo como persona</strong> (para que
+      aparezca en la lista de Asistencia Profesores, por ejemplo) es distinto
+      a crear un login: eso se hace desde Configuración → Profesores, cargando
+      su nombre y asociándolo al login de Profesor ya existente.
+    </p>
+    <div class="callout" style="margin-top: 14px;">
+      <div class="dot"></div>
+      <p>
+        <strong>¿Por qué no hay una pantalla para crear logins nuevos?</strong>
+        Es una decisión deliberada, por seguridad: crear un usuario nuevo
+        requeriría un permiso muy alto sobre el sistema, y se prefirió no
+        tener ese riesgo dando de alta usuarios desde la propia app. Si en el
+        futuro hace falta un login por persona (por ejemplo, para saber
+        exactamente quién hizo cada cosa), es una mejora que se evalúa aparte.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    Tropa Gym — módulo Roles y permisos. Ver también: Configuración, Asistencia.
+  </footer>
+
+</div>
+
+<div class="page capitulo">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Egresos</div>
+    <h1>Registrar los gastos del gimnasio</h1>
+    <p class="lede">
+      El módulo más simple del sistema: cada gasto que sale de la caja, cargado
+      en un renglón.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>Qué se carga</h2>
+    <ul class="lista-simple">
+      <li><strong>Concepto</strong> — qué se pagó (ej. "Alquiler", "Limpieza", "Mantenimiento de equipos").</li>
+      <li><strong>Monto</strong> — cuánto salió.</li>
+      <li><strong>Fecha</strong> — cuándo.</li>
+      <li><strong>Categoría</strong> — para poder agrupar gastos parecidos.</li>
+    </ul>
+    <p style="margin-top: 14px;">
+      Solo el Administrador tiene acceso a este módulo — Profesor y Kiosco no
+      lo ven.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Ejemplo</h2>
+    <table class="tabla-resumen">
+      <thead><tr><th>Concepto</th><th>Categoría</th><th>Fecha</th><th>Monto</th></tr></thead>
+      <tbody>
+        <tr><td>Alquiler del local</td><td>Fijo</td><td>01/06/2026</td><td>$180.000</td></tr>
+        <tr><td>Reparación de cinta</td><td>Mantenimiento</td><td>14/06/2026</td><td>$30.000</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Dónde impacta</h2>
+    <p>
+      Todo lo cargado acá alimenta directamente las cards <strong>"$
+      Egresos"</strong> y <strong>"$ Ganancia neta"</strong> de la vista KPI
+      del Dashboard (ganancia neta = ingresos − egresos).
+    </p>
+  </section>
+
+  <footer>
+    Tropa Gym — módulo Egresos. Ver también: Dashboard.
+  </footer>
+
+</div>
+
+<div class="pie-manual">
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAAH0CAYAAADL1t+KAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAABAAAAGgEFAAEAAABWAAAAGwEFAAEAAABeAAAAKAEDAAEAAAACAAAAEwIDAAEAAAABAAAAaYcEAAEAAABmAAAAAAAAAGAAAAABAAAAYAAAAAEAAAAGAACQBwAEAAAAMDIxMAGRBwAEAAAAAQIDAACgBwAEAAAAMDEwMAGgAwABAAAA//8AAAKgBAABAAAA9AEAAAOgBAABAAAA9AEAAAAAAAAA4cNEAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAGG2lUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSfvu78nIGlkPSdXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQnPz4KPHg6eG1wbWV0YSB4bWxuczp4PSdhZG9iZTpuczptZXRhLyc+CjxyZGY6UkRGIHhtbG5zOnJkZj0naHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyc+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpBdHRyaWI9J2h0dHA6Ly9ucy5hdHRyaWJ1dGlvbi5jb20vYWRzLzEuMC8nPgogIDxBdHRyaWI6QWRzPgogICA8cmRmOlNlcT4KICAgIDxyZGY6bGkgcmRmOnBhcnNlVHlwZT0nUmVzb3VyY2UnPgogICAgIDxBdHRyaWI6Q3JlYXRlZD4yMDI2LTA3LTE3PC9BdHRyaWI6Q3JlYXRlZD4KICAgICA8QXR0cmliOkRhdGE+eyZxdW90O2RvYyZxdW90OzomcXVvdDtEQUdoX19LQWNYOCZxdW90OywmcXVvdDt1c2VyJnF1b3Q7OiZxdW90O1VBRm9iS2lyTWdNJnF1b3Q7LCZxdW90O2JyYW5kJnF1b3Q7OiZxdW90O1VuaXZlcnNpZGFkIFByb3ZpbmNpYWwgZGUgQ29yZG9iYSAmcXVvdDssJnF1b3Q7dGVtcGxhdGUmcXVvdDs6JnF1b3Q7V2hpdGUgR3JlZW4gT3JhbmdlIE1vZGVybiBGaW5hbmNpYWwgRGF0YSBBdWRpdCBTdGF0aXN0aWMgTG9nbyZxdW90O308L0F0dHJpYjpEYXRhPgogICAgIDxBdHRyaWI6RXh0SWQ+MDUzZGUwY2MtYTc4MS00ODE3LTk3MzEtMDIzNGJmZGY0MTNjPC9BdHRyaWI6RXh0SWQ+CiAgICAgPEF0dHJpYjpGYklkPjUyNTI2NTkxNDE3OTU4MDwvQXR0cmliOkZiSWQ+CiAgICAgPEF0dHJpYjpUb3VjaFR5cGU+MjwvQXR0cmliOlRvdWNoVHlwZT4KICAgIDwvcmRmOmxpPgogICA8L3JkZjpTZXE+CiAgPC9BdHRyaWI6QWRzPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpkYz0naHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8nPgogIDxkYzp0aXRsZT4KICAgPHJkZjpBbHQ+CiAgICA8cmRmOmxpIHhtbDpsYW5nPSd4LWRlZmF1bHQnPmRlY2lkYXRhIGxvZ28gLSBibGFuY288L3JkZjpsaT4KICAgPC9yZGY6QWx0PgogIDwvZGM6dGl0bGU+CiA8L3JkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnBkZj0naHR0cDovL25zLmFkb2JlLmNvbS9wZGYvMS4zLyc+CiAgPHBkZjpBdXRob3I+SmltZW5hIFRoZWF1eDwvcGRmOkF1dGhvcj4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6eG1wPSdodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvJz4KICA8eG1wOkNyZWF0b3JUb29sPkNhbnZhIGRvYz1EQUdoX19LQWNYOCB1c2VyPVVBRm9iS2lyTWdNIGJyYW5kPVVuaXZlcnNpZGFkIFByb3ZpbmNpYWwgZGUgQ29yZG9iYSAgdGVtcGxhdGU9V2hpdGUgR3JlZW4gT3JhbmdlIE1vZGVybiBGaW5hbmNpYWwgRGF0YSBBdWRpdCBTdGF0aXN0aWMgTG9nbzwveG1wOkNyZWF0b3JUb29sPgogPC9yZGY6RGVzY3JpcHRpb24+CjwvcmRmOlJERj4KPC94OnhtcG1ldGE+Cjw/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" alt="deciDATA" />
+  <span class="df-marca">deciDATA</span>
+  <span>© 2026 · Todos los derechos reservados</span>
+</div>
+
+</body>
+</html>

@@ -22,3 +22,9 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 *.local
+
+# Documentación interna de desarrollo (migraciones ya aplicadas, diagnósticos,
+# scripts de reset de datos de prueba) — no va en el repo.
+docs/migracion_*.sql
+docs/diagnostico_*.sql
+docs/reset_datos_prueba.sql

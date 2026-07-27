@@ -1,0 +1,231 @@
+<style>
+  :root {
+    --bg: #0d160b;
+    --surface: #192216;
+    --surface-high: #232c20;
+    --surface-low: #151e12;
+    --border: #3d4b37;
+    --border-strong: #5c6b55;
+    --text: #dbe6d3;
+    --text-muted: #a9b8a1;
+    --primary: #40e432;
+    --primary-dim: #2fb226;
+    --error: #ffb4ab;
+    --error-dim: #d99089;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 780px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-direction: column; gap: 28px; }
+  .eyebrow { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--primary); }
+  h1 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 900; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.01em; line-height: 1.08; margin: 6px 0 0; text-wrap: balance; }
+  .lede { font-size: 16px; line-height: 1.6; color: var(--text-muted); max-width: 62ch; margin: 0; }
+  h2 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; }
+  h3 { font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 19px; letter-spacing: -0.005em; margin: 0 0 8px; color: var(--text); }
+  p { line-height: 1.65; font-size: 15px; margin: 0; }
+  p + p { margin-top: 10px; }
+  strong { color: var(--text); font-weight: 700; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; }
+  .card p { color: var(--text-muted); }
+  .callout { border: 1px solid var(--error-dim); background: var(--surface-high); border-radius: 14px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; }
+  .callout p { color: var(--text-muted); }
+  .callout .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--error); margin-top: 7px; }
+  .callout strong { color: var(--error); }
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li { line-height: 1.6; font-size: 14.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .lista-simple li strong { color: var(--text); }
+
+  /* Tres tipos de pago, tarjetas */
+  .tipos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .tipo-card {
+    background: var(--surface-high); border: 1px solid var(--border); border-radius: 14px;
+    padding: 16px 16px 18px;
+  }
+  .tipo-card .nombre {
+    font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 13px;
+    letter-spacing: 0.03em; text-transform: uppercase; color: var(--primary); margin-bottom: 8px;
+  }
+  .tipo-card p { font-size: 13px; color: var(--text-muted); }
+
+  /* Tabla de ejemplo familiar */
+  .tabla-resumen { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  .tabla-resumen th { text-align: left; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .tabla-resumen td { padding: 10px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  .tabla-resumen tr:last-child td { border-bottom: none; }
+  .tabla-resumen tfoot td { border-top: 1px solid var(--border-strong); border-bottom: none; font-weight: 800; color: var(--text); }
+
+  /* Selector visual completa/media */
+  .selector { display: flex; gap: 10px; margin-top: 10px; }
+  .opcion {
+    flex: 1; border: 1px solid var(--border-strong); border-radius: 10px; padding: 12px 14px;
+    font-size: 13.5px; text-align: center; color: var(--text-muted);
+  }
+  .opcion.elegida { border-color: var(--primary); color: var(--primary); font-weight: 700; background: rgba(64,228,50,0.08); }
+
+  /* Timeline adelantado */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .paso { display: grid; grid-template-columns: 28px 1fr auto; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); }
+  .paso:first-child { border-top: none; }
+  .paso .bolita { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); justify-self: center; }
+  .paso .texto { font-size: 14.5px; }
+  .paso .texto .sub { color: var(--text-muted); font-size: 13px; display: block; margin-top: 2px; }
+  .paso .monto { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 15px; white-space: nowrap; }
+
+  @media (max-width: 620px) {
+    .tipos { grid-template-columns: 1fr; }
+  }
+  footer { border-top: 1px solid var(--border); padding-top: 18px; font-size: 12.5px; color: var(--text-muted); }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="eyebrow">Tropa Gym — Pagos · lógica clave</div>
+    <h1>Cómo se registra un pago</h1>
+    <p class="lede">
+      Este es uno de los módulos más importantes: acá es donde entra la plata.
+      Tres tipos de pago, un precio que sale siempre del combo, y una decisión
+      manual — completa o media — que conviene entender bien.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>1 — Los tres tipos de pago</h2>
+    <div class="tipos">
+      <div class="tipo-card">
+        <div class="nombre">Individual</div>
+        <p>Un alumno, un pago. El caso de todos los días: alguien viene a pagar su cuota.</p>
+      </div>
+      <div class="tipo-card">
+        <div class="nombre">Familiar</div>
+        <p>Un solo comprobante, pero cubre a varios alumnos (por ejemplo, hermanos). Cada uno con su propio plan y su propio monto.</p>
+      </div>
+      <div class="tipo-card">
+        <div class="nombre">Adelantado</div>
+        <p>Un alumno paga varios meses de una sola vez, por adelantado. Cada mes queda registrado como si se hubiera pagado por separado.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2 — De dónde sale el monto</h2>
+    <h3>Siempre del combo, nunca de la disciplina</h3>
+    <p>
+      El precio que hay que pagar depende exclusivamente del <strong>combo</strong>
+      elegido (por ejemplo, "3 días" o "5 días" por semana). Que el alumno
+      haga Funcional o Boxeo no cambia nada en el precio — la disciplina es
+      solo el nombre de la actividad, el combo es lo que define cuánto sale.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>3 — Cuota completa o media: una decisión, no una adivinanza</h2>
+    <h3>Este es el punto que más conviene tener claro</h3>
+    <p>
+      Cuando se genera la deuda automáticamente al final del mes (ver módulo
+      Cargos), el sistema calcula solo si corresponde completa o media, según
+      el día en que el alumno asistió por primera vez. Pero cuando alguien del
+      staff <strong>registra un pago a mano</strong> (Individual, o cada
+      alumno dentro de un Familiar), tiene que elegir de nuevo entre completa
+      y media — el sistema no lo detecta solo en este paso.
+    </p>
+    <div class="selector">
+      <div class="opcion elegida">Cuota completa</div>
+      <div class="opcion">Media cuota</div>
+    </div>
+    <p style="margin-top: 14px;">
+      ¿Por qué es una decisión manual y no automática? Porque quien cobra
+      puede necesitar corregir algo puntual (un alumno que faltó, una
+      excepción acordada, un pago que corresponde a un mes distinto al que
+      está calculando el sistema). Es una <strong>regla de facturación</strong>,
+      no un descuento — se aplica sobre el precio del combo <em>antes</em> de
+      cualquier descuento comercial que se sume después.
+    </p>
+    <div class="callout" style="margin-top: 14px;">
+      <div class="dot"></div>
+      <p>
+        <strong>El pago Adelantado no tiene este selector.</strong> Al pagar
+        varios meses de una, se asume el mismo plan completo para todos los
+        períodos futuros — no aplica media cuota en ningún mes del adelanto.
+      </p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>4 — Métodos de pago</h2>
+    <p>
+      Efectivo, Transferencia, o Combinado (una parte de cada uno). En el caso
+      combinado, la suma de ambos importes tiene que coincidir con lo que
+      efectivamente se cobró — que puede ser menos que el precio de la cuota
+      (pago parcial) o más (el excedente queda a favor del alumno para el mes
+      que viene).
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>5 — El pago actualiza la ficha del alumno</h2>
+    <p>
+      Cada pago <strong>Individual</strong> o <strong>Familiar</strong>
+      actualiza automáticamente el plan actual (disciplina + combo) de la
+      ficha de cada alumno involucrado, con lo que se cargó en ese pago. El
+      <strong>Adelantado no</strong> — ver el porqué en el módulo Alumnos y
+      fichas.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Ejemplo — Pago Familiar</h2>
+    <h3>Un comprobante, dos hermanos, dos planes distintos</h3>
+    <table class="tabla-resumen">
+      <thead>
+        <tr><th>Alumno</th><th>Disciplina · Combo</th><th>Cuota</th><th>Monto</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Martina</td><td>Funcional · 3 días</td><td>Completa</td><td>$10.000</td></tr>
+        <tr><td>Tomás</td><td>Boxeo · 5 días</td><td>Media</td><td>$7.000</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="3">Total del comprobante</td><td>$17.000</td></tr>
+      </tfoot>
+    </table>
+    <p style="margin-top: 14px;">
+      Se registra un único pago, pero cada alumno queda con su propio cargo
+      cancelado y su propia ficha actualizada por separado.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Ejemplo — Pago Adelantado</h2>
+    <h3>Tres meses, en un solo momento</h3>
+    <div class="timeline">
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">Junio 2026 <span class="sub">Combo 3 días</span></div>
+        <div class="monto">$10.000</div>
+      </div>
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">Julio 2026 <span class="sub">Combo 3 días</span></div>
+        <div class="monto">$10.000</div>
+      </div>
+      <div class="paso">
+        <div class="bolita"></div>
+        <div class="texto">Agosto 2026 <span class="sub">Combo 3 días</span></div>
+        <div class="monto">$10.000</div>
+      </div>
+    </div>
+    <p style="margin-top: 14px;">
+      Cada mes queda registrado como su propio cargo pagado — cuando llegue
+      agosto, ese período ya va a figurar "Pagado" sin que nadie tenga que
+      hacer nada.
+    </p>
+  </section>
+
+  <footer>
+    Tropa Gym — módulo Pagos. Ver también: Cargos (la deuda), Alumnos y fichas, Configuración (combos y precios).
+  </footer>
+
+</div>
