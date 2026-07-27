@@ -15,6 +15,8 @@ export const queryKeys = {
   alumnos: ['alumnos'] as const,
   alumnosBusqueda: (term: string) => ['alumnos', 'busqueda', term] as const,
   alumnosConCumpleanos: ['alumnos', 'cumpleanos'] as const,
+  historialEstadoAlumno: (alumnoId: string) => ['alumnos', 'estado-historial', alumnoId] as const,
+  syncEstadosAutomaticos: ['alumnos', 'sync-estados'] as const,
 
   cargosPeriodo: (periodo: string) => ['cargos', 'periodo', periodo] as const,
   cargosPreview: (periodo: string) => ['cargos', 'preview', periodo] as const,
@@ -36,4 +38,6 @@ export const queryKeys = {
   dashboardTrend: (periodo: string, cantidad: number) => ['dashboard', 'trend', periodo, cantidad] as const,
   dashboardHorarios: (periodo: string) => ['dashboard', 'horarios', periodo] as const,
   dashboardAlertas: (periodo: string) => ['dashboard', 'alertas', periodo] as const,
+  dashboardEstadosPorPeriodo: (periodo: string, cantidad: number) =>
+    ['dashboard', 'estados-periodo', periodo, cantidad] as const,
 }

@@ -18,3 +18,6 @@ export const queryClient = new QueryClient({
 
 export const STALE_CATALOGO = 60_000
 export const STALE_OPERATIVO = 8_000
+// Recálculo de estados automáticos (25 días sin asistir → inactivo): lazy al
+// abrir la app, sin cron — 1h alcanza para no repetirlo en cada navegación.
+export const STALE_SYNC_ESTADOS = 3_600_000

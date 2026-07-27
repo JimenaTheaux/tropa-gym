@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Alumno } from '@/types/db'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchHistorialAlumno, getEstadoCuenta } from '@/lib/cuenta'
+import { fetchHistorialEstado } from '@/lib/alumnos'
 import { formatFecha } from '@/lib/utils'
 import { useCombos, useDisciplinas } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
@@ -10,6 +11,7 @@ import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Drawer } from '@/components/ui/Drawer'
 import { BadgeEstado, BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { EditarMontoCargo } from '@/components/ui/EditarMontoCargo'
+import { CambiarEstadoAlumno } from '@/components/ui/CambiarEstadoAlumno'
 
 interface FichaAlumnoDrawerProps {
   alumno: Alumno | null
@@ -46,9 +48,16 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
     enabled: !!alumno,
     staleTime: STALE_OPERATIVO,
   })
+  const historialEstadoQuery = useQuery({
+    queryKey: queryKeys.historialEstadoAlumno(alumno?.id ?? ''),
+    queryFn: () => fetchHistorialEstado(alumno!.id),
+    enabled: !!alumno,
+    staleTime: STALE_OPERATIVO,
+  })
 
   const cuenta = cuentaQuery.data ?? null
   const historial = historialQuery.data ?? []
+  const historialEstado = historialEstadoQuery.data ?? []
   const loading = cuentaQuery.isFetching || historialQuery.isFetching
 
   const [editandoPeriodo, setEditandoPeriodo] = useState<string | null>(null)
@@ -73,8 +82,17 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
               </p>
               <p className="font-inter text-sm text-on-surface-variant">DNI {alumno.dni}</p>
             </div>
-            <BadgeEstado estado={alumno.estado} />
+            <div className="flex flex-col items-end gap-0.5">
+              <BadgeEstado estado={alumno.estado} />
+              <span className="font-inter text-xs text-on-surface-variant">
+                desde {formatFecha(alumno.estado_desde.slice(0, 10))}
+                {alumno.estado_origen === 'manual' && ' · manual'}
+              </span>
+            </div>
           </div>
+          {alumno.estado_origen === 'manual' && alumno.estado_motivo && (
+            <p className="-mt-2 font-inter text-xs text-on-surface-variant">Motivo: {alumno.estado_motivo}</p>
+          )}
 
           <div className="grid grid-cols-2 gap-4 border-t border-outline-variant pt-4">
             <div>
@@ -99,6 +117,26 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
                   : 'Sin plan asignado'}
               </p>
             </div>
+          </div>
+
+          <div className="border-t border-outline-variant pt-4">
+            <p className="mb-2 font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+              Estado
+            </p>
+            {puedeEditarCargos && <CambiarEstadoAlumno alumno={alumno} />}
+            {historialEstado.length > 0 && (
+              <div className="mt-3 flex flex-col gap-2">
+                {historialEstado.map((h) => (
+                  <div key={h.id} className="flex items-center justify-between font-inter text-xs">
+                    <span className="text-on-surface-variant">
+                      {formatFecha(h.fecha_desde.slice(0, 10))} — {h.origen === 'manual' ? 'manual' : 'automático'}
+                      {h.motivo ? ` (${h.motivo})` : ''}
+                    </span>
+                    <span className="text-on-surface">{h.estado === 'activo' ? 'Activo' : 'Inactivo'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="border-t border-outline-variant pt-4">

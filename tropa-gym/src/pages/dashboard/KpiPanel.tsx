@@ -87,11 +87,18 @@ export function KpiPanel() {
           formatValue={money}
           diverging
         />
-        <TrendChart
-          title="Alumnos activos por período"
-          data={trend.map((t) => ({ periodo: t.periodo, label: periodoLabel(t.periodo), value: t.alumnosActivos }))}
-          formatValue={(v) => String(Math.round(v))}
-        />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <TrendChart
+            title="Alumnos activos por período"
+            data={trend.map((t) => ({ periodo: t.periodo, label: periodoLabel(t.periodo), value: t.alumnosActivos }))}
+            formatValue={(v) => String(Math.round(v))}
+          />
+          <TrendChart
+            title="Alumnos inactivos por período"
+            data={trend.map((t) => ({ periodo: t.periodo, label: periodoLabel(t.periodo), value: t.alumnosInactivos }))}
+            formatValue={(v) => String(Math.round(v))}
+          />
+        </div>
       </div>
 
       <div className="rounded-card border border-outline-variant bg-surface-container p-5">

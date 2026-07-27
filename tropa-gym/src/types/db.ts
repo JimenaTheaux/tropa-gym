@@ -1,5 +1,6 @@
 export type RolUsuario = 'admin' | 'profesor' | 'kiosco'
 export type EstadoAlumno = 'activo' | 'inactivo'
+export type EstadoOrigen = 'automatico' | 'manual'
 
 export interface Perfil {
   id: string
@@ -83,12 +84,29 @@ export interface Alumno {
   disciplina_id: string | null
   combo_id: string | null
   estado: EstadoAlumno
+  estado_origen: EstadoOrigen
+  estado_motivo: string | null
+  estado_desde: string
   fecha_alta: string
   created_at: string
 }
 
-export type AlumnoInsert = Omit<Alumno, 'id' | 'created_at' | 'fecha_alta' | 'estado'>
+export type AlumnoInsert = Omit<
+  Alumno,
+  'id' | 'created_at' | 'fecha_alta' | 'estado' | 'estado_origen' | 'estado_motivo' | 'estado_desde'
+>
 export type AlumnoUpdate = Partial<AlumnoInsert>
+
+export interface AlumnoEstadoHistorial {
+  id: string
+  alumno_id: string
+  estado: EstadoAlumno
+  origen: EstadoOrigen
+  motivo: string | null
+  fecha_desde: string
+  creado_por: string | null
+  created_at: string
+}
 
 export interface AsistenciaAlumno {
   id: string

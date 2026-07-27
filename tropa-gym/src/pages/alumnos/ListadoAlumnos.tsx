@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { traducirError } from '@/lib/errores'
+import { formatFecha } from '@/lib/utils'
 import type { Alumno, AlumnoInsert } from '@/types/db'
 import { useDisciplinasActivas, useCombosActivos } from '@/hooks/useCatalogos'
 import { useAlumnos } from '@/hooks/useAlumnos'
@@ -12,6 +13,13 @@ import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { BadgeEstado } from '@/components/ui/BadgeEstado'
 import { FichaAlumnoDrawer } from '@/components/ui/FichaAlumnoDrawer'
 import { AlumnoFormFields } from '@/components/ui/AlumnoFormFields'
+import { FormSelect } from '@/components/ui/FormField'
+
+const ESTADO_FILTRO_OPTIONS = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'activo', label: 'Activos' },
+  { value: 'inactivo', label: 'Inactivos' },
+]
 
 const emptyForm: AlumnoInsert = {
   nombre: '',
@@ -44,9 +52,15 @@ export function ListadoAlumnos() {
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<Alumno | null>(null)
   const [viewing, setViewing] = useState<Alumno | null>(null)
+  const [estadoFiltro, setEstadoFiltro] = useState<'todos' | 'activo' | 'inactivo'>('todos')
 
   const saving = crear.isPending || actualizar.isPending
   const deleteLoading = eliminar.isPending
+
+  const alumnosFiltrados = useMemo(
+    () => (estadoFiltro === 'todos' ? alumnos : alumnos.filter((a) => a.estado === estadoFiltro)),
+    [alumnos, estadoFiltro],
+  )
 
   function openCreate() {
     setEditing(null)
@@ -102,26 +116,45 @@ export function ListadoAlumnos() {
     { header: 'Nombre', cell: (a) => `${a.nombre} ${a.apellido}` },
     { header: 'DNI', cell: (a) => a.dni },
     { header: 'Teléfono', cell: (a) => a.telefono ?? '—' },
-    { header: 'Estado', cell: (a) => <BadgeEstado estado={a.estado} /> },
+    {
+      header: 'Estado',
+      cell: (a) => (
+        <div className="flex flex-col gap-0.5">
+          <BadgeEstado estado={a.estado} />
+          <span className="font-inter text-xs text-on-surface-variant">
+            desde {formatFecha(a.estado_desde.slice(0, 10))}
+          </span>
+        </div>
+      ),
+    },
   ]
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
         <p className="font-inter text-sm text-on-surface-variant">
           Alumnos registrados en el gimnasio.
         </p>
-        <Button type="button" variant="solido" onClick={openCreate}>
-          <span className="material-symbols-outlined !text-[16px]">add</span>
-          Nuevo alumno
-        </Button>
+        <div className="flex items-end gap-3">
+          <FormSelect
+            id="alumnos-estado-filtro"
+            label="Estado"
+            value={estadoFiltro}
+            onChange={(e) => setEstadoFiltro(e.target.value as 'todos' | 'activo' | 'inactivo')}
+            options={ESTADO_FILTRO_OPTIONS}
+          />
+          <Button type="button" variant="solido" onClick={openCreate}>
+            <span className="material-symbols-outlined !text-[16px]">add</span>
+            Nuevo alumno
+          </Button>
+        </div>
       </div>
 
       {error && !drawerOpen && <p className="mb-4 font-inter text-sm text-error">{error}</p>}
 
       <DataTable
         columns={columns}
-        data={alumnos}
+        data={alumnosFiltrados}
         rowKey={(a) => a.id}
         cardTitle={(a) => `${a.nombre} ${a.apellido}`}
         onEdit={openEdit}

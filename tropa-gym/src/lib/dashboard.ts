@@ -1,4 +1,17 @@
-import type { Alumno, AsistenciaAlumno, AsistenciaProfesor, Cargo, Egreso, EstadoPago, Pago, PagoAlumno, Profesor, Turno } from '@/types/db'
+import type {
+  Alumno,
+  AlumnoEstadoHistorial,
+  AsistenciaAlumno,
+  AsistenciaProfesor,
+  Cargo,
+  Egreso,
+  EstadoAlumno,
+  EstadoPago,
+  Pago,
+  PagoAlumno,
+  Profesor,
+  Turno,
+} from '@/types/db'
 import { supabase } from '@/lib/supabase'
 
 // ---- Período (YYYY-MM) — helpers ----
@@ -68,6 +81,58 @@ export interface TrendPoint {
   periodo: string
   gananciaNeta: number
   alumnosActivos: number
+  alumnosInactivos: number
+}
+
+export interface EstadoPeriodoPoint {
+  periodo: string
+  activos: number
+  inactivos: number
+}
+
+// Punto-en-el-tiempo: estado vigente de cada alumno al cierre de cada
+// período (o "hoy" si el período todavía no cerró) — reconstruido desde
+// alumno_estado_historial (migración 11), no desde asistencias. Un alumno
+// sin ninguna fila de historial con fecha_desde <= corte todavía no existía
+// en ese período y no cuenta ni como activo ni como inactivo.
+export async function fetchEstadoAlumnosPorPeriodo(
+  hastaPeriodo: string,
+  cantidad = 6,
+): Promise<EstadoPeriodoPoint[]> {
+  const periodos = listaPeriodos(hastaPeriodo, cantidad)
+
+  const { data } = await supabase
+    .from('alumno_estado_historial')
+    .select('alumno_id, estado, fecha_desde')
+    .order('fecha_desde', { ascending: true })
+
+  const historial = (data ?? []) as Pick<AlumnoEstadoHistorial, 'alumno_id' | 'estado' | 'fecha_desde'>[]
+
+  const porAlumno = new Map<string, { estado: EstadoAlumno; fecha_desde: Date }[]>()
+  for (const h of historial) {
+    if (!porAlumno.has(h.alumno_id)) porAlumno.set(h.alumno_id, [])
+    porAlumno.get(h.alumno_id)!.push({ estado: h.estado, fecha_desde: new Date(h.fecha_desde) })
+  }
+
+  const hoy = new Date()
+
+  return periodos.map((periodo) => {
+    const finPeriodo = new Date(`${primerDiaSiguiente(periodo)}T00:00:00`)
+    const corte = finPeriodo < hoy ? finPeriodo : hoy
+
+    let activos = 0
+    let inactivos = 0
+    for (const eventos of porAlumno.values()) {
+      let vigente: EstadoAlumno | null = null
+      for (const e of eventos) {
+        if (e.fecha_desde <= corte) vigente = e.estado
+        else break
+      }
+      if (vigente === 'activo') activos++
+      else if (vigente === 'inactivo') inactivos++
+    }
+    return { periodo, activos, inactivos }
+  })
 }
 
 export interface HorarioOcupacion {
@@ -105,18 +170,16 @@ export async function fetchKpiCards(periodo: string): Promise<KpiCards> {
   const desde = inicioDeMes(periodo)
   const hasta = primerDiaSiguiente(periodo)
 
-  const [pagosRes, egresosRes, asistenciasRes, saldoACobrar] = await Promise.all([
+  const [pagosRes, egresosRes, estados, saldoACobrar] = await Promise.all([
     supabase.from('pagos').select('total').gte('fecha', desde).lt('fecha', hasta),
     supabase.from('egresos').select('monto').gte('fecha', desde).lt('fecha', hasta),
-    supabase.from('asistencias_alumnos').select('alumno_id').gte('fecha', desde).lt('fecha', hasta),
+    fetchEstadoAlumnosPorPeriodo(periodo, 1),
     saldoACobrarPorAlumno(periodo),
   ])
 
   const ingresos = ((pagosRes.data ?? []) as Pick<Pago, 'total'>[]).reduce((s, p) => s + Number(p.total), 0)
   const egresos = ((egresosRes.data ?? []) as Pick<Egreso, 'monto'>[]).reduce((s, e) => s + Number(e.monto), 0)
-  const alumnosActivos = new Set(
-    ((asistenciasRes.data ?? []) as Pick<AsistenciaAlumno, 'alumno_id'>[]).map((a) => a.alumno_id),
-  ).size
+  const alumnosActivos = estados[0]?.activos ?? 0
 
   return {
     alumnosActivos,
@@ -132,10 +195,10 @@ export async function fetchTrend(hastaPeriodo: string, cantidad = 6): Promise<Tr
   const desde = inicioDeMes(periodos[0])
   const hasta = primerDiaSiguiente(periodos[periodos.length - 1])
 
-  const [pagosRes, egresosRes, asistenciasRes] = await Promise.all([
+  const [pagosRes, egresosRes, estados] = await Promise.all([
     supabase.from('pagos').select('total, fecha').gte('fecha', desde).lt('fecha', hasta),
     supabase.from('egresos').select('monto, fecha').gte('fecha', desde).lt('fecha', hasta),
-    supabase.from('asistencias_alumnos').select('alumno_id, fecha').gte('fecha', desde).lt('fecha', hasta),
+    fetchEstadoAlumnosPorPeriodo(hastaPeriodo, cantidad),
   ])
 
   const mesDe = (fecha: string) => fecha.slice(0, 7)
@@ -150,17 +213,13 @@ export async function fetchTrend(hastaPeriodo: string, cantidad = 6): Promise<Tr
     const m = mesDe(e.fecha)
     egresosPorMes.set(m, (egresosPorMes.get(m) ?? 0) + Number(e.monto))
   }
-  const alumnosPorMes = new Map<string, Set<string>>()
-  for (const a of (asistenciasRes.data ?? []) as { alumno_id: string; fecha: string }[]) {
-    const m = mesDe(a.fecha)
-    if (!alumnosPorMes.has(m)) alumnosPorMes.set(m, new Set())
-    alumnosPorMes.get(m)!.add(a.alumno_id)
-  }
+  const estadosPorMes = new Map(estados.map((e) => [e.periodo, e]))
 
   return periodos.map((periodo) => ({
     periodo,
     gananciaNeta: (ingresosPorMes.get(periodo) ?? 0) - (egresosPorMes.get(periodo) ?? 0),
-    alumnosActivos: alumnosPorMes.get(periodo)?.size ?? 0,
+    alumnosActivos: estadosPorMes.get(periodo)?.activos ?? 0,
+    alumnosInactivos: estadosPorMes.get(periodo)?.inactivos ?? 0,
   }))
 }
 
