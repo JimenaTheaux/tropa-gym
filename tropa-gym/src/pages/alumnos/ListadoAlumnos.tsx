@@ -1,6 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { traducirError } from '@/lib/errores'
-import { formatFecha } from '@/lib/utils'
 import type { Alumno, AlumnoInsert } from '@/types/db'
 import { useDisciplinasActivas, useCombosActivos } from '@/hooks/useCatalogos'
 import { useAlumnos } from '@/hooks/useAlumnos'
@@ -10,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
-import { BadgeEstado } from '@/components/ui/BadgeEstado'
+import { EstadoToggleButton } from '@/components/ui/EstadoToggleButton'
 import { FichaAlumnoDrawer } from '@/components/ui/FichaAlumnoDrawer'
 import { AlumnoFormFields } from '@/components/ui/AlumnoFormFields'
 import { FormSelect } from '@/components/ui/FormField'
@@ -116,17 +115,7 @@ export function ListadoAlumnos() {
     { header: 'Nombre', cell: (a) => `${a.nombre} ${a.apellido}` },
     { header: 'DNI', cell: (a) => a.dni },
     { header: 'Teléfono', cell: (a) => a.telefono ?? '—' },
-    {
-      header: 'Estado',
-      cell: (a) => (
-        <div className="flex flex-col gap-0.5">
-          <BadgeEstado estado={a.estado} />
-          <span className="font-inter text-xs text-on-surface-variant">
-            desde {formatFecha(a.estado_desde.slice(0, 10))}
-          </span>
-        </div>
-      ),
-    },
+    { header: 'Estado', cell: (a) => <EstadoToggleButton alumno={a} /> },
   ]
 
   return (

@@ -19,15 +19,18 @@ export async function fetchHistorialEstado(alumnoId: string): Promise<AlumnoEsta
 
 // Admin/Profesor fuerzan el estado a mano (licencia, lesión, pausa, etc.) —
 // una asistencia real siempre lo reactiva igual (ver migración 11).
+// fechaDesde (YYYY-MM-DD) permite backdatear el cambio; sin ella, es "ahora".
 export async function marcarEstadoManual(
   alumnoId: string,
   estado: EstadoAlumno,
   motivo: string | null,
+  fechaDesde?: string | null,
 ): Promise<{ error: string | null }> {
   const { error } = await supabase.rpc('marcar_estado_manual', {
     p_alumno_id: alumnoId,
     p_estado: estado,
     p_motivo: motivo,
+    p_fecha_desde: fechaDesde ?? null,
   })
   return { error: error?.message ?? null }
 }

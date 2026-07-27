@@ -9,9 +9,9 @@ import { useCombos, useDisciplinas } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Drawer } from '@/components/ui/Drawer'
-import { BadgeEstado, BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
+import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { EditarMontoCargo } from '@/components/ui/EditarMontoCargo'
-import { CambiarEstadoAlumno } from '@/components/ui/CambiarEstadoAlumno'
+import { EstadoToggleButton } from '@/components/ui/EstadoToggleButton'
 
 interface FichaAlumnoDrawerProps {
   alumno: Alumno | null
@@ -82,17 +82,8 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
               </p>
               <p className="font-inter text-sm text-on-surface-variant">DNI {alumno.dni}</p>
             </div>
-            <div className="flex flex-col items-end gap-0.5">
-              <BadgeEstado estado={alumno.estado} />
-              <span className="font-inter text-xs text-on-surface-variant">
-                desde {formatFecha(alumno.estado_desde.slice(0, 10))}
-                {alumno.estado_origen === 'manual' && ' · manual'}
-              </span>
-            </div>
+            <EstadoToggleButton alumno={alumno} />
           </div>
-          {alumno.estado_origen === 'manual' && alumno.estado_motivo && (
-            <p className="-mt-2 font-inter text-xs text-on-surface-variant">Motivo: {alumno.estado_motivo}</p>
-          )}
 
           <div className="grid grid-cols-2 gap-4 border-t border-outline-variant pt-4">
             <div>
@@ -119,13 +110,12 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
             </div>
           </div>
 
-          <div className="border-t border-outline-variant pt-4">
-            <p className="mb-2 font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
-              Estado
-            </p>
-            {puedeEditarCargos && <CambiarEstadoAlumno alumno={alumno} />}
-            {historialEstado.length > 0 && (
-              <div className="mt-3 flex flex-col gap-2">
+          {historialEstado.length > 0 && (
+            <div className="border-t border-outline-variant pt-4">
+              <p className="mb-2 font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+                Historial de estado
+              </p>
+              <div className="flex flex-col gap-2">
                 {historialEstado.map((h) => (
                   <div key={h.id} className="flex items-center justify-between font-inter text-xs">
                     <span className="text-on-surface-variant">
@@ -136,8 +126,8 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="border-t border-outline-variant pt-4">
             <p className="mb-2 font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
