@@ -165,170 +165,151 @@ export function CheckinAlumno() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 py-6 sm:px-10">
-      <img src="/logo_tropa_blanco.png" alt="Tropa Gym" className="h-auto w-full max-w-[150px] sm:max-w-[190px]" />
+    <div className="flex min-h-screen flex-col items-center gap-3 bg-background px-gutter py-4">
+      <img src="/logo_tropa_blanco.png" alt="Tropa Gym" className="h-auto w-full max-w-[130px]" />
 
-      <div className="w-full max-w-5xl rounded-card border border-outline-variant bg-surface-container p-6 sm:p-10">
+      <div className="w-full max-w-2xl rounded-card border border-outline-variant bg-surface-container p-4">
         {/* Paso 1: buscar alumno */}
         {!alumno && !resultado && (
-          <div className="flex flex-col items-center gap-5">
-            <h1 className="font-oswald text-2xl font-bold uppercase tracking-[0.02em] text-on-surface sm:text-3xl">
+          <div className="flex flex-col items-center gap-3">
+            <h1 className="font-oswald text-lg font-bold uppercase tracking-[0.02em] text-on-surface">
               Marcar asistencia
             </h1>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="DNI, nombre o apellido…"
+              className="w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-center font-inter text-lg text-on-surface outline-none focus:border-primary"
+            />
 
-            <div className="grid w-full gap-6 sm:grid-cols-[1fr_auto] sm:items-start">
-              <div className="flex flex-col gap-3">
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="DNI, nombre o apellido…"
-                  className="w-full rounded-xl border border-outline-variant bg-surface-container-low px-4 py-4 text-center font-inter text-2xl text-on-surface outline-none focus:border-primary"
-                />
+            {buscando && <p className="font-inter text-xs text-on-surface-variant">Buscando…</p>}
 
-                {buscando && <p className="font-inter text-sm text-on-surface-variant">Buscando…</p>}
-
-                {resultados.length > 0 && (
-                  <div className="flex w-full flex-col overflow-hidden rounded-xl border border-outline-variant">
-                    {resultados.map((a) => (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={() => seleccionarAlumno(a)}
-                        className="border-b border-outline-variant bg-surface-container-low px-4 py-4 text-left font-inter text-lg text-on-surface last:border-b-0 hover:bg-surface-container-high active:bg-surface-container-highest"
-                      >
-                        {a.nombre} {a.apellido} <span className="text-on-surface-variant">— DNI {a.dni}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {!buscando && query.trim().length >= 2 && resultados.length === 0 && (
-                  <p className="font-inter text-base text-on-surface-variant">
-                    No se encontró ningún alumno. Consultá en recepción.
-                  </p>
-                )}
+            {resultados.length > 0 && (
+              <div className="flex w-full flex-col overflow-hidden rounded-lg border border-outline-variant">
+                {resultados.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => seleccionarAlumno(a)}
+                    className="border-b border-outline-variant bg-surface-container-low px-3 py-2 text-left font-inter text-sm text-on-surface last:border-b-0 hover:bg-surface-container-high"
+                  >
+                    {a.nombre} {a.apellido} <span className="text-on-surface-variant">— DNI {a.dni}</span>
+                  </button>
+                ))}
               </div>
+            )}
 
-              <NumericKeypad value={query} onChange={setQuery} />
-            </div>
+            {!buscando && query.trim().length >= 2 && resultados.length === 0 && (
+              <p className="font-inter text-sm text-on-surface-variant">
+                No se encontró ningún alumno. Consultá en recepción.
+              </p>
+            )}
+
+            <NumericKeypad value={query} onChange={setQuery} />
           </div>
         )}
 
         {/* Paso 2: disciplina / turno / fecha */}
         {alumno && !resultado && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-3">
             <div className="text-center">
-              <p className="font-oswald text-2xl font-bold uppercase text-on-surface sm:text-3xl">
+              <p className="font-oswald text-lg font-bold uppercase text-on-surface">
                 {alumno.nombre} {alumno.apellido}
               </p>
-              <p className="font-inter text-base text-on-surface-variant">DNI {alumno.dni}</p>
+              <p className="font-inter text-sm text-on-surface-variant">DNI {alumno.dni}</p>
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2">
+            <div>
+              <p className="mb-2 font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+                Disciplina
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {disciplinas.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => {
+                      setDisciplinaId(d.id)
+                      setTurnoId('')
+                    }}
+                    className={`rounded-lg border px-3 py-1.5 font-inter text-sm transition-colors ${
+                      disciplinaId === d.id
+                        ? 'border-primary bg-primary text-[#06210a]'
+                        : 'border-outline-variant bg-surface-container-low text-on-surface hover:bg-surface-container-high'
+                    }`}
+                  >
+                    {d.nombre}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {disciplinaId && !esHorarioLibre && (
               <div>
-                <p className="mb-3 font-oswald text-xs uppercase tracking-[0.05em] text-on-surface-variant">
-                  Disciplina
+                <p className="mb-2 font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+                  Turno
                 </p>
-                <div className="flex flex-col gap-2">
-                  {disciplinas.map((d) => (
+                <div className="flex flex-wrap gap-2">
+                  {turnos.map((t) => (
                     <button
-                      key={d.id}
+                      key={t.id}
                       type="button"
-                      onClick={() => {
-                        setDisciplinaId(d.id)
-                        setTurnoId('')
-                      }}
-                      className={`rounded-xl border px-5 py-4 text-left font-inter text-lg transition-colors ${
-                        disciplinaId === d.id
+                      onClick={() => setTurnoId(t.id)}
+                      className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 font-inter text-sm transition-colors ${
+                        turnoId === t.id
                           ? 'border-primary bg-primary text-[#06210a]'
-                          : 'border-outline-variant bg-surface-container-low text-on-surface hover:bg-surface-container-high active:bg-surface-container-highest'
+                          : 'border-outline-variant bg-surface-container-low text-on-surface hover:bg-surface-container-high'
                       }`}
                     >
-                      {d.nombre}
+                      {t.nombre} ({t.hora.slice(0, 5)})
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          turnoId === t.id ? 'bg-[#06210a]/20' : 'bg-surface-container-highest'
+                        }`}
+                      >
+                        {conteoTurnos[t.id] ?? 0}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
+            )}
 
-              {disciplinaId && !esHorarioLibre && (
-                <div>
-                  <p className="mb-3 font-oswald text-xs uppercase tracking-[0.05em] text-on-surface-variant">
-                    Turno
-                  </p>
-                  <div className="flex flex-col gap-2">
-                    {turnos.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setTurnoId(t.id)}
-                        className={`flex items-center justify-between gap-2 rounded-xl border px-5 py-4 font-inter text-lg transition-colors ${
-                          turnoId === t.id
-                            ? 'border-primary bg-primary text-[#06210a]'
-                            : 'border-outline-variant bg-surface-container-low text-on-surface hover:bg-surface-container-high active:bg-surface-container-highest'
-                        }`}
-                      >
-                        <span>
-                          {t.nombre}{' '}
-                          <span className={turnoId === t.id ? 'text-[#06210a]/70' : 'text-on-surface-variant'}>
-                            ({t.hora.slice(0, 5)})
-                          </span>
-                        </span>
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-sm ${
-                            turnoId === t.id ? 'bg-[#06210a]/20' : 'bg-surface-container-highest'
-                          }`}
-                        >
-                          {conteoTurnos[t.id] ?? 0}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            {disciplinaId && esHorarioLibre && (
+              <FormTimeInput id="checkin-hora" label="Hora" required value={horaLibre} onChange={setHoraLibre} />
+            )}
 
-              {disciplinaId && esHorarioLibre && (
-                <div className="flex flex-col justify-center">
-                  <FormTimeInput id="checkin-hora" label="Hora" required value={horaLibre} onChange={setHoraLibre} />
-                </div>
-              )}
+            <FormDateInput id="checkin-fecha" label="Fecha" required value={fecha} onChange={setFecha} />
+
+            {error && <p className="font-inter text-sm text-error">{error}</p>}
+
+            <div className="flex justify-between gap-3">
+              <Button type="button" variant="ghost" onClick={reiniciar}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="solido"
+                disabled={!disciplinaId || (!esHorarioLibre && !turnoId) || guardando}
+                onClick={confirmar}
+              >
+                {guardando ? 'Registrando…' : 'Confirmar asistencia'}
+              </Button>
             </div>
-
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="w-full sm:max-w-[220px]">
-                <FormDateInput id="checkin-fecha" label="Fecha" required value={fecha} onChange={setFecha} />
-              </div>
-
-              <div className="flex gap-3">
-                <Button type="button" variant="ghost" onClick={reiniciar} className="px-6 py-4 text-sm">
-                  Cancelar
-                </Button>
-                <Button
-                  type="button"
-                  variant="solido"
-                  disabled={!disciplinaId || (!esHorarioLibre && !turnoId) || guardando}
-                  onClick={confirmar}
-                  className="flex-1 px-8 py-4 text-base sm:flex-none sm:text-lg"
-                >
-                  {guardando ? 'Registrando…' : 'Confirmar asistencia'}
-                </Button>
-              </div>
-            </div>
-
-            {error && <p className="text-center font-inter text-sm text-error">{error}</p>}
           </div>
         )}
 
         {/* Paso 3: resultado — historial simple + estado de deuda */}
         {resultado && alumno && (
-          <div className="flex flex-col items-center gap-5 py-4 text-center">
-            <span className="material-symbols-outlined !text-[72px] text-primary sm:!text-[88px]">check_circle</span>
-            <p className="font-oswald text-3xl font-bold uppercase text-on-surface sm:text-4xl">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <span className="material-symbols-outlined !text-[36px] text-primary">check_circle</span>
+            <p className="font-oswald text-lg font-bold uppercase text-on-surface">
               ¡Listo, {alumno.nombre}!
             </p>
 
             <div
-              className={`rounded-xl border px-6 py-3 font-inter text-lg ${
+              className={`rounded-lg border px-4 py-1.5 font-inter text-sm ${
                 resultado.debe
                   ? 'border-error text-error'
                   : 'border-primary text-primary'
@@ -338,14 +319,14 @@ export function CheckinAlumno() {
             </div>
 
             <div className="w-full">
-              <p className="mb-3 font-oswald text-xs uppercase tracking-[0.05em] text-on-surface-variant">
+              <p className="mb-2 font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
                 Tus últimas asistencias
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {resultado.fechas.map((f) => (
                   <span
                     key={f}
-                    className="rounded-full border border-outline-variant bg-surface-container-low px-4 py-1.5 font-inter text-sm text-on-surface"
+                    className="rounded-full border border-outline-variant bg-surface-container-low px-3 py-1 font-inter text-xs text-on-surface"
                   >
                     {f.split('-').reverse().join('/')}
                   </span>
@@ -353,7 +334,7 @@ export function CheckinAlumno() {
               </div>
             </div>
 
-            <Button type="button" variant="solido" onClick={reiniciar} className="px-10 py-4 text-lg">
+            <Button type="button" variant="solido" onClick={reiniciar}>
               Listo
             </Button>
           </div>
