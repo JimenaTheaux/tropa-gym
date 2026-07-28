@@ -11,14 +11,18 @@ compartirlos mientras tanto.
 ## Entregable compilado
 
 - **`Manual_de_Usuario_Tropa_Gym.pdf`** — los 9 módulos compilados en un solo
-  PDF (31 páginas): portada, índice y cada módulo con salto de página propio.
+  PDF (32 páginas): portada, índice y cada módulo con salto de página propio.
   Pie de página con el logo deciDATA y "Todos los derechos reservados" en
   cada página, igual que el footer de la app. Las tarjetas/tablas no se
   cortan entre páginas (`break-inside: avoid`), así que nunca queda contenido
   tapado por el pie de página.
 - `manual_usuario_tropa_gym.html` — fuente del PDF (un solo HTML autocontenido
-  con los 9 módulos concatenados). Si se edita algún módulo `NN_*.html`,
-  volver a generar este archivo y el PDF a partir de él.
+  con los 9 módulos concatenados). Si se edita algún módulo `NN_*.html`, hay
+  que trasladar el mismo cambio a mano acá (no hay merge automático — ver
+  comentario en `generar_pdf.py`) y volver a generar el PDF.
+- `generar_pdf.py` — script (Playwright) que genera el PDF a partir de este
+  HTML. `pip install playwright`, después `python generar_pdf.py` desde esta
+  carpeta.
 
 ## Módulos
 
@@ -29,19 +33,23 @@ compartirlos mientras tanto.
   (pendiente/parcial/pagado), pagos parciales, sobrepago, y cargos sin monto
   definido.
 - [x] `02_alumnos_y_fichas.html` — datos del alta, el "plan actual" y por qué
-  se actualiza solo con los pagos (RN-035), estado activo/inactivo, estado de
-  cuenta en la ficha.
+  se actualiza solo con los pagos (RN-035), estado activo/inactivo híbrido
+  (automático + forzado a mano por Admin/Profesor, con fecha backdateable,
+  motivo e historial), estado de cuenta en la ficha.
 - [x] `03_asistencia.html` — check-in de alumnos (4 pasos), qué dispara la
-  primera asistencia del mes, estado activo/alerta/inactivo, asistencia de
-  profesores (entrada/salida → horas mensuales).
+  primera asistencia del mes, estado activo/alerta/inactivo automático (con
+  nota sobre el override manual, detallado en el módulo Alumnos), asistencia
+  de profesores (entrada/salida → horas mensuales).
 - [x] `04_pagos.html` — los 3 tipos (Individual/Familiar/Adelantado), de dónde
   sale el precio, la decisión manual de cuota completa/media (distinta del
   cálculo automático de Cargos), métodos de pago, actualización del plan del
   alumno. Con ejemplos de pago familiar y adelantado.
-- [x] `05_dashboard_resumen_mensual.html` — vista KPI, y las 5 secciones del
-  Centro de Resumen Mensual (liquidación, alertas, deudores + WhatsApp,
-  próximos a inactivarse, horas por profesor). Aclara la relación entre el
-  Centro de Resumen y la pantalla Cargos.
+- [x] `05_dashboard_resumen_mensual.html` — vista KPI (con el gráfico apilado
+  de activos/inactivos por período, y la aclaración de que se cuenta el
+  estado al cierre de cada período, no la asistencia del mes), y las 5
+  secciones del Centro de Resumen Mensual (liquidación, alertas, deudores +
+  WhatsApp, próximos a inactivarse, horas por profesor). Aclara la relación
+  entre el Centro de Resumen y la pantalla Cargos.
 - [x] `06_configuracion.html` — combos como único factor de precio, precios
   con vigencia (no afecta el pasado), disciplinas/descuentos/turnos/profesores.
 - [x] `07_roles_y_permisos.html` — matriz de acceso por módulo, y cómo

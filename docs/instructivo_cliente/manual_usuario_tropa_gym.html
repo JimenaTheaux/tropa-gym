@@ -1482,10 +1482,10 @@ tr { break-inside: avoid; }
 
   <section class="card">
     <h2>3 — Estado del alumno: Activo / Inactivo</h2>
-    <h3>Se calcula solo, mirando la última asistencia</h3>
+    <h3>Se calcula solo por defecto, pero también se puede forzar a mano</h3>
     <p>
-      Nadie marca a un alumno como "inactivo" a mano. El sistema mira cuándo
-      fue su última asistencia:
+      Por defecto, nadie tiene que tocar nada: el sistema mira cuándo fue la
+      última asistencia del alumno.
     </p>
     <ul class="lista-simple" style="margin-top: 10px;">
       <li><strong>Activo</strong> — asistió en los últimos 25 días.</li>
@@ -1494,6 +1494,32 @@ tr { break-inside: avoid; }
     <p style="margin-top: 10px;">
       El detalle completo (incluida la alerta preventiva a los 15 días) está en
       el módulo <strong>Asistencia</strong>.
+    </p>
+    <p style="margin-top: 14px;">
+      Pero hay casos que la asistencia sola no explica: una licencia, una
+      lesión, una pausa acordada con el alumno. Para eso, <strong>Administrador
+      y Profesor pueden tocar el badge Activo/Inactivo</strong> (en el listado
+      de Alumnos o en la Ficha) y forzar el estado a mano. Antes de confirmar,
+      el sistema pide:
+    </p>
+    <ul class="lista-simple" style="margin-top: 10px;">
+      <li><strong>Desde cuándo rige</strong> — viene con la fecha de hoy, pero es editable: sirve para dejar constancia de que, por ejemplo, "está de baja desde el lunes pasado" y no recién desde que alguien lo cargó.</li>
+      <li><strong>Motivo</strong> (opcional, solo al marcarlo inactivo) — para dejar registrado el porqué.</li>
+    </ul>
+    <div class="callout" style="margin-top: 14px;">
+      <div class="dot"></div>
+      <p>
+        <strong>El estado manual no "traba" al alumno.</strong> Si vuelve a
+        asistir de verdad, el sistema lo reactiva solo — aunque lo hayan
+        marcado inactivo a mano. Nadie tiene que acordarse de deshacer el
+        cambio manual cuando el alumno vuelve.
+      </p>
+    </div>
+    <p style="margin-top: 14px;">
+      Todos los cambios (automáticos y manuales) quedan en el
+      <strong>historial de estado</strong>, visible dentro de la Ficha del
+      alumno: fecha, si fue automático o manual, y el motivo si lo hubo —
+      para poder reconstruir después por qué un alumno quedó inactivo tal mes.
     </p>
   </section>
 
@@ -1612,6 +1638,13 @@ tr { break-inside: avoid; }
       alumnos aparecen listados en <strong>"Próximos a inactivarse"</strong>,
       dentro del Centro de Resumen Mensual del Dashboard, para poder
       contactarlos antes de que se corte la racha.
+    </p>
+    <p style="margin-top: 10px;">
+      Esta línea de tiempo es la regla <strong>automática</strong>, la que
+      corre sola. Administrador y Profesor también pueden forzar el estado a
+      mano (licencia, lesión, pausa acordada) — el detalle de cómo hacerlo
+      está en el módulo <strong>Alumnos y fichas</strong>. En cualquier caso,
+      una asistencia real siempre vuelve a poner al alumno como Activo.
     </p>
   </section>
 
@@ -1811,11 +1844,25 @@ tr { break-inside: avoid; }
       <div class="kpi"><div class="valor">$770.000</div><div class="etiqueta">Ganancia neta</div></div>
     </div>
     <p style="margin-top: 16px;">
-      Además hay un gráfico que muestra la evolución mes a mes de la ganancia
-      neta y de la cantidad de alumnos activos, y una card con los horarios
-      (turnos) que más se llenan — útil para decidir si conviene abrir un
-      turno nuevo o reforzar uno existente.
+      Además hay dos gráficos y una card con los horarios (turnos) que más se
+      llenan — útil para decidir si conviene abrir un turno nuevo o reforzar
+      uno existente:
     </p>
+    <ul class="lista-simple" style="margin-top: 10px;">
+      <li><strong>Ganancia neta por período</strong> — evolución mes a mes.</li>
+      <li><strong>Activos vs. inactivos por período</strong> — una sola barra apilada por mes (activos abajo, inactivos arriba), en vez de dos gráficos separados: de un vistazo se ve la proporción entre ambos y el total de alumnos de ese mes. Pasando el mouse (o tocando en tablet) sobre una barra se ve el desglose exacto.</li>
+    </ul>
+    <div class="callout" style="margin-top: 14px;">
+      <div class="dot"></div>
+      <p>
+        <strong>"Alumnos activos" mira la foto de cada mes, no la asistencia
+        dentro de ese mes.</strong> Tanto la card como el gráfico cuentan
+        cuántos alumnos estaban activos <em>al cierre</em> de cada período
+        (o "hoy" si el período todavía no terminó) — no cuántos vinieron ese
+        mes. Esto viene del estado de cada alumno (ver módulo Alumnos y
+        fichas: activo/inactivo, automático o manual), no de la asistencia.
+      </p>
+    </div>
   </section>
 
   <section class="card">
@@ -2024,6 +2071,7 @@ tr { break-inside: avoid; }
           <li>Registra su propia entrada/salida</li>
           <li>Sin Dashboard, Configuración ni Egresos</li>
           <li>Puede corregir un monto de deuda, como excepción</li>
+          <li>Puede marcar a un alumno como Activo/Inactivo a mano</li>
         </ul>
       </div>
       <div class="rol">

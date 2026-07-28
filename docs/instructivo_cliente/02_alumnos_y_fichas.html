@@ -144,10 +144,10 @@
 
   <section class="card">
     <h2>3 — Estado del alumno: Activo / Inactivo</h2>
-    <h3>Se calcula solo, mirando la última asistencia</h3>
+    <h3>Se calcula solo por defecto, pero también se puede forzar a mano</h3>
     <p>
-      Nadie marca a un alumno como "inactivo" a mano. El sistema mira cuándo
-      fue su última asistencia:
+      Por defecto, nadie tiene que tocar nada: el sistema mira cuándo fue la
+      última asistencia del alumno.
     </p>
     <ul class="lista-simple" style="margin-top: 10px;">
       <li><strong>Activo</strong> — asistió en los últimos 25 días.</li>
@@ -156,6 +156,32 @@
     <p style="margin-top: 10px;">
       El detalle completo (incluida la alerta preventiva a los 15 días) está en
       el módulo <strong>Asistencia</strong>.
+    </p>
+    <p style="margin-top: 14px;">
+      Pero hay casos que la asistencia sola no explica: una licencia, una
+      lesión, una pausa acordada con el alumno. Para eso, <strong>Administrador
+      y Profesor pueden tocar el badge Activo/Inactivo</strong> (en el listado
+      de Alumnos o en la Ficha) y forzar el estado a mano. Antes de confirmar,
+      el sistema pide:
+    </p>
+    <ul class="lista-simple" style="margin-top: 10px;">
+      <li><strong>Desde cuándo rige</strong> — viene con la fecha de hoy, pero es editable: sirve para dejar constancia de que, por ejemplo, "está de baja desde el lunes pasado" y no recién desde que alguien lo cargó.</li>
+      <li><strong>Motivo</strong> (opcional, solo al marcarlo inactivo) — para dejar registrado el porqué.</li>
+    </ul>
+    <div class="callout" style="margin-top: 14px;">
+      <div class="dot"></div>
+      <p>
+        <strong>El estado manual no "traba" al alumno.</strong> Si vuelve a
+        asistir de verdad, el sistema lo reactiva solo — aunque lo hayan
+        marcado inactivo a mano. Nadie tiene que acordarse de deshacer el
+        cambio manual cuando el alumno vuelve.
+      </p>
+    </div>
+    <p style="margin-top: 14px;">
+      Todos los cambios (automáticos y manuales) quedan en el
+      <strong>historial de estado</strong>, visible dentro de la Ficha del
+      alumno: fecha, si fue automático o manual, y el motivo si lo hubo —
+      para poder reconstruir después por qué un alumno quedó inactivo tal mes.
     </p>
   </section>
 

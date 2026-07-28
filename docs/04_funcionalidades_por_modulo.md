@@ -10,12 +10,13 @@ Submenú con 2 vistas: **KPI** y **Centro de Resumen Mensual**.
 
 ### Vista KPI
 - Filtro global por período (selector de fechas/mes).
-- Card: Alumnos activos.
+- Card: Alumnos activos. Cuenta el estado vigente **al cierre del período filtrado** (o "hoy" si el período no cerró), reconstruido desde `alumno_estado_historial` — no asistencia dentro del mes (ver doc 03).
 - Card: $ Ingresos.
 - Card: $ Saldo a cobrar.
 - Card: $ Egresos.
 - Card: $ Ganancia neta.
-- Gráfico temporal, 2 categorías: ganancia neta por período / cantidad de alumnos activos por período.
+- Gráfico de ganancia neta por período (`TrendChart`, línea).
+- Gráfico de evolución de alumnos activos/inactivos por período (`EstadoEvolucionChart`) — barra apilada (activos abajo, inactivos arriba) por período, con tooltip de desglose; mismo cálculo punto-en-el-tiempo que la card de arriba. Reemplazó a dos `TrendChart` separados (no se podían comparar entre sí).
 - Card: top de horarios con mayor ocupación (calculado desde asistencias_alumnos + turnos).
 
 ### Centro de Resumen Mensual
@@ -54,7 +55,7 @@ Funciona como centro de alertas. Orden de secciones:
 - Alta, edición, baja.
 - Datos: Nombre, Apellido, DNI (obligatorios); Teléfono, Fecha de nacimiento (opcionales).
 - Plan actual: Disciplina + Combo (opcional en el alta, es lo que se muestra en el check-in de asistencia). Se actualiza solo con cada pago Individual/Familiar — no hace falta editarlo a mano cuando el alumno cambia de plan (RN-035, no aplica a Adelantado).
-- Estado calculado (Activo/Inactivo).
+- Estado Activo/Inactivo, híbrido (ver doc 03): automático por defecto (25 días sin asistir), o forzado a mano por Admin/Profesor tocando el badge (`EstadoToggleButton`, en el listado y en la Ficha) — confirmación pide fecha desde la que rige (backdateable) y motivo opcional si pasa a inactivo. Una asistencia real siempre reactiva, sea cual sea el origen. La Ficha muestra además el historial completo de cambios (fecha, origen, motivo).
 - Estado de cuenta (ficha del alumno): saldo por período, con badge de estado del cargo (Pendiente/Parcial/Pagado) y, si corresponde, badge rojo "Monto sin definir" (ver doc 03) — editable en el momento por Admin/Profesor.
 
 ## Pagos

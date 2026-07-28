@@ -106,11 +106,25 @@
       <div class="kpi"><div class="valor">$770.000</div><div class="etiqueta">Ganancia neta</div></div>
     </div>
     <p style="margin-top: 16px;">
-      Además hay un gráfico que muestra la evolución mes a mes de la ganancia
-      neta y de la cantidad de alumnos activos, y una card con los horarios
-      (turnos) que más se llenan — útil para decidir si conviene abrir un
-      turno nuevo o reforzar uno existente.
+      Además hay dos gráficos y una card con los horarios (turnos) que más se
+      llenan — útil para decidir si conviene abrir un turno nuevo o reforzar
+      uno existente:
     </p>
+    <ul class="lista-simple" style="margin-top: 10px;">
+      <li><strong>Ganancia neta por período</strong> — evolución mes a mes.</li>
+      <li><strong>Activos vs. inactivos por período</strong> — una sola barra apilada por mes (activos abajo, inactivos arriba), en vez de dos gráficos separados: de un vistazo se ve la proporción entre ambos y el total de alumnos de ese mes. Pasando el mouse (o tocando en tablet) sobre una barra se ve el desglose exacto.</li>
+    </ul>
+    <div class="callout" style="margin-top: 14px;">
+      <div class="dot"></div>
+      <p>
+        <strong>"Alumnos activos" mira la foto de cada mes, no la asistencia
+        dentro de ese mes.</strong> Tanto la card como el gráfico cuentan
+        cuántos alumnos estaban activos <em>al cierre</em> de cada período
+        (o "hoy" si el período todavía no terminó) — no cuántos vinieron ese
+        mes. Esto viene del estado de cada alumno (ver módulo Alumnos y
+        fichas: activo/inactivo, automático o manual), no de la asistencia.
+      </p>
+    </div>
   </section>
 
   <section class="card">

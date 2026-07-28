@@ -25,6 +25,7 @@ egresos (independiente)
 
 ## Enums necesarios
 - `estado_alumno`: activo | inactivo
+- `origen_estado_alumno`: automatico | manual (migración 11)
 - `estado_pago`: pendiente | parcial | pagado
 - `tipo_pago`: individual | familiar | adelantado
 - `metodo_pago`: efectivo | transferencia | combinado
@@ -43,8 +44,29 @@ egresos (independiente)
 | fecha_nacimiento | date | opcional |
 | disciplina_id | FK disciplinas | opcional. Plan actual — se muestra en el check-in de asistencia. Se carga al alta y se actualiza solo con cada pago Individual/Familiar (RN-035, no con Adelantado) |
 | combo_id | FK combos | opcional. Plan actual — resuelve el precio de los cargos cuando el alumno todavía no tiene pagos previos (RN-030). Se carga al alta y se actualiza solo con cada pago Individual/Familiar (RN-035, no con Adelantado) |
-| estado | estado_alumno | calculado, default 'activo' |
+| estado | estado_alumno | default 'activo'. Híbrido (migración 11/12, ver doc 03): automático por defecto (recalculado por `sync_estados_automaticos()`), o forzado a mano por Admin/Profesor (`marcar_estado_manual`). Una asistencia real siempre lo reactiva, sea cual sea el origen |
+| estado_origen | origen_estado_alumno | default 'automatico'. Distingue si el `estado` actual viene de la regla de 25 días o de un cambio manual — `sync_estados_automaticos()` nunca toca a los que están en 'manual' |
+| estado_motivo | text | opcional. Solo se usa en cambios manuales (ej. "Licencia por lesión") |
+| estado_desde | timestamptz | default now(). Fecha desde la que rige el `estado` actual — editable/backdateable en el cambio manual (migración 12), útil para "de baja desde el lunes" |
 | fecha_alta | timestamptz | default now() |
+
+### alumno_estado_historial (migración 11)
+Registro completo de cada cambio de estado de un alumno, no solo el último — `alumnos.estado*` siempre refleja la fila más reciente de acá.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | uuid PK | |
+| alumno_id | FK alumnos | `ON DELETE CASCADE` |
+| estado | estado_alumno | |
+| origen | origen_estado_alumno | |
+| motivo | text | opcional |
+| fecha_desde | timestamptz | default now(). Backdateable (migración 12) |
+| creado_por | FK perfiles | opcional (null en cambios automáticos, que no tienen usuario asociado) |
+| created_at | timestamptz | |
+
+RLS: SELECT para admin/profesor/kiosco (mismo `get_user_role()` que `alumnos`). Escritura solo vía `fn_registrar_cambio_estado` (SECURITY DEFINER, no expuesta a PostgREST) — el único punto que escribe `alumnos` + este historial juntos, para que nunca queden desincronizados.
+
+Usado por el Dashboard (`fetchEstadoAlumnosPorPeriodo`) para reconstruir cuántos alumnos estaban activos/inactivos al cierre de cada período (punto-en-el-tiempo), no solo el estado actual.
 
 ### asistencias_alumnos
 | Campo | Tipo | Notas |
@@ -149,4 +171,7 @@ egresos (independiente)
   - **Reconciliación de pagos huérfanos**: al confirmar (`p_confirmar = true`), además de insertar los cargos, vincula cualquier `pagos_alumnos` de ese período que haya quedado con `cargo_id NULL` (pago registrado antes de que este cargo existiera — caso típico: alguien paga antes de que Admin corra esta liquidación) al cargo correspondiente (recién creado o ya existente). El `UPDATE` de `cargo_id` dispara el recálculo de `cargos.estado` (ver doc 03).
 - `registrar_pago_familiar(...)`: crea 1 pago + N filas en pagos_alumnos. El detalle de cada alumno recibe `disciplina_id`/`combo_id` (antes texto libre).
 - `registrar_pago_adelantado(...)`: crea N cargos/pagos en una transacción (uno por período). El detalle de cada período recibe `disciplina_id`/`combo_id` (antes texto libre).
-- `calcular_estado_alumno()`: job o vista que recalcula activo/inactivo según última asistencia.
+- `fn_registrar_cambio_estado(alumno_id, estado, origen, motivo, creado_por, fecha_desde?)` (migración 11/12): interna, no expuesta a PostgREST. Único punto que escribe `alumnos.estado*` + `alumno_estado_historial` juntos; no-op si no hay transición real.
+- `marcar_estado_manual(alumno_id, estado, motivo?, fecha_desde?)` (migración 11/12): RPC pública, Admin/Profesor. Llama a `fn_registrar_cambio_estado` con `origen='manual'`.
+- `sync_estados_automaticos()` (migración 11): recalcula inactivaciones (25 días sin asistir) sobre alumnos con `estado_origen='automatico'`. Se llama lazy al abrir la app (`useSyncEstadosAutomaticos`), no hay cron.
+- `trg_reactivar_alumno_por_asistencia` (migración 11): trigger `AFTER INSERT` en `asistencias_alumnos` — si el alumno estaba inactivo (automático o manual), lo reactiva vía `fn_registrar_cambio_estado(..., origen='automatico')`.

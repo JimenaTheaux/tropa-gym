@@ -1,21 +1,33 @@
 # 03. Flujo de Estados — TROPA GYM
 
-## Estado del alumno
-Calculado automáticamente según última asistencia. Nunca manual.
+## Estado del alumno (híbrido: automático + manual)
+Migración 11/12. Reemplaza el esquema original (calculado siempre, nunca manual, y que en la práctica nunca se recalculaba porque no había trigger ni cron que lo disparara).
 
-- **Activo**: asistencia en los últimos 25 días.
-- **Alerta** (visual, no es estado formal): más de 15 días sin asistir. Aparece en "Alumnos próximos a inactivarse" del Centro de Resumen Mensual.
-- **Inactivo**: 25 días consecutivos sin asistencia.
+`alumnos` guarda `estado` (activo/inactivo), `estado_origen` (`automatico`/`manual`), `estado_motivo` y `estado_desde`. Cada cambio queda además registrado en `alumno_estado_historial` (una fila por transición, no solo el último estado) — ver doc 06.
+
+- **Automático (default)**:
+  - **Activo**: asistencia en los últimos 25 días.
+  - **Alerta** (visual, no es estado formal): 15 a 24 días sin asistir. Aparece en "Alumnos próximos a inactivarse" del Centro de Resumen Mensual.
+  - **Inactivo**: 25 días consecutivos sin asistencia. Se aplica vía `sync_estados_automaticos()`, que se llama lazy al abrir la app (`useSyncEstadosAutomaticos`, staleTime 1h) — no hay cron. Solo toca alumnos con `estado_origen = 'automatico'`.
+- **Manual**: Admin/Profesor pueden forzar el estado a mano (licencia, lesión, pausa, etc.) desde el badge Activo/Inactivo (`EstadoToggleButton`, en Alumnos y en la Ficha) — clic abre confirmación con la **fecha desde la que rige** (editable, permite backdatear: "de baja desde el lunes") y **motivo** opcional si pasa a inactivo. RPC `marcar_estado_manual`.
+- **Reactivación automática**: una asistencia real **siempre** reactiva al alumno (trigger `trg_asistencia_reactiva_alumno`), esté inactivo por la regla automática o por una baja manual — nunca queda "atascado" en inactivo manual mientras el alumno vuelve a asistir. La reactivación por asistencia queda registrada como `estado_origen = 'automatico'`.
 
 ```
 Asistencia registrada
       ↓
-  [ACTIVO] ──(15 días sin asistir)──> aparece en alerta preventiva
+  [ACTIVO, automático] ──(15 días sin asistir)──> alerta preventiva
       ↓
-  (25 días sin asistir)
+  (25 días sin asistir, sync_estados_automaticos)
       ↓
-  [INACTIVO]
+  [INACTIVO, automático] <──(asistencia real, trigger)── vuelve a ACTIVO
+      ↑↓
+  Admin/Profesor fuerza el estado (marcar_estado_manual) ──> [ACTIVO|INACTIVO, manual]
+                                                                     │
+                                                    (asistencia real reactiva igual)
 ```
+
+### Dashboard: conteo por período, no por asistencia del mes
+El KPI "Alumnos activos" y el gráfico de evolución (`EstadoEvolucionChart`, barra apilada activos+inactivos) ya no cuentan asistencia dentro del mes — reconstruyen el **estado vigente de cada alumno al cierre de cada período** (o "hoy" si el período no cerró) a partir de `alumno_estado_historial` (`fetchEstadoAlumnosPorPeriodo`, doc 06). Un alumno sin ninguna fila de historial con `fecha_desde` anterior al corte todavía no existía en ese período y no cuenta ni como activo ni como inactivo. Esto evita el problema del esquema anterior, donde el conteo nunca se recalculaba y quedaba desalineado con la realidad.
 
 ## Estado del cargo
 El `estado` (pendiente/parcial/pagado) es una propiedad del **cargo** (la deuda del período), no del pago. Un pago es una transacción puntual; lo que puede estar "parcial" es la deuda que ese pago va cancelando.

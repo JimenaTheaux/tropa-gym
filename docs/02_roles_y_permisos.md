@@ -12,6 +12,7 @@
 - Sin acceso a: Dashboard, Configuración, Egresos.
 - Registra su propia asistencia (entrada/salida).
 - Puede editar `cargos.monto` como excepción (ej. corrección manual de una deuda) — mismo permiso que Admin, ya que ambos roles reciben pagos. La edición dispara el recálculo automático del `estado` del cargo (ver doc 03).
+- Puede forzar a mano el estado Activo/Inactivo de un alumno (`marcar_estado_manual`, migración 11/12) — mismo permiso que Admin. El RPC rechaza a cualquier rol que no sea admin/profesor (`get_user_role() NOT IN ('admin','profesor')`). Kiosco solo puede ver el estado (SELECT sobre `alumno_estado_historial`), no cambiarlo.
 
 ## Usuario General (Kiosco)
 - Único acceso: registrar asistencia por DNI o nombre.
