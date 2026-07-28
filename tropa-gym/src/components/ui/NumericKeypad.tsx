@@ -23,19 +23,19 @@ export function NumericKeypad({ value, onChange, maxLength = 15 }: NumericKeypad
   }
 
   return (
-    <div className="grid w-full max-w-xs grid-cols-3 gap-1.5">
+    <div className="grid w-full max-w-[260px] grid-cols-3 gap-2 sm:max-w-[320px]">
       {TECLAS.map((tecla) => (
         <button
           key={tecla}
           type="button"
           onClick={() => presionar(tecla)}
           aria-label={tecla === 'borrar' ? 'Borrar' : tecla === 'limpiar' ? 'Limpiar' : tecla}
-          className="flex h-11 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-low font-oswald text-lg font-bold text-on-surface transition-colors hover:bg-surface-container-high active:bg-surface-container-highest"
+          className="flex h-16 items-center justify-center rounded-xl border border-outline-variant bg-surface-container-low font-oswald text-2xl font-bold text-on-surface transition-colors hover:bg-surface-container-high active:bg-surface-container-highest sm:h-20 sm:text-3xl"
         >
           {tecla === 'borrar' ? (
-            <span className="material-symbols-outlined !text-[20px]">backspace</span>
+            <span className="material-symbols-outlined !text-[26px] sm:!text-[30px]">backspace</span>
           ) : tecla === 'limpiar' ? (
-            <span className="material-symbols-outlined !text-[20px]">close</span>
+            <span className="material-symbols-outlined !text-[26px] sm:!text-[30px]">close</span>
           ) : (
             tecla
           )}
