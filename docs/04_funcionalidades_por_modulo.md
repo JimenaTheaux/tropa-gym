@@ -35,6 +35,7 @@ Funciona como centro de alertas. Orden de secciones:
 - Alumnos con deuda (cantidad + monto total).
 - Alumnos próximos a inactivarse (cantidad).
 - Horas totales de profesores en el período.
+- Cargos sin monto definido (cantidad) — alumnos con asistencia en el período pero sin combo/precio resuelto (ver doc 03, "Cargo con monto sin definir").
 
 **C. Panel Deudores**
 - Lista: alumno, monto adeudado, días de vencimiento.
@@ -43,6 +44,10 @@ Funciona como centro de alertas. Orden de secciones:
   - Requiere que `alumnos.telefono` esté guardado en formato internacional sin símbolos (ver doc 06 — nota de formato).
   - Link: `https://wa.me/{telefono_normalizado}` — sin mensaje predefinido, deja que el admin escriba.
   - Acción secundaria: ver ficha del alumno.
+
+**C.2 Panel Cargos sin monto definido** (solo visible si hay alguno)
+- Lista: alumno, período, tipo de cuota, edición inline del monto (mismo componente que la pantalla Cargos y la ficha del alumno — las tres escriben sobre `cargos.monto`/`monto_definido`).
+- Acción rápida: ver ficha.
 
 **D. Panel Próximos a inactivarse**
 - Lista: alumno, días sin asistir (+15, RN-004).

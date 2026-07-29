@@ -8,7 +8,7 @@ import {
   fetchConteoPorTurno,
   fetchFechasAsistencia,
 } from '@/lib/asistencia'
-import { useTurnosActivos, useDisciplinasActivas } from '@/hooks/useCatalogos'
+import { useTurnosActivos, useDisciplinasActivas, useDisciplinas } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { useAuth } from '@/contexts/AuthContext'
@@ -48,6 +48,10 @@ export function CheckinAlumno() {
 
   const { data: turnos = [] } = useTurnosActivos()
   const { data: disciplinas = [] } = useDisciplinasActivas()
+  // Lista completa aparte, sólo para resolver la disciplina precargada del
+  // alumno cuando quedó desactivada — los chips de selección (línea ~228)
+  // siguen mostrando únicamente las activas, esto no la vuelve elegible.
+  const { data: disciplinasTodas = [] } = useDisciplinas()
 
   const [query, setQuery] = useState('')
 
@@ -127,7 +131,8 @@ export function CheckinAlumno() {
     setError(null)
   }
 
-  const disciplinaSeleccionada = disciplinas.find((d) => d.id === disciplinaId)
+  const disciplinaSeleccionada =
+    disciplinas.find((d) => d.id === disciplinaId) ?? disciplinasTodas.find((d) => d.id === disciplinaId)
   const esHorarioLibre = disciplinaSeleccionada?.horario_libre ?? false
 
   async function confirmar() {

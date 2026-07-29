@@ -10,10 +10,24 @@
     <title>Tropa Gym</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      La hoja de Google Fonts es cross-origin y bloqueaba el primer render
+      (Lighthouse mobile: FCP/LCP ~8.6s con score 57 — ver revisión Fase 7).
+      Patrón "loadCSS": se carga con media="print" (no bloquea) y al terminar
+      se activa para pantalla. El noscript cubre el caso sin JS.
+    -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,300,0..1&display=swap"
       rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,300,0..1&display=swap"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,300,0..1&display=swap"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

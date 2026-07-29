@@ -22,6 +22,25 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: { cacheName: 'supabase-cache', networkTimeoutSeconds: 5 },
           },
+          {
+            // Google Fonts (Anton/Oswald/Inter + Material Symbols, usado como
+            // set de íconos en toda la app) no estaba en ningún cache — offline
+            // los íconos degradaban a texto plano ("fitness_center"). La hoja
+            // CSS casi no cambia: StaleWhileRevalidate. Los binarios de fuente
+            // son inmutables una vez servidos: CacheFirst con expiración larga.
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'google-fonts-stylesheets' },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-webfonts',
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
       manifest: {

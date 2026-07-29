@@ -13,6 +13,7 @@ import type {
   Turno,
 } from '@/types/db'
 import { supabase } from '@/lib/supabase'
+import { whatsappLink } from '@/lib/utils'
 
 // ---- Período (YYYY-MM) — helpers ----
 
@@ -57,14 +58,19 @@ function listaPeriodos(hasta: string, cantidad: number): string[] {
 }
 
 // ---- Teléfono / WhatsApp — doc 06: internacional sin símbolos ----
+// Misma normalización que CumpleanosPanel (whatsappLink en utils.ts): antes
+// esta validación exigía sólo dígitos (`/^\d{8,15}$/`) mientras whatsappLink
+// ya limpiaba símbolos, así que un teléfono cargado con espacios o guiones
+// quedaba con el botón deshabilitado acá pero funcionaba en Cumpleaños.
 
 export function telefonoWhatsappValido(telefono: string | null | undefined): boolean {
   if (!telefono) return false
-  return /^\d{8,15}$/.test(telefono.trim())
+  const digitos = telefono.replace(/\D/g, '')
+  return digitos.length >= 8 && digitos.length <= 15
 }
 
 export function whatsappUrl(telefono: string): string {
-  return `https://wa.me/${telefono.trim()}`
+  return whatsappLink(telefono)
 }
 
 // ---- KPI ----

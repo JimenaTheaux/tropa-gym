@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { traducirError } from '@/lib/errores'
 import type { Alumno, AlumnoInsert } from '@/types/db'
-import { useDisciplinasActivas, useCombosActivos } from '@/hooks/useCatalogos'
+import { useDisciplinas, useDisciplinasActivas, useCombos, useCombosActivos } from '@/hooks/useCatalogos'
 import { useAlumnos } from '@/hooks/useAlumnos'
 import { useCatalogoMutations } from '@/hooks/useCatalogoMutations'
 import { queryKeys } from '@/lib/queryKeys'
@@ -46,8 +46,10 @@ interface ListadoAlumnosProps {
 
 export function ListadoAlumnos({ busqueda = '' }: ListadoAlumnosProps) {
   const { data: alumnos = [], isLoading: loading } = useAlumnos()
-  const { data: disciplinas = [] } = useDisciplinasActivas()
-  const { data: combos = [] } = useCombosActivos()
+  const { data: disciplinasActivas = [] } = useDisciplinasActivas()
+  const { data: combosActivos = [] } = useCombosActivos()
+  const { data: disciplinasTodas = [] } = useDisciplinas()
+  const { data: combosTodas = [] } = useCombos()
   const { crear, actualizar, eliminar } = useCatalogoMutations<AlumnoInsert>('alumnos', queryKeys.alumnos)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<Alumno | null>(null)
@@ -59,6 +61,26 @@ export function ListadoAlumnos({ busqueda = '' }: ListadoAlumnosProps) {
 
   const saving = crear.isPending || actualizar.isPending
   const deleteLoading = eliminar.isPending
+
+  // El select de edición solo debe ofrecer disciplinas/combos activos como
+  // opción NUEVA, pero si el alumno ya tiene uno desactivado asignado, hay
+  // que seguir mostrándolo (si no, el <select> queda en blanco aunque el
+  // dato exista — ver doc 04, "no debe romper alumnos que ya lo tengan").
+  const disciplinas = useMemo(() => {
+    if (!editing?.disciplina_id || disciplinasActivas.some((d) => d.id === editing.disciplina_id)) {
+      return disciplinasActivas
+    }
+    const actual = disciplinasTodas.find((d) => d.id === editing.disciplina_id)
+    return actual ? [...disciplinasActivas, { ...actual, nombre: `${actual.nombre} (inactiva)` }] : disciplinasActivas
+  }, [disciplinasActivas, disciplinasTodas, editing])
+
+  const combos = useMemo(() => {
+    if (!editing?.combo_id || combosActivos.some((c) => c.id === editing.combo_id)) {
+      return combosActivos
+    }
+    const actual = combosTodas.find((c) => c.id === editing.combo_id)
+    return actual ? [...combosActivos, { ...actual, nombre: `${actual.nombre} (inactivo)` }] : combosActivos
+  }, [combosActivos, combosTodas, editing])
 
   const alumnosFiltrados = useMemo(() => {
     const term = busqueda.trim().toLowerCase()

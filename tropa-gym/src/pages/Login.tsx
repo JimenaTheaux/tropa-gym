@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { getHomePath } from '@/config/nav'
 import { Button } from '@/components/ui/button'
+import { Footer } from '@/components/layout/Footer'
 
 export function Login() {
   const { session, perfil, loading, signIn } = useAuth()
@@ -31,7 +32,8 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-gutter">
+    <div className="flex min-h-screen flex-col bg-background">
+      <div className="flex flex-1 items-center justify-center px-gutter">
       <div className="w-full max-w-sm rounded-card border border-outline-variant bg-surface-container p-8">
         <Link
           to="/"
@@ -101,6 +103,9 @@ export function Login() {
           </Button>
         </form>
       </div>
+      </div>
+
+      <Footer />
     </div>
   )
 }
