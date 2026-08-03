@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { ChangeEvent, FocusEvent, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
+import type { ChangeEvent, FocusEvent, InputHTMLAttributes, MouseEvent, ReactNode, SelectHTMLAttributes } from 'react'
 
 const fieldClass =
   'w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 font-inter text-sm text-on-surface outline-none focus:border-primary disabled:opacity-50'
@@ -40,9 +40,22 @@ export function FormInput({ label, error, id, className, onFocus, ...props }: Fo
     onFocus?.(e)
   }
 
+  // El picker nativo de <input type="month"> solo se abre al clickear el
+  // ícono de calendario (área muy chica) — con showPicker() se abre con un
+  // click en cualquier parte del campo, como espera el usuario.
+  function handleClick(e: MouseEvent<HTMLInputElement>) {
+    if (props.type === 'month') e.currentTarget.showPicker?.()
+  }
+
   return (
     <FieldShell label={label} htmlFor={id!} error={error}>
-      <input id={id} className={`${fieldClass} ${className ?? ''}`} {...props} onFocus={handleFocus} />
+      <input
+        id={id}
+        className={`${fieldClass} ${className ?? ''}`}
+        {...props}
+        onFocus={handleFocus}
+        onClick={handleClick}
+      />
     </FieldShell>
   )
 }
