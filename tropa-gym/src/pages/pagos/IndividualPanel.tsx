@@ -8,7 +8,7 @@ import { aplicarDescuento, aplicarTipoCuota, precioVigente } from '@/lib/precios
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { Button } from '@/components/ui/button'
-import { FormCurrencyInput, FormInput, FormSelect } from '@/components/ui/FormField'
+import { FormCurrencyInput, FormMonthInput, FormSelect } from '@/components/ui/FormField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { BadgeEstado } from '@/components/ui/BadgeEstado'
 import { AlumnoBuscador } from '@/components/ui/AlumnoBuscador'
@@ -194,14 +194,7 @@ export function IndividualPanel({ onSuccess }: IndividualPanelProps) {
               onChange={(e) => setComboId(e.target.value)}
               options={combos.map((c) => ({ value: c.id, label: c.nombre }))}
             />
-            <FormInput
-              id="individual-periodo"
-              label="Período"
-              type="month"
-              required
-              value={periodo}
-              onChange={(e) => setPeriodo(e.target.value)}
-            />
+            <FormMonthInput id="individual-periodo" label="Período" required value={periodo} onChange={setPeriodo} />
             <FormSelect
               id="individual-descuento"
               label="Descuento / Recargo (opcional)"

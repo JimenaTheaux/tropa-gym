@@ -9,7 +9,7 @@ import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { FormInput } from '@/components/ui/FormField'
+import { FormMonthInput } from '@/components/ui/FormField'
 import { EditarMontoCargo } from '@/components/ui/EditarMontoCargo'
 
 type FilaCargo = FilaCargoPreview
@@ -140,13 +140,13 @@ export function Cargos() {
       </h1>
 
       <div className="flex flex-wrap items-end gap-4 rounded-card border border-outline-variant bg-surface-container p-5">
-        <FormInput
+        <FormMonthInput
           id="cargos-periodo"
           label="Período"
-          type="month"
+          required
           value={periodo}
-          onChange={(e) => {
-            setPeriodo(e.target.value)
+          onChange={(periodo) => {
+            setPeriodo(periodo)
             setOverrides({})
             setSuccess(null)
           }}

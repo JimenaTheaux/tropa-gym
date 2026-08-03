@@ -7,7 +7,7 @@ import { aplicarDescuento, precioVigente } from '@/lib/precios'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { Button } from '@/components/ui/button'
-import { FormCurrencyInput, FormInput, FormSelect } from '@/components/ui/FormField'
+import { FormCurrencyInput, FormMonthInput, FormSelect } from '@/components/ui/FormField'
 import { BadgeEstado } from '@/components/ui/BadgeEstado'
 import { AlumnoBuscador } from '@/components/ui/AlumnoBuscador'
 import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
@@ -235,13 +235,12 @@ export function AdelantadoPanel({ onSuccess }: AdelantadoPanelProps) {
                   onChange={(e) => actualizarPeriodo(p.key, { comboId: e.target.value })}
                   options={combos.map((c) => ({ value: c.id, label: c.nombre }))}
                 />
-                <FormInput
+                <FormMonthInput
                   id={`adelantado-periodo-${p.key}`}
                   label="Período"
-                  type="month"
                   required
                   value={p.periodo}
-                  onChange={(e) => actualizarPeriodo(p.key, { periodo: e.target.value })}
+                  onChange={(periodo) => actualizarPeriodo(p.key, { periodo })}
                 />
                 <FormSelect
                   id={`adelantado-descuento-${p.key}`}

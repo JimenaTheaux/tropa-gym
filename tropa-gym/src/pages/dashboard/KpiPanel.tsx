@@ -4,7 +4,7 @@ import { fetchKpiCards, fetchTopHorarios, fetchTrend, periodoActual, periodoLabe
 import { traducirError } from '@/lib/errores'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
-import { FormInput } from '@/components/ui/FormField'
+import { FormMonthInput } from '@/components/ui/FormField'
 import { TrendChart } from '@/components/ui/TrendChart'
 import { EstadoEvolucionChart } from '@/components/ui/EstadoEvolucionChart'
 
@@ -62,13 +62,7 @@ export function KpiPanel() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end gap-4">
-        <FormInput
-          id="kpi-periodo"
-          label="Período"
-          type="month"
-          value={periodo}
-          onChange={(e) => setPeriodo(e.target.value)}
-        />
+        <FormMonthInput id="kpi-periodo" label="Período" required value={periodo} onChange={setPeriodo} />
       </div>
 
       {error && <p className="font-inter text-sm text-error">{error}</p>}

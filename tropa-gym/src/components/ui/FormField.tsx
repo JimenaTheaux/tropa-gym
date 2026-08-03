@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import type { ChangeEvent, FocusEvent, InputHTMLAttributes, MouseEvent, ReactNode, SelectHTMLAttributes } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ChangeEvent, FocusEvent, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
+import { cn } from '@/lib/utils'
 
 const fieldClass =
   'w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 font-inter text-sm text-on-surface outline-none focus:border-primary disabled:opacity-50'
@@ -40,22 +41,9 @@ export function FormInput({ label, error, id, className, onFocus, ...props }: Fo
     onFocus?.(e)
   }
 
-  // El picker nativo de <input type="month"> solo se abre al clickear el
-  // ícono de calendario (área muy chica) — con showPicker() se abre con un
-  // click en cualquier parte del campo, como espera el usuario.
-  function handleClick(e: MouseEvent<HTMLInputElement>) {
-    if (props.type === 'month') e.currentTarget.showPicker?.()
-  }
-
   return (
     <FieldShell label={label} htmlFor={id!} error={error}>
-      <input
-        id={id}
-        className={`${fieldClass} ${className ?? ''}`}
-        {...props}
-        onFocus={handleFocus}
-        onClick={handleClick}
-      />
+      <input id={id} className={`${fieldClass} ${className ?? ''}`} {...props} onFocus={handleFocus} />
     </FieldShell>
   )
 }
@@ -216,6 +204,165 @@ export function FormDateInput({ id, label, required, error, value, onChange }: F
         className={fieldClass}
       />
     </FieldShell>
+  )
+}
+
+interface FormMonthInputProps {
+  id: string
+  label: string
+  required?: boolean
+  error?: string
+  value: string
+  onChange: (value: string) => void
+}
+
+const MESES_ABREV = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic']
+const MESES_LARGO = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+]
+
+function periodoHoy(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+// Reemplaza <input type="month"> nativo: el panel del picker lo dibuja el
+// sistema operativo/navegador (blanco, acento azul) y no se puede restylear
+// con CSS — queda fuera de la estética del proyecto (doc 08). Un botón +
+// panel propios, con los mismos colores que el resto de la UI.
+export function FormMonthInput({ id, label, required, error, value, onChange }: FormMonthInputProps) {
+  const [open, setOpen] = useState(false)
+  const [anioVisible, setAnioVisible] = useState(() =>
+    value ? Number(value.split('-')[0]) : new Date().getFullYear(),
+  )
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setAnioVisible(value ? Number(value.split('-')[0]) : new Date().getFullYear())
+
+    function handleOutside(e: globalThis.MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    function handleKey(e: globalThis.KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('keydown', handleKey)
+    }
+  }, [open, value])
+
+  const [anioSel, mesSel] = value ? value.split('-').map(Number) : [null, null]
+
+  function elegirMes(indiceMes: number) {
+    onChange(`${anioVisible}-${String(indiceMes + 1).padStart(2, '0')}`)
+    setOpen(false)
+  }
+
+  const texto = value ? `${MESES_LARGO[Number(value.split('-')[1]) - 1]} de ${value.split('-')[0]}` : 'Elegir período'
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+        {label}
+      </label>
+      <div ref={containerRef} className="relative w-fit">
+        <button
+          id={id}
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex w-[220px] items-center justify-between gap-2 rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 font-inter text-sm text-on-surface outline-none focus:border-primary"
+        >
+          <span className="capitalize">{texto}</span>
+          <span className="material-symbols-outlined !text-[18px] text-on-surface-variant">calendar_month</span>
+        </button>
+
+        {open && (
+          <div className="absolute left-0 top-[calc(100%+4px)] z-50 w-[220px] rounded-card border border-outline-variant bg-surface-container p-3 shadow-lg">
+            <div className="mb-2 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setAnioVisible((a) => a - 1)}
+                aria-label="Año anterior"
+                className="text-on-surface-variant hover:text-primary"
+              >
+                <span className="material-symbols-outlined !text-[18px]">chevron_left</span>
+              </button>
+              <span className="font-oswald text-sm font-semibold text-on-surface">{anioVisible}</span>
+              <button
+                type="button"
+                onClick={() => setAnioVisible((a) => a + 1)}
+                aria-label="Año siguiente"
+                className="text-on-surface-variant hover:text-primary"
+              >
+                <span className="material-symbols-outlined !text-[18px]">chevron_right</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-1.5">
+              {MESES_ABREV.map((mes, i) => {
+                const seleccionado = anioSel === anioVisible && mesSel === i + 1
+                return (
+                  <button
+                    key={mes}
+                    type="button"
+                    onClick={() => elegirMes(i)}
+                    className={cn(
+                      'rounded-lg border px-2 py-1.5 font-inter text-xs font-medium capitalize transition-colors',
+                      seleccionado
+                        ? 'border-primary bg-surface-container-high text-primary'
+                        : 'border-transparent text-on-surface-variant hover:bg-surface-container-high',
+                    )}
+                  >
+                    {mes}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="mt-3 flex items-center justify-between border-t border-outline-variant pt-2">
+              {!required && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange('')
+                    setOpen(false)
+                  }}
+                  className="font-inter text-xs text-on-surface-variant hover:text-error"
+                >
+                  Borrar
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(periodoHoy())
+                  setOpen(false)
+                }}
+                className="ml-auto font-inter text-xs text-primary hover:underline"
+              >
+                Este mes
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      {error && <p className="font-inter text-xs text-error">{error}</p>}
+    </div>
   )
 }
 

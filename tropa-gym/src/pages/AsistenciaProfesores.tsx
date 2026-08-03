@@ -9,7 +9,7 @@ import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { FormDateInput, FormInput } from '@/components/ui/FormField'
+import { FormDateInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
 import { formatFecha } from '@/lib/utils'
 
 async function fetchAbiertos(ids: string[]): Promise<Record<string, AsistenciaProfesor>> {
@@ -265,13 +265,7 @@ export function AsistenciaProfesores() {
       {profesores.length > 0 && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-end gap-4">
-            <FormInput
-              id="asistencia-profesores-periodo"
-              label="Período"
-              type="month"
-              value={periodo}
-              onChange={(e) => setPeriodo(e.target.value)}
-            />
+            <FormMonthInput id="asistencia-profesores-periodo" label="Período" required value={periodo} onChange={setPeriodo} />
           </div>
 
           <div className="overflow-x-auto rounded-card border border-outline-variant">

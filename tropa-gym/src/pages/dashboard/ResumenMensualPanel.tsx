@@ -15,7 +15,7 @@ import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { FormInput } from '@/components/ui/FormField'
+import { FormMonthInput } from '@/components/ui/FormField'
 import { FichaAlumnoDrawer } from '@/components/ui/FichaAlumnoDrawer'
 import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { EditarMontoCargo } from '@/components/ui/EditarMontoCargo'
@@ -141,13 +141,13 @@ export function ResumenMensualPanel() {
               {estadoLiquidacion === 'generada' ? 'Generada' : 'Pendiente'}
             </span>
           </div>
-          <FormInput
+          <FormMonthInput
             id="resumen-periodo"
             label="Período"
-            type="month"
+            required
             value={periodo}
-            onChange={(e) => {
-              setPeriodo(e.target.value)
+            onChange={(periodo) => {
+              setPeriodo(periodo)
               setLiquidacionSuccess(null)
               setConfirmError(null)
             }}

@@ -8,7 +8,7 @@ import { aplicarDescuento, aplicarTipoCuota, precioVigente } from '@/lib/precios
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { Button } from '@/components/ui/button'
-import { FormCurrencyInput, FormInput, FormSelect } from '@/components/ui/FormField'
+import { FormCurrencyInput, FormMonthInput, FormSelect } from '@/components/ui/FormField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { AlumnoBuscador } from '@/components/ui/AlumnoBuscador'
 import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
@@ -229,13 +229,12 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
               onChange={(e) => actualizarDetalle(d.key, { comboId: e.target.value })}
               options={combos.map((c) => ({ value: c.id, label: c.nombre }))}
             />
-            <FormInput
+            <FormMonthInput
               id={`familiar-periodo-${d.key}`}
               label="Período"
-              type="month"
               required
               value={d.periodo}
-              onChange={(e) => actualizarDetalle(d.key, { periodo: e.target.value })}
+              onChange={(periodo) => actualizarDetalle(d.key, { periodo })}
             />
             <FormSelect
               id={`familiar-descuento-${d.key}`}

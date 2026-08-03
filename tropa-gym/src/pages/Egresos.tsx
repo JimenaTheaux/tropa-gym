@@ -11,7 +11,7 @@ import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { FormCurrencyInput, FormDateInput, FormInput } from '@/components/ui/FormField'
+import { FormCurrencyInput, FormDateInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 
 function hoy(): string {
@@ -120,13 +120,7 @@ export function Egresos() {
       </div>
 
       <div className="mb-4">
-        <FormInput
-          id="egresos-periodo"
-          label="Período"
-          type="month"
-          value={periodo}
-          onChange={(e) => setPeriodo(e.target.value)}
-        />
+        <FormMonthInput id="egresos-periodo" label="Período" required value={periodo} onChange={setPeriodo} />
       </div>
 
       {error && !drawerOpen && <p className="mb-4 font-inter text-sm text-error">{error}</p>}
