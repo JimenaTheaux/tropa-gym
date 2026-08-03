@@ -28,3 +28,4 @@ Thumbs.db
 docs/migracion_*.sql
 docs/diagnostico_*.sql
 docs/reset_datos_prueba.sql
+docs/reset_completo_pre_produccion.sql
