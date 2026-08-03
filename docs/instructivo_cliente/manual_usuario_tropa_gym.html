@@ -1663,6 +1663,13 @@ tr { break-inside: avoid; }
       permisos): cada uno igual aparece listado por separado para marcar su
       propia entrada/salida.
     </p>
+    <p style="margin-top: 10px;">
+      La tabla de registros de abajo (el historial, no las tarjetas de
+      marcado) muestra el nombre de cada profesor en una columna propia, y la
+      ven completa tanto Administrador como Profesor — como el login de
+      Profesor es compartido entre varias personas, no tendría sentido
+      mostrarle a cada uno solo "lo suyo".
+    </p>
   </section>
 
   <footer>
@@ -1746,7 +1753,27 @@ tr { break-inside: avoid; }
   </section>
 
   <section class="card">
-    <h2>4 — Métodos de pago</h2>
+    <h2>4 — Descuentos y recargos (opcional)</h2>
+    <h3>Un mismo catálogo, dos efectos opuestos</h3>
+    <p>
+      Antes de confirmar el pago se puede elegir, opcionalmente, un ítem del
+      catálogo de <strong>Configuración → Descuentos y recargos</strong>. Un
+      <strong>descuento</strong> resta ese porcentaje sobre el precio (después
+      de resolver completa/media); un <strong>recargo</strong> lo suma — por
+      ejemplo, para un medio de pago con costo extra.
+    </p>
+    <div class="selector" style="margin-top: 10px;">
+      <div class="opcion" style="border-color: var(--primary); color: var(--primary); font-weight: 700;">−10% Descuento familiar</div>
+      <div class="opcion" style="border-color: var(--error); color: var(--error); font-weight: 700;">+10% Recargo tarjeta</div>
+    </div>
+    <p style="margin-top: 14px;">
+      El selector muestra el signo delante del nombre de cada ítem, así
+      descuentos y recargos no se confunden a simple vista.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>5 — Métodos de pago</h2>
     <p>
       Efectivo, Transferencia, o Combinado (una parte de cada uno). En el caso
       combinado, la suma de ambos importes tiene que coincidir con lo que
@@ -1757,7 +1784,7 @@ tr { break-inside: avoid; }
   </section>
 
   <section class="card">
-    <h2>5 — El pago actualiza la ficha del alumno</h2>
+    <h2>6 — El pago actualiza la ficha del alumno</h2>
     <p>
       Cada pago <strong>Individual</strong> o <strong>Familiar</strong>
       actualiza automáticamente el plan actual (disciplina + combo) de la
@@ -2021,8 +2048,8 @@ tr { break-inside: avoid; }
         <p>Nombre y activar/desactivar. No afectan el precio, solo identifican la actividad.</p>
       </div>
       <div class="mini">
-        <div class="t">Descuentos</div>
-        <p>Nombre, descripción y porcentaje. Se aplican en Pagos, después de resolver completa/media.</p>
+        <div class="t">Descuentos y recargos</div>
+        <p>Nombre, descripción, porcentaje y tipo: un <strong>descuento</strong> resta ese % sobre el precio, un <strong>recargo</strong> lo suma. Se eligen en Pagos, después de resolver completa/media.</p>
       </div>
       <div class="mini">
         <div class="t">Turnos</div>
@@ -2094,7 +2121,7 @@ tr { break-inside: avoid; }
         <tr><td>Alumnos</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td></tr>
         <tr><td>Pagos</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td></tr>
         <tr><td>Asistencia Alumnos</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td></tr>
-        <tr><td>Asistencia Profesores</td><td class="si">Sí</td><td class="si">Propia</td><td class="no">No</td></tr>
+        <tr><td>Asistencia Profesores</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td></tr>
         <tr><td>Cargos</td><td class="si">Sí</td><td class="no">No</td><td class="no">No</td></tr>
         <tr><td>Egresos</td><td class="si">Sí</td><td class="no">No</td><td class="no">No</td></tr>
         <tr><td>Configuración</td><td class="si">Sí</td><td class="no">No</td><td class="no">No</td></tr>
@@ -2116,6 +2143,12 @@ tr { break-inside: avoid; }
       aparezca en la lista de Asistencia Profesores, por ejemplo) es distinto
       a crear un login: eso se hace desde Configuración → Profesores, cargando
       su nombre y asociándolo al login de Profesor ya existente.
+    </p>
+    <p style="margin-top: 10px;">
+      Como el login de Profesor es compartido, la tabla de Asistencia
+      Profesores se ve completa (todos los profesores, no solo "el que está
+      logueado") tanto para Administrador como para Profesor — ver el detalle
+      en el módulo Asistencia.
     </p>
     <div class="callout" style="margin-top: 14px;">
       <div class="dot"></div>
@@ -2158,6 +2191,15 @@ tr { break-inside: avoid; }
     <p style="margin-top: 14px;">
       Solo el Administrador tiene acceso a este módulo — Profesor y Kiosco no
       lo ven.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Filtrar por período</h2>
+    <p>
+      Arriba de la tabla hay un selector de mes/año — al entrar a la pantalla
+      arranca mostrando el mes actual. Sirve para revisar los gastos de un mes
+      puntual sin tener que buscarlos entre todos los registrados.
     </p>
   </section>
 
