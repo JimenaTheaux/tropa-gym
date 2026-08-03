@@ -17,15 +17,17 @@ import { NumericKeypad } from '@/components/ui/NumericKeypad'
 import { FormDateInput, FormTimeInput } from '@/components/ui/FormField'
 import { Footer } from '@/components/layout/Footer'
 
-async function buscarAlumnos(term: string): Promise<Alumno[]> {
+type AlumnoCheckin = Pick<Alumno, 'id' | 'nombre' | 'apellido' | 'dni' | 'disciplina_id'>
+
+async function buscarAlumnos(term: string): Promise<AlumnoCheckin[]> {
   const { data, error } = await supabase
     .from('alumnos')
-    .select('*')
+    .select('id, nombre, apellido, dni, disciplina_id')
     .or(`dni.ilike.%${term}%,nombre.ilike.%${term}%,apellido.ilike.%${term}%`)
     .order('apellido')
     .limit(8)
   if (error) return []
-  return data as Alumno[]
+  return data ?? []
 }
 
 function hoyISO(): string {
@@ -55,7 +57,7 @@ export function CheckinAlumno() {
 
   const [query, setQuery] = useState('')
 
-  const [alumno, setAlumno] = useState<Alumno | null>(null)
+  const [alumno, setAlumno] = useState<AlumnoCheckin | null>(null)
   const [disciplinaId, setDisciplinaId] = useState('')
   const [turnoId, setTurnoId] = useState('')
   const [fecha, setFecha] = useState(hoyISO())
@@ -110,7 +112,7 @@ export function CheckinAlumno() {
     }
   }, [])
 
-  function seleccionarAlumno(a: Alumno) {
+  function seleccionarAlumno(a: AlumnoCheckin) {
     setAlumno(a)
     setQuery('')
     setDisciplinaId(a.disciplina_id ?? '')
