@@ -278,11 +278,9 @@ export function AsistenciaProfesores() {
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="bg-surface-container-high/50">
-                  {isAdmin && (
-                    <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
-                      Profesor
-                    </th>
-                  )}
+                  <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+                    Profesor
+                  </th>
                   <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
                     Fecha
                   </th>
@@ -306,7 +304,7 @@ export function AsistenciaProfesores() {
                 {historial.length === 0 && (
                   <tr>
                     <td
-                      colSpan={isAdmin ? 6 : 4}
+                      colSpan={isAdmin ? 6 : 5}
                       className="px-4 py-10 text-center font-inter text-sm text-on-surface-variant"
                     >
                       {loading ? 'Cargando…' : 'Sin registros en el período.'}
@@ -315,11 +313,9 @@ export function AsistenciaProfesores() {
                 )}
                 {historial.map((r) => (
                   <tr key={r.id} className="border-t border-outline-variant">
-                    {isAdmin && (
-                      <td className="px-4 py-3 font-inter text-sm text-on-surface">
-                        {profesorNombre(r.profesor_id)}
-                      </td>
-                    )}
+                    <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                      {profesorNombre(r.profesor_id)}
+                    </td>
                     <td className="px-4 py-3 font-inter text-sm text-on-surface">{formatFecha(r.fecha)}</td>
                     <td className="px-4 py-3 font-inter text-sm text-on-surface">
                       {r.hora_entrada.slice(0, 5)}

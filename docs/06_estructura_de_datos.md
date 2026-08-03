@@ -30,6 +30,7 @@ egresos (independiente)
 - `tipo_pago`: individual | familiar | adelantado
 - `metodo_pago`: efectivo | transferencia | combinado
 - `rol_usuario`: admin | profesor | kiosco
+- `tipo_ajuste`: descuento | recargo (migración 16)
 
 ## Tablas principales (borrador)
 
@@ -125,7 +126,13 @@ Usado por el Dashboard (`fetchEstadoAlumnosPorPeriodo`) para reconstruir cuánto
 *(los pagos/cargos guardan snapshot, no referencian precio vivo — RN-030)*
 
 ### descuentos
-| id, nombre, descripcion, porcentaje |
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | uuid PK | |
+| nombre | text | |
+| descripcion | text | opcional |
+| porcentaje | numeric | mismo campo para descuento y recargo, el signo lo da `tipo` |
+| tipo | tipo_ajuste | default `'descuento'` (migración 16). `'recargo'` **suma** el porcentaje sobre el precio del combo en vez de restarlo. La tabla y `pagos_alumnos.descuento_id` no se renombraron a propósito — siguen llamándose "descuento" aunque ahora el catálogo incluye recargos, para no romper referencias existentes |
 
 ### disciplinas
 | Campo | Tipo | Notas |

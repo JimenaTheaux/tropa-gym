@@ -11,7 +11,7 @@ const tabs = [
   { key: 'disciplinas', label: 'Disciplinas' },
   { key: 'combos', label: 'Combos' },
   { key: 'precios', label: 'Precios' },
-  { key: 'descuentos', label: 'Descuentos' },
+  { key: 'descuentos', label: 'Descuentos / Recargos' },
   { key: 'profesores', label: 'Profesores' },
 ] as const
 

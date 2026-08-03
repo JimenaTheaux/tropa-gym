@@ -69,7 +69,8 @@ Funciona como centro de alertas. Orden de secciones:
 - Familiar: un comprobante, varios alumnos, cada uno con disciplina/combo/tipo de cuota/descuento propio.
 - Adelantado: varios períodos en una operación, cada uno registrado individualmente.
 - El precio sale del combo elegido (la disciplina no afecta el precio).
-- Tipo de cuota (Completa/Media, selector — Individual y cada sub-pago de Familiar): decisión manual del staff al registrar el pago, no se detecta sola. Es una regla de facturación (RN-017/018), no un descuento — se aplica sobre el precio del combo antes de cualquier descuento comercial. Adelantado no lo tiene: paga el mismo plan completo para todos los períodos futuros.
+- Tipo de cuota (Completa/Media, selector — Individual y cada sub-pago de Familiar): decisión manual del staff al registrar el pago, no se detecta sola. Es una regla de facturación (RN-017/018), no un descuento — se aplica sobre el precio del combo antes de cualquier descuento/recargo comercial. Adelantado no lo tiene: paga el mismo plan completo para todos los períodos futuros.
+- Descuento/Recargo (opcional, selector — mismo catálogo de Configuración → Descuentos/Recargos): un ítem de tipo "descuento" resta su porcentaje sobre el precio del combo (después del tipo de cuota); uno de tipo "recargo" lo suma. El selector diferencia ambos con el signo delante del nombre (ej. "+10% Recargo tarjeta" / "-10% Descuento familiar") para no confundirlos a simple vista.
 - Individual y Familiar actualizan automáticamente el "plan actual" (disciplina/combo) de la ficha del alumno con lo cargado en el pago (RN-035). Adelantado no la toca.
 - Métodos: Efectivo, Transferencia, Combinado (registra importe de cada uno).
 - Pagos parciales: estado "Parcial" mientras saldo > 0.
@@ -86,6 +87,7 @@ Funciona como centro de alertas. Orden de secciones:
 - Registro de salida.
 - Fecha.
 - Insumo para "horas mensuales por profesor" en Dashboard.
+- Login compartido en la compu del gimnasio (varios profesores bajo la misma sesión, ver doc 02): el marcado de entrada/salida ya identifica al profesor por card, no depende de la sesión. La tabla/historial de abajo (no las cards) muestra la columna **Profesor** siempre, tanto para Admin como para Profesor — antes solo la veía Admin, dejaba de tener sentido con login compartido (migración 16, RLS).
 
 ## Cargos
 Pantalla dedicada a gestionar la liquidación mensual (solo Admin — doc 02). Es la vía completa; el Centro de Resumen Mensual del Dashboard muestra el mismo cálculo pero resumido, sin tabla ni edición (ver doc 03, "Flujo de liquidación mensual").
@@ -100,9 +102,10 @@ Pantalla dedicada a gestionar la liquidación mensual (solo Admin — doc 02). E
 
 ## Egresos
 - Registro de gastos (sin acceso de Profesor/Kiosco).
+- Filtro de período (selector mes/año) arriba de la tabla — filtra server-side (`.gte()`/`.lt()` sobre `fecha`). Default: mes actual al entrar a la pantalla.
 
 ## Configuración
-- Descuentos: nombre, descripción, porcentaje.
+- Descuentos/Recargos: nombre, descripción, porcentaje, tipo (Descuento resta / Recargo suma sobre el precio del combo) — mismo CRUD, un campo más. No se renombró la tabla ni `pagos_alumnos.descuento_id` (ver doc 06).
 - Disciplinas: nombre, activar/desactivar. No afecta el precio.
 - Combos: nombre, frecuencia semanal de asistencia (2 días, 3 días, 5 días…), activar/desactivar. Es lo único que define el precio.
 - Precios: asociados a combo, período. Cambios no afectan pagos históricos (RN-030).

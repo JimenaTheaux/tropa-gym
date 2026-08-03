@@ -113,7 +113,7 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
         const base = precioVigente(precios, actualizado.comboId || null, actualizado.periodo)
         const descuento = descuentos.find((desc) => desc.id === actualizado.descuentoId)
         const precio =
-          base === null ? 0 : aplicarDescuento(aplicarTipoCuota(base, actualizado.tipoCuota), descuento?.porcentaje)
+          base === null ? 0 : aplicarDescuento(aplicarTipoCuota(base, actualizado.tipoCuota), descuento)
         return { ...actualizado, precioCalculado: precio, monto: precio }
       }),
     )
@@ -149,7 +149,6 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
     const p_detalles = await Promise.all(
       detalles.map(async (d) => {
         const cargo = await buscarCargo(d.alumno.id, d.periodo)
-        const precioBase = precioVigente(precios, d.comboId, d.periodo) ?? d.monto
         return {
           alumno_id: d.alumno.id,
           cargo_id: cargo?.id ?? null,
@@ -157,7 +156,7 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
           disciplina_id: d.disciplinaId,
           combo_id: d.comboId,
           descuento_id: d.descuentoId || null,
-          precio_snapshot: precioBase,
+          precio_snapshot: d.precioCalculado,
           monto_pagado: d.monto,
         }
       }),
@@ -240,11 +239,14 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
             />
             <FormSelect
               id={`familiar-descuento-${d.key}`}
-              label="Descuento (opcional)"
-              placeholder="Sin descuento"
+              label="Descuento / Recargo (opcional)"
+              placeholder="Sin ajuste"
               value={d.descuentoId}
               onChange={(e) => actualizarDetalle(d.key, { descuentoId: e.target.value })}
-              options={descuentos.map((desc) => ({ value: desc.id, label: `${desc.nombre} (${desc.porcentaje}%)` }))}
+              options={descuentos.map((desc) => ({
+                value: desc.id,
+                label: `${desc.tipo === 'recargo' ? '+' : '-'}${desc.porcentaje}% ${desc.nombre}`,
+              }))}
             />
           </div>
 

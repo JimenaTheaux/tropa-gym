@@ -8,9 +8,15 @@ import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FormInput } from '@/components/ui/FormField'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 
-const emptyForm: DescuentoInsert = { nombre: '', descripcion: '', porcentaje: 0 }
+const TIPOS_AJUSTE: { value: 'descuento' | 'recargo'; label: string }[] = [
+  { value: 'descuento', label: 'Descuento' },
+  { value: 'recargo', label: 'Recargo' },
+]
+
+const emptyForm: DescuentoInsert = { nombre: '', descripcion: '', porcentaje: 0, tipo: 'descuento' }
 
 function toPayload(form: DescuentoInsert): DescuentoInsert {
   return { ...form, descripcion: form.descripcion?.trim() ? form.descripcion.trim() : null }
@@ -41,6 +47,7 @@ export function DescuentosPanel() {
       nombre: descuento.nombre,
       descripcion: descuento.descripcion ?? '',
       porcentaje: descuento.porcentaje,
+      tipo: descuento.tipo,
     })
     setError(null)
     setDrawerOpen(true)
@@ -76,7 +83,22 @@ export function DescuentosPanel() {
   const columns: DataTableColumn<Descuento>[] = [
     { header: 'Nombre', cell: (d) => d.nombre },
     { header: 'Descripción', cell: (d) => d.descripcion ?? '—' },
-    { header: 'Porcentaje', cell: (d) => `${d.porcentaje}%` },
+    {
+      header: 'Tipo',
+      cell: (d) => (
+        <span
+          className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-inter text-xs font-medium"
+          style={
+            d.tipo === 'recargo'
+              ? { borderColor: '#ffb4ab', color: '#ffb4ab' }
+              : { borderColor: '#40e432', color: '#40e432' }
+          }
+        >
+          {d.tipo === 'recargo' ? 'Recargo' : 'Descuento'}
+        </span>
+      ),
+    },
+    { header: 'Porcentaje', cell: (d) => `${d.tipo === 'recargo' ? '+' : '-'}${d.porcentaje}%` },
   ]
 
   return (
@@ -120,6 +142,13 @@ export function DescuentosPanel() {
         }
       >
         <form id="form-descuento" className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          <SegmentedControl
+            id="descuento-tipo"
+            label="Tipo"
+            value={form.tipo}
+            onChange={(tipo) => setForm({ ...form, tipo })}
+            options={TIPOS_AJUSTE}
+          />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_140px]">
             <FormInput
               id="descuento-nombre"

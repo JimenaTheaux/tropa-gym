@@ -1,4 +1,4 @@
-import type { Combo, Disciplina, Precio, TipoCargo } from '@/types/db'
+import type { Combo, Disciplina, Precio, TipoAjuste, TipoCargo } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 
 export async function fetchPrecios(): Promise<Precio[]> {
@@ -45,9 +45,15 @@ export function precioVigente(precios: Precio[], comboId: string | null, periodo
   return candidatos[0]?.monto ?? null
 }
 
-export function aplicarDescuento(monto: number, porcentaje: number | null | undefined): number {
-  if (!porcentaje) return monto
-  return Math.round(monto * (1 - porcentaje / 100) * 100) / 100
+// Aplica un descuento (resta) o recargo (suma) sobre el precio del combo,
+// según `tipo` — mismo campo `descuentos.porcentaje`, signo distinto.
+export function aplicarDescuento(
+  monto: number,
+  ajuste?: { porcentaje: number; tipo: TipoAjuste } | null,
+): number {
+  if (!ajuste || !ajuste.porcentaje) return monto
+  const signo = ajuste.tipo === 'recargo' ? 1 : -1
+  return Math.round(monto * (1 + (signo * ajuste.porcentaje) / 100) * 100) / 100
 }
 
 // Media cuota (RN-017/018) es una regla de facturación, no un descuento —

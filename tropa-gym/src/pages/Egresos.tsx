@@ -6,6 +6,7 @@ import { formatFecha } from '@/lib/utils'
 import type { Egreso, EgresoInsert } from '@/types/db'
 import { useCatalogoMutations } from '@/hooks/useCatalogoMutations'
 import { queryKeys } from '@/lib/queryKeys'
+import { periodoActual, inicioDeMes, primerDiaSiguiente } from '@/lib/dashboard'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
@@ -19,19 +20,25 @@ function hoy(): string {
 
 const emptyForm: EgresoInsert = { concepto: '', monto: 0, fecha: hoy(), categoria: '' }
 
-async function fetchEgresos(): Promise<Egreso[]> {
-  const { data, error } = await supabase.from('egresos').select('*').order('fecha', { ascending: false })
+async function fetchEgresos(periodo: string): Promise<Egreso[]> {
+  const { data, error } = await supabase
+    .from('egresos')
+    .select('*')
+    .gte('fecha', inicioDeMes(periodo))
+    .lt('fecha', primerDiaSiguiente(periodo))
+    .order('fecha', { ascending: false })
   if (error) return []
   return data as Egreso[]
 }
 
 export function Egresos() {
+  const [periodo, setPeriodo] = useState(periodoActual())
   const { data: egresos = [], isLoading: loading } = useQuery({
-    queryKey: queryKeys.egresos,
-    queryFn: fetchEgresos,
+    queryKey: queryKeys.egresos(periodo),
+    queryFn: () => fetchEgresos(periodo),
     staleTime: STALE_OPERATIVO,
   })
-  const { crear, actualizar, eliminar } = useCatalogoMutations<EgresoInsert>('egresos', queryKeys.egresos)
+  const { crear, actualizar, eliminar } = useCatalogoMutations<EgresoInsert>('egresos', ['egresos'])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<Egreso | null>(null)
   const [form, setForm] = useState<EgresoInsert>(emptyForm)
@@ -110,6 +117,16 @@ export function Egresos() {
           <span className="material-symbols-outlined !text-[16px]">add</span>
           Nuevo egreso
         </Button>
+      </div>
+
+      <div className="mb-4">
+        <FormInput
+          id="egresos-periodo"
+          label="Período"
+          type="month"
+          value={periodo}
+          onChange={(e) => setPeriodo(e.target.value)}
+        />
       </div>
 
       {error && !drawerOpen && <p className="mb-4 font-inter text-sm text-error">{error}</p>}

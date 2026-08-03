@@ -26,7 +26,7 @@ export const queryKeys = {
   historialAlumno: (alumnoId: string) => ['cuenta', 'historial', alumnoId] as const,
   historialPagos: ['pagos', 'historial'] as const,
 
-  egresos: ['egresos'] as const,
+  egresos: (periodo: string) => ['egresos', periodo] as const,
 
   asistenciasPorFecha: (fecha: string) => ['asistencias', fecha] as const,
   conteoPorTurno: (fecha: string) => ['asistencias', 'conteo', fecha] as const,

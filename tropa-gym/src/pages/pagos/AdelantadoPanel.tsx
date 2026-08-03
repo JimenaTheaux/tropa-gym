@@ -111,7 +111,7 @@ export function AdelantadoPanel({ onSuccess }: AdelantadoPanelProps) {
         if ('monto' in patch) return actualizado
         const base = precioVigente(precios, actualizado.comboId || null, actualizado.periodo)
         const descuento = descuentos.find((d) => d.id === actualizado.descuentoId)
-        const precio = base === null ? 0 : aplicarDescuento(base, descuento?.porcentaje)
+        const precio = base === null ? 0 : aplicarDescuento(base, descuento)
         return { ...actualizado, precioCalculado: precio, monto: precio }
       }),
     )
@@ -145,17 +145,14 @@ export function AdelantadoPanel({ onSuccess }: AdelantadoPanelProps) {
 
     setError(null)
 
-    const p_periodos = periodos.map((p) => {
-      const precioBase = precioVigente(precios, p.comboId, p.periodo) ?? p.monto
-      return {
-        periodo: p.periodo,
-        disciplina_id: p.disciplinaId,
-        combo_id: p.comboId,
-        descuento_id: p.descuentoId || null,
-        precio_snapshot: precioBase,
-        monto_pagado: p.monto,
-      }
-    })
+    const p_periodos = periodos.map((p) => ({
+      periodo: p.periodo,
+      disciplina_id: p.disciplinaId,
+      combo_id: p.comboId,
+      descuento_id: p.descuentoId || null,
+      precio_snapshot: p.precioCalculado,
+      monto_pagado: p.monto,
+    }))
 
     const alumnoRegistrado = alumno
     const cantidadPeriodos = periodos.length
@@ -248,11 +245,14 @@ export function AdelantadoPanel({ onSuccess }: AdelantadoPanelProps) {
                 />
                 <FormSelect
                   id={`adelantado-descuento-${p.key}`}
-                  label="Descuento (opcional)"
-                  placeholder="Sin descuento"
+                  label="Descuento / Recargo (opcional)"
+                  placeholder="Sin ajuste"
                   value={p.descuentoId}
                   onChange={(e) => actualizarPeriodo(p.key, { descuentoId: e.target.value })}
-                  options={descuentos.map((d) => ({ value: d.id, label: `${d.nombre} (${d.porcentaje}%)` }))}
+                  options={descuentos.map((d) => ({
+                    value: d.id,
+                    label: `${d.tipo === 'recargo' ? '+' : '-'}${d.porcentaje}% ${d.nombre}`,
+                  }))}
                 />
               </div>
 

@@ -52,11 +52,14 @@ export interface Precio {
 export type PrecioInsert = Omit<Precio, 'id' | 'created_at'>
 export type PrecioUpdate = Partial<PrecioInsert>
 
+export type TipoAjuste = 'descuento' | 'recargo'
+
 export interface Descuento {
   id: string
   nombre: string
   descripcion: string | null
   porcentaje: number
+  tipo: TipoAjuste
   created_at: string
 }
 

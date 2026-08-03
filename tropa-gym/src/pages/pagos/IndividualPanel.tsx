@@ -53,7 +53,6 @@ export function IndividualPanel({ onSuccess }: IndividualPanelProps) {
     mutationFn: async () => {
       if (!alumno) throw new Error('Falta seleccionar un alumno.')
       const cargo = await buscarCargo(alumno.id, periodo)
-      const precioBase = precioVigente(precios, comboId, periodo) ?? precioCalculado
 
       const { data: pago, error: pagoError } = await supabase
         .from('pagos')
@@ -77,7 +76,7 @@ export function IndividualPanel({ onSuccess }: IndividualPanelProps) {
         disciplina_id: disciplinaId,
         combo_id: comboId,
         descuento_id: descuentoId || null,
-        precio_snapshot: precioBase,
+        precio_snapshot: precioCalculado,
         monto_pagado: montoPagado,
       })
 
@@ -101,7 +100,7 @@ export function IndividualPanel({ onSuccess }: IndividualPanelProps) {
   useEffect(() => {
     const base = precioVigente(precios, comboId || null, periodo)
     const descuento = descuentos.find((d) => d.id === descuentoId)
-    const precio = base === null ? 0 : aplicarDescuento(aplicarTipoCuota(base, tipoCuota), descuento?.porcentaje)
+    const precio = base === null ? 0 : aplicarDescuento(aplicarTipoCuota(base, tipoCuota), descuento)
     setPrecioCalculado(precio)
     setMontoPagado(precio)
   }, [comboId, periodo, tipoCuota, descuentoId, precios, descuentos])
@@ -205,11 +204,14 @@ export function IndividualPanel({ onSuccess }: IndividualPanelProps) {
             />
             <FormSelect
               id="individual-descuento"
-              label="Descuento (opcional)"
-              placeholder="Sin descuento"
+              label="Descuento / Recargo (opcional)"
+              placeholder="Sin ajuste"
               value={descuentoId}
               onChange={(e) => setDescuentoId(e.target.value)}
-              options={descuentos.map((d) => ({ value: d.id, label: `${d.nombre} (${d.porcentaje}%)` }))}
+              options={descuentos.map((d) => ({
+                value: d.id,
+                label: `${d.tipo === 'recargo' ? '+' : '-'}${d.porcentaje}% ${d.nombre}`,
+              }))}
             />
           </div>
 
