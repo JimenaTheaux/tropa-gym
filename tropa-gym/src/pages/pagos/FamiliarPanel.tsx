@@ -4,7 +4,7 @@ import type { Alumno, MetodoPago, TipoCargo } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
 import { buscarCargo } from '@/lib/cuenta'
-import { aplicarDescuento, aplicarTipoCuota, precioVigente } from '@/lib/precios'
+import { aplicarDescuento, aplicarTipoCuota, distribuirMonto, precioVigente } from '@/lib/precios'
 import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
@@ -32,7 +32,6 @@ interface DetalleFamiliar {
   comboId: string
   tipoCuota: TipoCargo
   precioCalculado: number
-  monto: number
 }
 
 interface FamiliarPanelProps {
@@ -50,6 +49,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
 
   const [detalles, setDetalles] = useState<DetalleFamiliar[]>([])
   const [descuentoId, setDescuentoId] = useState('')
+  const [montoPagado, setMontoPagado] = useState(0)
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [importeEfectivo, setImporteEfectivo] = useState(0)
   const [importeTransferencia, setImporteTransferencia] = useState(0)
@@ -75,7 +75,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   })
   const saving = registrarPagoFamiliar.isPending
 
-  const total = detalles.reduce((sum, d) => sum + d.monto, 0)
+  const subtotal = detalles.reduce((sum, d) => sum + d.precioCalculado, 0)
 
   function precioConDescuento(periodo: string, comboId: string, tipoCuota: TipoCargo): number {
     const base = precioVigente(precios, comboId || null, periodo)
@@ -84,28 +84,35 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   }
 
   // El descuento es único para todo el comprobante: al cambiarlo, se
-  // recalcula el precio (y el monto pre-cargado) de todas las filas ya
-  // agregadas, para no tener que reeditarlas una por una.
+  // recalcula el precio de todas las filas ya agregadas.
   useEffect(() => {
     setDetalles((prev) =>
       prev.map((d) => {
         if (!d.comboId || !d.periodo) return d
         const precio = precioConDescuento(d.periodo, d.comboId, d.tipoCuota)
-        return { ...d, precioCalculado: precio, monto: precio }
+        return { ...d, precioCalculado: precio }
       }),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [descuentoId, precios, descuentos])
 
+  // El monto pagado (único, sobre el total) se pre-carga con el subtotal
+  // pero queda editable — permite pago parcial o sobrepago del comprobante.
+  // Se resetea acá, no se deriva del subtotal en cada render.
+  useEffect(() => {
+    setMontoPagado(subtotal)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotal])
+
   useEffect(() => {
     if (metodo === 'efectivo') {
-      setImporteEfectivo(total)
+      setImporteEfectivo(montoPagado)
       setImporteTransferencia(0)
     } else if (metodo === 'transferencia') {
       setImporteEfectivo(0)
-      setImporteTransferencia(total)
+      setImporteTransferencia(montoPagado)
     }
-  }, [metodo, total])
+  }, [metodo, montoPagado])
 
   function agregarAlumno(alumno: Alumno) {
     if (detalles.some((d) => d.alumno.id === alumno.id)) return
@@ -119,21 +126,17 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
         comboId: '',
         tipoCuota: 'completa',
         precioCalculado: 0,
-        monto: 0,
       },
     ])
   }
 
-  // El monto pagado se pre-carga con el precio calculado (combo/descuento)
-  // pero queda editable — permite pago parcial o sobrepago por alumno.
   function actualizarDetalle(key: string, patch: Partial<DetalleFamiliar>) {
     setDetalles((prev) =>
       prev.map((d) => {
         if (d.key !== key) return d
         const actualizado = { ...d, ...patch }
-        if ('monto' in patch) return actualizado
         const precio = precioConDescuento(actualizado.periodo, actualizado.comboId, actualizado.tipoCuota)
-        return { ...actualizado, precioCalculado: precio, monto: precio }
+        return { ...actualizado, precioCalculado: precio }
       }),
     )
   }
@@ -145,29 +148,35 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   function resetForm() {
     setDetalles([])
     setDescuentoId('')
+    setMontoPagado(0)
     setMetodo('efectivo')
     setImporteEfectivo(0)
     setImporteTransferencia(0)
   }
 
   async function handleSubmit() {
-    if (detalles.length === 0) return
-    if (detalles.some((d) => !d.disciplinaId || !d.comboId || !d.periodo || d.monto <= 0)) {
-      setError('Completá disciplina, combo y monto para cada alumno.')
+    if (detalles.length === 0 || montoPagado <= 0) return
+    if (detalles.some((d) => !d.disciplinaId || !d.comboId || !d.periodo)) {
+      setError('Completá disciplina y combo para cada alumno.')
       return
     }
     if (
       metodo === 'combinado' &&
-      Math.round((importeEfectivo + importeTransferencia) * 100) !== Math.round(total * 100)
+      Math.round((importeEfectivo + importeTransferencia) * 100) !== Math.round(montoPagado * 100)
     ) {
-      setError('La suma de efectivo y transferencia debe ser igual al total.')
+      setError('La suma de efectivo y transferencia debe ser igual al monto pagado.')
       return
     }
 
     setError(null)
 
+    const montosPorAlumno = distribuirMonto(
+      detalles.map((d) => d.precioCalculado),
+      montoPagado,
+    )
+
     const p_detalles = await Promise.all(
-      detalles.map(async (d) => {
+      detalles.map(async (d, i) => {
         const cargo = await buscarCargo(d.alumno.id, d.periodo)
         return {
           alumno_id: d.alumno.id,
@@ -177,7 +186,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
           combo_id: d.comboId,
           descuento_id: descuentoId || null,
           precio_snapshot: d.precioCalculado,
-          monto_pagado: d.monto,
+          monto_pagado: montosPorAlumno[i],
         }
       }),
     )
@@ -196,7 +205,9 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
       return
     }
 
-    setSuccess(`Pago familiar de $${total.toLocaleString('es-AR')} registrado para ${cantidadDetalles} alumno(s).`)
+    setSuccess(
+      `Pago familiar de $${montoPagado.toLocaleString('es-AR')} registrado para ${cantidadDetalles} alumno(s).`,
+    )
     resetForm()
     onSuccess?.()
   }
@@ -264,30 +275,12 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             options={TIPOS_CUOTA}
           />
 
-          <div className="flex flex-wrap items-start gap-6 border-t border-outline-variant pt-4">
-            <div className="flex flex-col gap-1.5">
-              <span className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
-                Subtotal (con descuento)
-              </span>
-              <span className="font-inter text-sm text-on-surface-variant">
-                ${d.precioCalculado.toLocaleString('es-AR')}
-              </span>
-            </div>
-            <FormCurrencyInput
-              id={`familiar-monto-${d.key}`}
-              label="Monto pagado"
-              min={0}
-              step="0.01"
-              required
-              value={d.monto}
-              onChange={(e) => actualizarDetalle(d.key, { monto: Number(e.target.value) })}
-            />
+          <div className="flex flex-col gap-1.5 border-t border-outline-variant pt-4">
+            <span className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+              Precio calculado (con descuento)
+            </span>
+            <span className="font-inter text-sm text-on-surface">${d.precioCalculado.toLocaleString('es-AR')}</span>
           </div>
-          {d.monto > 0 && d.monto !== d.precioCalculado && (
-            <p className="font-inter text-xs text-on-surface-variant">
-              {d.monto < d.precioCalculado ? 'Pago parcial' : 'Sobrepago'} respecto al subtotal.
-            </p>
-          )}
         </div>
       ))}
 
@@ -310,24 +303,41 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             }))}
           />
 
-          <div className="flex flex-wrap items-start justify-between gap-6 border-y border-outline-variant py-4">
+          <div className="flex flex-wrap items-start gap-6 border-y border-outline-variant py-4">
             <div className="flex flex-col gap-1.5">
               <span className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
-                Total del comprobante
+                Subtotal
               </span>
-              <span className="font-anton text-2xl text-on-surface">${total.toLocaleString('es-AR')}</span>
+              <span className="font-anton text-2xl text-on-surface">${subtotal.toLocaleString('es-AR')}</span>
             </div>
+            <FormCurrencyInput
+              id="familiar-monto-pagado"
+              label="Monto pagado"
+              min={0}
+              step="0.01"
+              required
+              value={montoPagado}
+              onChange={(e) => setMontoPagado(Number(e.target.value))}
+            />
             <MetodoPagoField
               idPrefix="familiar"
               metodo={metodo}
               onMetodoChange={setMetodo}
-              total={total}
+              total={montoPagado}
               importeEfectivo={importeEfectivo}
               importeTransferencia={importeTransferencia}
               onImporteEfectivoChange={setImporteEfectivo}
               onImporteTransferenciaChange={setImporteTransferencia}
             />
           </div>
+
+          {montoPagado > 0 && montoPagado !== subtotal && (
+            <p className="font-inter text-xs text-on-surface-variant">
+              {montoPagado < subtotal
+                ? 'Pago parcial — quedará saldo pendiente, repartido proporcionalmente entre los alumnos.'
+                : 'Sobrepago — el excedente queda como saldo a favor, repartido proporcionalmente entre los alumnos.'}
+            </p>
+          )}
 
           {error && <p className="font-inter text-sm text-error">{error}</p>}
 
@@ -342,7 +352,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             >
               Cancelar
             </Button>
-            <Button type="button" variant="solido" disabled={saving} onClick={handleSubmit}>
+            <Button type="button" variant="solido" disabled={saving || montoPagado <= 0} onClick={handleSubmit}>
               {saving ? 'Registrando…' : 'Registrar pago familiar'}
             </Button>
           </div>

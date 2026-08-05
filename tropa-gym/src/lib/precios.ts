@@ -81,3 +81,21 @@ export function aplicarDescuento(
 export function aplicarTipoCuota(monto: number, tipo: TipoCargo): number {
   return tipo === 'media' ? Math.round((monto / 2) * 100) / 100 : monto
 }
+
+// Reparte un único "monto pagado" (puede ser parcial o sobrepago respecto
+// al subtotal) proporcionalmente entre varias líneas — Familiar y
+// Adelantado cargan un solo campo editable para todo el comprobante/
+// operación, pero cada fila de pagos_alumnos necesita su propio
+// monto_pagado. El ajuste de redondeo va siempre en la última línea para
+// que la suma cierre exacto contra el total pagado.
+export function distribuirMonto(precios: number[], totalPagado: number): number[] {
+  if (precios.length === 0) return []
+  const subtotal = precios.reduce((s, p) => s + p, 0)
+  const partes =
+    subtotal > 0
+      ? precios.map((p) => Math.round((p / subtotal) * totalPagado * 100) / 100)
+      : precios.map(() => Math.round((totalPagado / precios.length) * 100) / 100)
+  const suma = partes.reduce((s, p) => s + p, 0)
+  partes[partes.length - 1] = Math.round((partes[partes.length - 1] + (totalPagado - suma)) * 100) / 100
+  return partes
+}

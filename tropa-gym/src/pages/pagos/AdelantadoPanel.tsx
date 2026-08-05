@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
-import { aplicarDescuento, precioVigenteAdelantado } from '@/lib/precios'
+import { aplicarDescuento, distribuirMonto, precioVigenteAdelantado } from '@/lib/precios'
 import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
@@ -39,7 +39,6 @@ const PERIODOS_DISPONIBLES = Array.from({ length: CANTIDAD_PERIODOS_SELECTOR }, 
 interface DetallePeriodo {
   periodo: string
   precioCalculado: number
-  monto: number
 }
 
 interface AdelantadoPanelProps {
@@ -60,6 +59,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
   const [comboId, setComboId] = useState('')
   const [descuentoId, setDescuentoId] = useState('')
   const [periodos, setPeriodos] = useState<Record<string, DetallePeriodo>>({})
+  const [montoPagado, setMontoPagado] = useState(0)
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [importeEfectivo, setImporteEfectivo] = useState(0)
   const [importeTransferencia, setImporteTransferencia] = useState(0)
@@ -87,7 +87,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
   const saving = registrarPagoAdelantado.isPending
 
   const periodosOrdenados = Object.values(periodos).sort((a, b) => (a.periodo < b.periodo ? -1 : 1))
-  const total = periodosOrdenados.reduce((sum, p) => sum + p.monto, 0)
+  const subtotal = periodosOrdenados.reduce((sum, p) => sum + p.precioCalculado, 0)
 
   function calcularPrecio(periodo: string): number {
     const base = precioVigenteAdelantado(precios, comboId || null, periodo)
@@ -96,29 +96,35 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
   }
 
   // El combo y el descuento son únicos para toda la operación: al cambiar
-  // cualquiera de los dos, se recalcula el precio (y el monto pre-cargado)
-  // de todos los períodos ya tildados.
+  // cualquiera de los dos, se recalcula el precio de todos los períodos ya
+  // tildados.
   useEffect(() => {
     setPeriodos((prev) => {
       const next: Record<string, DetallePeriodo> = {}
       for (const periodo of Object.keys(prev)) {
-        const precio = calcularPrecio(periodo)
-        next[periodo] = { periodo, precioCalculado: precio, monto: precio }
+        next[periodo] = { periodo, precioCalculado: calcularPrecio(periodo) }
       }
       return next
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comboId, descuentoId, precios, descuentos])
 
+  // El monto pagado (único, sobre el total) se pre-carga con el subtotal
+  // pero queda editable — permite pago parcial o sobrepago de la operación.
+  useEffect(() => {
+    setMontoPagado(subtotal)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotal])
+
   useEffect(() => {
     if (metodo === 'efectivo') {
-      setImporteEfectivo(total)
+      setImporteEfectivo(montoPagado)
       setImporteTransferencia(0)
     } else if (metodo === 'transferencia') {
       setImporteEfectivo(0)
-      setImporteTransferencia(total)
+      setImporteTransferencia(montoPagado)
     }
-  }, [metodo, total])
+  }, [metodo, montoPagado])
 
   function togglePeriodo(periodo: string) {
     setPeriodos((prev) => {
@@ -127,13 +133,8 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
         delete next[periodo]
         return next
       }
-      const precio = calcularPrecio(periodo)
-      return { ...prev, [periodo]: { periodo, precioCalculado: precio, monto: precio } }
+      return { ...prev, [periodo]: { periodo, precioCalculado: calcularPrecio(periodo) } }
     })
-  }
-
-  function actualizarMonto(periodo: string, monto: number) {
-    setPeriodos((prev) => ({ ...prev, [periodo]: { ...prev[periodo], monto } }))
   }
 
   function resetForm() {
@@ -142,34 +143,36 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
     setComboId('')
     setDescuentoId('')
     setPeriodos({})
+    setMontoPagado(0)
     setMetodo('efectivo')
     setImporteEfectivo(0)
     setImporteTransferencia(0)
   }
 
   async function handleSubmit() {
-    if (!alumno || !disciplinaId || !comboId || periodosOrdenados.length === 0) return
-    if (periodosOrdenados.some((p) => p.monto <= 0)) {
-      setError('Completá un monto mayor a $0 para cada período seleccionado.')
-      return
-    }
+    if (!alumno || !disciplinaId || !comboId || periodosOrdenados.length === 0 || montoPagado <= 0) return
     if (
       metodo === 'combinado' &&
-      Math.round((importeEfectivo + importeTransferencia) * 100) !== Math.round(total * 100)
+      Math.round((importeEfectivo + importeTransferencia) * 100) !== Math.round(montoPagado * 100)
     ) {
-      setError('La suma de efectivo y transferencia debe ser igual al total.')
+      setError('La suma de efectivo y transferencia debe ser igual al monto pagado.')
       return
     }
 
     setError(null)
 
-    const p_periodos = periodosOrdenados.map((p) => ({
+    const montosPorPeriodo = distribuirMonto(
+      periodosOrdenados.map((p) => p.precioCalculado),
+      montoPagado,
+    )
+
+    const p_periodos = periodosOrdenados.map((p, i) => ({
       periodo: p.periodo,
       disciplina_id: disciplinaId,
       combo_id: comboId,
       descuento_id: descuentoId || null,
       precio_snapshot: p.precioCalculado,
-      monto_pagado: p.monto,
+      monto_pagado: montosPorPeriodo[i],
     }))
 
     const alumnoRegistrado = alumno
@@ -189,7 +192,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
     }
 
     setSuccess(
-      `Pago adelantado de $${total.toLocaleString('es-AR')} registrado para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido} (${cantidadPeriodos} período(s)).`,
+      `Pago adelantado de $${montoPagado.toLocaleString('es-AR')} registrado para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido} (${cantidadPeriodos} período(s)).`,
     )
     resetForm()
     onSuccess?.()
@@ -264,7 +267,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
           {periodosOrdenados.map((p) => (
             <div
               key={p.periodo}
-              className="flex flex-wrap items-center justify-between gap-4 rounded-card border border-outline-variant bg-surface-container p-5"
+              className="flex items-center justify-between gap-4 rounded-card border border-outline-variant bg-surface-container p-5"
             >
               <div className="flex items-center gap-3">
                 <button
@@ -275,24 +278,18 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
                 >
                   <span className="material-symbols-outlined !text-[18px]">close</span>
                 </button>
-                <div className="flex flex-col">
-                  <span className="font-oswald text-sm font-bold uppercase text-on-surface">
-                    Período {labelPeriodo(p.periodo)}
-                  </span>
-                  <span className="font-inter text-xs text-on-surface-variant">
-                    Subtotal (con descuento): ${p.precioCalculado.toLocaleString('es-AR')}
-                  </span>
-                </div>
+                <span className="font-oswald text-sm font-bold uppercase text-on-surface">
+                  Período {labelPeriodo(p.periodo)}
+                </span>
               </div>
-              <FormCurrencyInput
-                id={`adelantado-monto-${p.periodo}`}
-                label="Monto pagado"
-                min={0}
-                step="0.01"
-                required
-                value={p.monto}
-                onChange={(e) => actualizarMonto(p.periodo, Number(e.target.value))}
-              />
+              <div className="flex flex-col items-end gap-1">
+                <span className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+                  Precio calculado
+                </span>
+                <span className="font-inter text-sm text-on-surface">
+                  ${p.precioCalculado.toLocaleString('es-AR')}
+                </span>
+              </div>
             </div>
           ))}
 
@@ -310,24 +307,41 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
                 }))}
               />
 
-              <div className="flex flex-wrap items-start justify-between gap-6 border-y border-outline-variant py-4">
+              <div className="flex flex-wrap items-start gap-6 border-y border-outline-variant py-4">
                 <div className="flex flex-col gap-1.5">
                   <span className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
-                    Total de la operación
+                    Subtotal
                   </span>
-                  <span className="font-anton text-2xl text-on-surface">${total.toLocaleString('es-AR')}</span>
+                  <span className="font-anton text-2xl text-on-surface">${subtotal.toLocaleString('es-AR')}</span>
                 </div>
+                <FormCurrencyInput
+                  id="adelantado-monto-pagado"
+                  label="Monto pagado"
+                  min={0}
+                  step="0.01"
+                  required
+                  value={montoPagado}
+                  onChange={(e) => setMontoPagado(Number(e.target.value))}
+                />
                 <MetodoPagoField
                   idPrefix="adelantado"
                   metodo={metodo}
                   onMetodoChange={setMetodo}
-                  total={total}
+                  total={montoPagado}
                   importeEfectivo={importeEfectivo}
                   importeTransferencia={importeTransferencia}
                   onImporteEfectivoChange={setImporteEfectivo}
                   onImporteTransferenciaChange={setImporteTransferencia}
                 />
               </div>
+
+              {montoPagado > 0 && montoPagado !== subtotal && (
+                <p className="font-inter text-xs text-on-surface-variant">
+                  {montoPagado < subtotal
+                    ? 'Pago parcial — quedará saldo pendiente, repartido proporcionalmente entre los períodos.'
+                    : 'Sobrepago — el excedente queda como saldo a favor, repartido proporcionalmente entre los períodos.'}
+                </p>
+              )}
 
               {error && <p className="font-inter text-sm text-error">{error}</p>}
 
@@ -345,7 +359,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
                 <Button
                   type="button"
                   variant="solido"
-                  disabled={saving || !disciplinaId}
+                  disabled={saving || !disciplinaId || montoPagado <= 0}
                   onClick={handleSubmit}
                 >
                   {saving ? 'Registrando…' : 'Registrar pago adelantado'}
