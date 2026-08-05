@@ -99,15 +99,33 @@ interface FormCheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   label: string
 }
 
+// Checkbox custom (doc 08): sin tildar = borde outline-variant, fondo
+// transparente; tildado = borde + check en primary, fondo
+// surface-container-high — nunca relleno sólido de color. El input nativo
+// queda con appearance-none pero conserva foco/teclado/lectores de pantalla;
+// el ícono de check es un span aparte que reacciona a :checked vía `peer`.
 export function FormCheckbox({ label, id, className, ...props }: FormCheckboxProps) {
   return (
-    <label htmlFor={id} className="flex items-center gap-2 font-inter text-sm text-on-surface">
-      <input
-        id={id}
-        type="checkbox"
-        className={`h-4 w-4 rounded border-outline-variant text-primary focus:ring-primary ${className ?? ''}`}
-        {...props}
-      />
+    <label
+      htmlFor={id}
+      className={`inline-flex items-center gap-2 font-inter text-sm text-on-surface ${
+        props.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+      }`}
+    >
+      <span className="relative inline-flex h-4 w-4 shrink-0 items-center justify-center">
+        <input
+          id={id}
+          type="checkbox"
+          className={`peer h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border border-outline-variant bg-transparent transition-colors checked:border-primary checked:bg-surface-container-high focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed ${className ?? ''}`}
+          {...props}
+        />
+        <span
+          aria-hidden="true"
+          className="material-symbols-outlined pointer-events-none absolute inset-0 flex items-center justify-center !text-[13px] text-primary opacity-0 transition-opacity peer-checked:opacity-100"
+        >
+          check
+        </span>
+      </span>
       {label}
     </label>
   )

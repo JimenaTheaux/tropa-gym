@@ -30,7 +30,7 @@ export function RegistrarPagoDrawer({ open, onClose }: RegistrarPagoDrawerProps)
   }, [open])
 
   return (
-    <Drawer open={open} title="Registrar pago" onClose={onClose}>
+    <Drawer open={open} title="Registrar pago" onClose={onClose} size="lg">
       <div className="flex flex-col gap-4">
         <SegmentedControl id="registrar-pago-modo" value={modo} onChange={setModo} options={MODOS_ALTERNATIVOS} />
 
