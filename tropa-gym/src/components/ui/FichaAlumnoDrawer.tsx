@@ -137,7 +137,9 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
             {!loading && cuenta && (
               <>
                 <p className="font-anton text-2xl text-on-surface">
-                  ${cuenta.saldoTotal.toLocaleString('es-AR')}
+                  {cuenta.saldoTotal < 0
+                    ? `$${Math.abs(cuenta.saldoTotal).toLocaleString('es-AR')} (a favor)`
+                    : `$${cuenta.saldoTotal.toLocaleString('es-AR')}`}
                 </p>
                 <div className="mt-3 flex flex-col gap-2">
                   {cuenta.periodos.length === 0 && (
@@ -148,7 +150,11 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
                       <div className="flex items-center justify-between font-inter text-sm">
                         <span className="text-on-surface-variant">{p.periodo}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-on-surface">${p.saldo.toLocaleString('es-AR')}</span>
+                          <span className="text-on-surface">
+                            {p.saldo < 0
+                              ? `$${Math.abs(p.saldo).toLocaleString('es-AR')} (a favor)`
+                              : `$${p.saldo.toLocaleString('es-AR')}`}
+                          </span>
                           <BadgeEstadoCargo estado={p.estado} />
                           {!p.cargoMontoDefinido && (
                             <span
