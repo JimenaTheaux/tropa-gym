@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
 import { buscarCargo } from '@/lib/cuenta'
 import { aplicarDescuento, aplicarTipoCuota, precioVigente } from '@/lib/precios'
+import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { Button } from '@/components/ui/button'
@@ -30,23 +31,25 @@ interface DetalleFamiliar {
   disciplinaId: string
   comboId: string
   tipoCuota: TipoCargo
-  descuentoId: string
   precioCalculado: number
   monto: number
 }
 
 interface FamiliarPanelProps {
   onSuccess?: () => void
+  onCancel?: () => void
 }
 
-export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
+export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   const queryClient = useQueryClient()
   const { data: precios = [] } = usePrecios()
   const { data: disciplinas = [] } = useDisciplinasActivas()
   const { data: combos = [] } = useCombosActivos()
-  const { data: descuentos = [] } = useDescuentos()
+  const { data: descuentosTodos = [] } = useDescuentos()
+  const descuentos = descuentosParaTipo(descuentosTodos, 'familiar')
 
   const [detalles, setDetalles] = useState<DetalleFamiliar[]>([])
+  const [descuentoId, setDescuentoId] = useState('')
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [importeEfectivo, setImporteEfectivo] = useState(0)
   const [importeTransferencia, setImporteTransferencia] = useState(0)
@@ -74,6 +77,26 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
 
   const total = detalles.reduce((sum, d) => sum + d.monto, 0)
 
+  function precioConDescuento(periodo: string, comboId: string, tipoCuota: TipoCargo): number {
+    const base = precioVigente(precios, comboId || null, periodo)
+    const descuento = descuentos.find((d) => d.id === descuentoId)
+    return base === null ? 0 : aplicarDescuento(aplicarTipoCuota(base, tipoCuota), descuento)
+  }
+
+  // El descuento es único para todo el comprobante: al cambiarlo, se
+  // recalcula el precio (y el monto pre-cargado) de todas las filas ya
+  // agregadas, para no tener que reeditarlas una por una.
+  useEffect(() => {
+    setDetalles((prev) =>
+      prev.map((d) => {
+        if (!d.comboId || !d.periodo) return d
+        const precio = precioConDescuento(d.periodo, d.comboId, d.tipoCuota)
+        return { ...d, precioCalculado: precio, monto: precio }
+      }),
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [descuentoId, precios, descuentos])
+
   useEffect(() => {
     if (metodo === 'efectivo') {
       setImporteEfectivo(total)
@@ -95,7 +118,6 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
         disciplinaId: '',
         comboId: '',
         tipoCuota: 'completa',
-        descuentoId: '',
         precioCalculado: 0,
         monto: 0,
       },
@@ -110,10 +132,7 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
         if (d.key !== key) return d
         const actualizado = { ...d, ...patch }
         if ('monto' in patch) return actualizado
-        const base = precioVigente(precios, actualizado.comboId || null, actualizado.periodo)
-        const descuento = descuentos.find((desc) => desc.id === actualizado.descuentoId)
-        const precio =
-          base === null ? 0 : aplicarDescuento(aplicarTipoCuota(base, actualizado.tipoCuota), descuento)
+        const precio = precioConDescuento(actualizado.periodo, actualizado.comboId, actualizado.tipoCuota)
         return { ...actualizado, precioCalculado: precio, monto: precio }
       }),
     )
@@ -125,6 +144,7 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
 
   function resetForm() {
     setDetalles([])
+    setDescuentoId('')
     setMetodo('efectivo')
     setImporteEfectivo(0)
     setImporteTransferencia(0)
@@ -155,7 +175,7 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
           periodo: d.periodo,
           disciplina_id: d.disciplinaId,
           combo_id: d.comboId,
-          descuento_id: d.descuentoId || null,
+          descuento_id: descuentoId || null,
           precio_snapshot: d.precioCalculado,
           monto_pagado: d.monto,
         }
@@ -236,17 +256,6 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
               value={d.periodo}
               onChange={(periodo) => actualizarDetalle(d.key, { periodo })}
             />
-            <FormSelect
-              id={`familiar-descuento-${d.key}`}
-              label="Descuento / Recargo (opcional)"
-              placeholder="Sin ajuste"
-              value={d.descuentoId}
-              onChange={(e) => actualizarDetalle(d.key, { descuentoId: e.target.value })}
-              options={descuentos.map((desc) => ({
-                value: desc.id,
-                label: `${desc.tipo === 'recargo' ? '+' : '-'}${desc.porcentaje}% ${desc.nombre}`,
-              }))}
-            />
           </div>
 
           <SegmentedControl
@@ -257,19 +266,28 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
             options={TIPOS_CUOTA}
           />
 
-          <FormCurrencyInput
-            id={`familiar-monto-${d.key}`}
-            label="Monto pagado"
-            min={0}
-            step="0.01"
-            required
-            value={d.monto}
-            onChange={(e) => actualizarDetalle(d.key, { monto: Number(e.target.value) })}
-          />
+          <div className="flex flex-wrap items-start gap-6 border-t border-outline-variant pt-4">
+            <div className="flex flex-col gap-1.5">
+              <span className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+                Subtotal (con descuento)
+              </span>
+              <span className="font-inter text-sm text-on-surface-variant">
+                ${d.precioCalculado.toLocaleString('es-AR')}
+              </span>
+            </div>
+            <FormCurrencyInput
+              id={`familiar-monto-${d.key}`}
+              label="Monto pagado"
+              min={0}
+              step="0.01"
+              required
+              value={d.monto}
+              onChange={(e) => actualizarDetalle(d.key, { monto: Number(e.target.value) })}
+            />
+          </div>
           {d.monto > 0 && d.monto !== d.precioCalculado && (
             <p className="font-inter text-xs text-on-surface-variant">
-              Precio calculado: ${d.precioCalculado.toLocaleString('es-AR')} —{' '}
-              {d.monto < d.precioCalculado ? 'pago parcial' : 'sobrepago'}
+              {d.monto < d.precioCalculado ? 'Pago parcial' : 'Sobrepago'} respecto al subtotal.
             </p>
           )}
         </div>
@@ -277,7 +295,19 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
 
       {detalles.length > 0 && (
         <div className="flex flex-col gap-4 rounded-card border border-outline-variant bg-surface-container p-5">
-          <div className="flex flex-wrap items-start justify-between gap-6 border-b border-outline-variant pb-4">
+          <FormSelect
+            id="familiar-descuento"
+            label="Descuento / Recargo (opcional) — aplica a todo el comprobante"
+            placeholder="Sin ajuste"
+            value={descuentoId}
+            onChange={(e) => setDescuentoId(e.target.value)}
+            options={descuentos.map((d) => ({
+              value: d.id,
+              label: `${d.tipo === 'recargo' ? '+' : '-'}${d.porcentaje}% ${d.nombre}`,
+            }))}
+          />
+
+          <div className="flex flex-wrap items-start justify-between gap-6 border-y border-outline-variant py-4">
             <div className="flex flex-col gap-1.5">
               <span className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
                 Total del comprobante
@@ -299,7 +329,14 @@ export function FamiliarPanel({ onSuccess }: FamiliarPanelProps) {
           {error && <p className="font-inter text-sm text-error">{error}</p>}
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={resetForm}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                resetForm()
+                onCancel?.()
+              }}
+            >
               Cancelar
             </Button>
             <Button type="button" variant="solido" disabled={saving} onClick={handleSubmit}>

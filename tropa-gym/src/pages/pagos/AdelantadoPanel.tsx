@@ -3,14 +3,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
-import { aplicarDescuento, precioVigente } from '@/lib/precios'
+import { aplicarDescuento, precioVigenteAdelantado } from '@/lib/precios'
+import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { Button } from '@/components/ui/button'
-import { FormCurrencyInput, FormMonthInput, FormSelect } from '@/components/ui/FormField'
+import { FormCurrencyInput, FormSelect, FormCheckbox } from '@/components/ui/FormField'
 import { BadgeEstado } from '@/components/ui/BadgeEstado'
 import { AlumnoBuscador } from '@/components/ui/AlumnoBuscador'
 import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
+
+const CANTIDAD_PERIODOS_SELECTOR = 12
 
 function periodoActual(): string {
   const d = new Date()
@@ -23,29 +26,40 @@ function sumarMeses(periodo: string, cantidad: number): string {
   return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`
 }
 
+function labelPeriodo(periodo: string): string {
+  const [anio, mes] = periodo.split('-').map(Number)
+  const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic']
+  return `${MESES[mes - 1]} ${anio}`
+}
+
+const PERIODOS_DISPONIBLES = Array.from({ length: CANTIDAD_PERIODOS_SELECTOR }, (_, i) =>
+  sumarMeses(periodoActual(), i),
+)
+
 interface DetallePeriodo {
-  key: string
   periodo: string
-  disciplinaId: string
-  comboId: string
-  descuentoId: string
   precioCalculado: number
   monto: number
 }
 
 interface AdelantadoPanelProps {
   onSuccess?: () => void
+  onCancel?: () => void
 }
 
-export function AdelantadoPanel({ onSuccess }: AdelantadoPanelProps) {
+export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
   const queryClient = useQueryClient()
   const { data: precios = [] } = usePrecios()
   const { data: disciplinas = [] } = useDisciplinasActivas()
   const { data: combos = [] } = useCombosActivos()
-  const { data: descuentos = [] } = useDescuentos()
+  const { data: descuentosTodos = [] } = useDescuentos()
+  const descuentos = descuentosParaTipo(descuentosTodos, 'adelantado')
 
   const [alumno, setAlumno] = useState<Alumno | null>(null)
-  const [periodos, setPeriodos] = useState<DetallePeriodo[]>([])
+  const [disciplinaId, setDisciplinaId] = useState('')
+  const [comboId, setComboId] = useState('')
+  const [descuentoId, setDescuentoId] = useState('')
+  const [periodos, setPeriodos] = useState<Record<string, DetallePeriodo>>({})
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [importeEfectivo, setImporteEfectivo] = useState(0)
   const [importeTransferencia, setImporteTransferencia] = useState(0)
@@ -72,7 +86,29 @@ export function AdelantadoPanel({ onSuccess }: AdelantadoPanelProps) {
   })
   const saving = registrarPagoAdelantado.isPending
 
-  const total = periodos.reduce((sum, p) => sum + p.monto, 0)
+  const periodosOrdenados = Object.values(periodos).sort((a, b) => (a.periodo < b.periodo ? -1 : 1))
+  const total = periodosOrdenados.reduce((sum, p) => sum + p.monto, 0)
+
+  function calcularPrecio(periodo: string): number {
+    const base = precioVigenteAdelantado(precios, comboId || null, periodo)
+    const descuento = descuentos.find((d) => d.id === descuentoId)
+    return base === null ? 0 : aplicarDescuento(base, descuento)
+  }
+
+  // El combo y el descuento son únicos para toda la operación: al cambiar
+  // cualquiera de los dos, se recalcula el precio (y el monto pre-cargado)
+  // de todos los períodos ya tildados.
+  useEffect(() => {
+    setPeriodos((prev) => {
+      const next: Record<string, DetallePeriodo> = {}
+      for (const periodo of Object.keys(prev)) {
+        const precio = calcularPrecio(periodo)
+        next[periodo] = { periodo, precioCalculado: precio, monto: precio }
+      }
+      return next
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comboId, descuentoId, precios, descuentos])
 
   useEffect(() => {
     if (metodo === 'efectivo') {
@@ -84,55 +120,37 @@ export function AdelantadoPanel({ onSuccess }: AdelantadoPanelProps) {
     }
   }, [metodo, total])
 
-  function agregarPeriodo() {
-    const ultimo = periodos[periodos.length - 1]
-    const siguiente = ultimo ? sumarMeses(ultimo.periodo, 1) : periodoActual()
-    setPeriodos((prev) => [
-      ...prev,
-      {
-        key: `${siguiente}-${prev.length}`,
-        periodo: siguiente,
-        disciplinaId: '',
-        comboId: '',
-        descuentoId: '',
-        precioCalculado: 0,
-        monto: 0,
-      },
-    ])
+  function togglePeriodo(periodo: string) {
+    setPeriodos((prev) => {
+      if (prev[periodo]) {
+        const next = { ...prev }
+        delete next[periodo]
+        return next
+      }
+      const precio = calcularPrecio(periodo)
+      return { ...prev, [periodo]: { periodo, precioCalculado: precio, monto: precio } }
+    })
   }
 
-  // El monto pagado se pre-carga con el precio calculado (combo/descuento)
-  // pero queda editable — permite pago parcial o sobrepago por período.
-  function actualizarPeriodo(key: string, patch: Partial<DetallePeriodo>) {
-    setPeriodos((prev) =>
-      prev.map((p) => {
-        if (p.key !== key) return p
-        const actualizado = { ...p, ...patch }
-        if ('monto' in patch) return actualizado
-        const base = precioVigente(precios, actualizado.comboId || null, actualizado.periodo)
-        const descuento = descuentos.find((d) => d.id === actualizado.descuentoId)
-        const precio = base === null ? 0 : aplicarDescuento(base, descuento)
-        return { ...actualizado, precioCalculado: precio, monto: precio }
-      }),
-    )
-  }
-
-  function quitarPeriodo(key: string) {
-    setPeriodos((prev) => prev.filter((p) => p.key !== key))
+  function actualizarMonto(periodo: string, monto: number) {
+    setPeriodos((prev) => ({ ...prev, [periodo]: { ...prev[periodo], monto } }))
   }
 
   function resetForm() {
     setAlumno(null)
-    setPeriodos([])
+    setDisciplinaId('')
+    setComboId('')
+    setDescuentoId('')
+    setPeriodos({})
     setMetodo('efectivo')
     setImporteEfectivo(0)
     setImporteTransferencia(0)
   }
 
   async function handleSubmit() {
-    if (!alumno || periodos.length === 0) return
-    if (periodos.some((p) => !p.disciplinaId || !p.comboId || !p.periodo || p.monto <= 0)) {
-      setError('Completá disciplina, combo y monto para cada período.')
+    if (!alumno || !disciplinaId || !comboId || periodosOrdenados.length === 0) return
+    if (periodosOrdenados.some((p) => p.monto <= 0)) {
+      setError('Completá un monto mayor a $0 para cada período seleccionado.')
       return
     }
     if (
@@ -145,17 +163,17 @@ export function AdelantadoPanel({ onSuccess }: AdelantadoPanelProps) {
 
     setError(null)
 
-    const p_periodos = periodos.map((p) => ({
+    const p_periodos = periodosOrdenados.map((p) => ({
       periodo: p.periodo,
-      disciplina_id: p.disciplinaId,
-      combo_id: p.comboId,
-      descuento_id: p.descuentoId || null,
+      disciplina_id: disciplinaId,
+      combo_id: comboId,
+      descuento_id: descuentoId || null,
       precio_snapshot: p.precioCalculado,
       monto_pagado: p.monto,
     }))
 
     const alumnoRegistrado = alumno
-    const cantidadPeriodos = periodos.length
+    const cantidadPeriodos = periodosOrdenados.length
 
     try {
       await registrarPagoAdelantado.mutateAsync({
@@ -199,88 +217,100 @@ export function AdelantadoPanel({ onSuccess }: AdelantadoPanelProps) {
             <BadgeEstado estado={alumno.estado} />
           </div>
 
-          {periodos.map((p) => (
+          <div className="grid grid-cols-1 gap-4 rounded-card border border-outline-variant bg-surface-container p-5 sm:grid-cols-2">
+            <FormSelect
+              id="adelantado-disciplina"
+              label="Disciplina"
+              placeholder="Seleccionar disciplina"
+              required
+              value={disciplinaId}
+              onChange={(e) => setDisciplinaId(e.target.value)}
+              options={disciplinas.map((d) => ({ value: d.id, label: d.nombre }))}
+            />
+            <FormSelect
+              id="adelantado-combo"
+              label="Combo"
+              placeholder="Seleccionar combo"
+              required
+              value={comboId}
+              onChange={(e) => setComboId(e.target.value)}
+              options={combos.map((c) => ({ value: c.id, label: c.nombre }))}
+            />
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-card border border-outline-variant bg-surface-container p-5">
+            <span className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+              Períodos a abonar
+            </span>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {PERIODOS_DISPONIBLES.map((periodo) => (
+                <FormCheckbox
+                  key={periodo}
+                  id={`adelantado-periodo-chk-${periodo}`}
+                  label={labelPeriodo(periodo)}
+                  checked={!!periodos[periodo]}
+                  disabled={!comboId}
+                  onChange={() => togglePeriodo(periodo)}
+                />
+              ))}
+            </div>
+            {!comboId && (
+              <p className="font-inter text-xs text-on-surface-variant">
+                Elegí un combo para poder tildar períodos.
+              </p>
+            )}
+          </div>
+
+          {periodosOrdenados.map((p) => (
             <div
-              key={p.key}
-              className="flex flex-col gap-4 rounded-card border border-outline-variant bg-surface-container p-5"
+              key={p.periodo}
+              className="flex flex-wrap items-center justify-between gap-4 rounded-card border border-outline-variant bg-surface-container p-5"
             >
-              <div className="flex items-center justify-between">
-                <p className="font-oswald text-base font-bold uppercase text-on-surface">Período {p.periodo}</p>
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => quitarPeriodo(p.key)}
+                  onClick={() => togglePeriodo(p.periodo)}
                   aria-label="Quitar período"
                   className="text-on-surface-variant hover:text-error"
                 >
                   <span className="material-symbols-outlined !text-[18px]">close</span>
                 </button>
+                <div className="flex flex-col">
+                  <span className="font-oswald text-sm font-bold uppercase text-on-surface">
+                    Período {labelPeriodo(p.periodo)}
+                  </span>
+                  <span className="font-inter text-xs text-on-surface-variant">
+                    Subtotal (con descuento): ${p.precioCalculado.toLocaleString('es-AR')}
+                  </span>
+                </div>
               </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FormSelect
-                  id={`adelantado-disciplina-${p.key}`}
-                  label="Disciplina"
-                  placeholder="Seleccionar disciplina"
-                  required
-                  value={p.disciplinaId}
-                  onChange={(e) => actualizarPeriodo(p.key, { disciplinaId: e.target.value })}
-                  options={disciplinas.map((d) => ({ value: d.id, label: d.nombre }))}
-                />
-                <FormSelect
-                  id={`adelantado-combo-${p.key}`}
-                  label="Combo"
-                  placeholder="Seleccionar combo"
-                  required
-                  value={p.comboId}
-                  onChange={(e) => actualizarPeriodo(p.key, { comboId: e.target.value })}
-                  options={combos.map((c) => ({ value: c.id, label: c.nombre }))}
-                />
-                <FormMonthInput
-                  id={`adelantado-periodo-${p.key}`}
-                  label="Período"
-                  required
-                  value={p.periodo}
-                  onChange={(periodo) => actualizarPeriodo(p.key, { periodo })}
-                />
-                <FormSelect
-                  id={`adelantado-descuento-${p.key}`}
-                  label="Descuento / Recargo (opcional)"
-                  placeholder="Sin ajuste"
-                  value={p.descuentoId}
-                  onChange={(e) => actualizarPeriodo(p.key, { descuentoId: e.target.value })}
-                  options={descuentos.map((d) => ({
-                    value: d.id,
-                    label: `${d.tipo === 'recargo' ? '+' : '-'}${d.porcentaje}% ${d.nombre}`,
-                  }))}
-                />
-              </div>
-
               <FormCurrencyInput
-                id={`adelantado-monto-${p.key}`}
+                id={`adelantado-monto-${p.periodo}`}
                 label="Monto pagado"
                 min={0}
                 step="0.01"
                 required
                 value={p.monto}
-                onChange={(e) => actualizarPeriodo(p.key, { monto: Number(e.target.value) })}
+                onChange={(e) => actualizarMonto(p.periodo, Number(e.target.value))}
               />
-              {p.monto > 0 && p.monto !== p.precioCalculado && (
-                <p className="font-inter text-xs text-on-surface-variant">
-                  Precio calculado: ${p.precioCalculado.toLocaleString('es-AR')} —{' '}
-                  {p.monto < p.precioCalculado ? 'pago parcial' : 'sobrepago'}
-                </p>
-              )}
             </div>
           ))}
 
-          <Button type="button" variant="primario" onClick={agregarPeriodo}>
-            <span className="material-symbols-outlined !text-[16px]">add</span>
-            Agregar período
-          </Button>
-
-          {periodos.length > 0 && (
+          {periodosOrdenados.length > 0 && (
             <div className="flex flex-col gap-4 rounded-card border border-outline-variant bg-surface-container p-5">
-              <div className="flex flex-wrap items-start justify-between gap-6 border-b border-outline-variant pb-4">
+              <FormSelect
+                id="adelantado-descuento"
+                label="Descuento / Recargo (opcional) — aplica a todos los períodos"
+                placeholder="Sin ajuste"
+                value={descuentoId}
+                onChange={(e) => setDescuentoId(e.target.value)}
+                options={descuentos.map((d) => ({
+                  value: d.id,
+                  label: `${d.tipo === 'recargo' ? '+' : '-'}${d.porcentaje}% ${d.nombre}`,
+                }))}
+              />
+
+              <div className="flex flex-wrap items-start justify-between gap-6 border-y border-outline-variant py-4">
                 <div className="flex flex-col gap-1.5">
                   <span className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
                     Total de la operación
@@ -302,10 +332,22 @@ export function AdelantadoPanel({ onSuccess }: AdelantadoPanelProps) {
               {error && <p className="font-inter text-sm text-error">{error}</p>}
 
               <div className="flex justify-end gap-3">
-                <Button type="button" variant="ghost" onClick={resetForm}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    resetForm()
+                    onCancel?.()
+                  }}
+                >
                   Cancelar
                 </Button>
-                <Button type="button" variant="solido" disabled={saving} onClick={handleSubmit}>
+                <Button
+                  type="button"
+                  variant="solido"
+                  disabled={saving || !disciplinaId}
+                  onClick={handleSubmit}
+                >
                   {saving ? 'Registrando…' : 'Registrar pago adelantado'}
                 </Button>
               </div>

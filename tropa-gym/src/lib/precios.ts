@@ -36,13 +36,33 @@ function finDeMes(periodo: string): string {
   return `${periodo}-${String(ultimoDia).padStart(2, '0')}`
 }
 
-export function precioVigente(precios: Precio[], comboId: string | null, periodo: string): number | null {
-  if (!comboId || !periodo) return null
-  const limite = finDeMes(periodo)
+function hoyISO(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function precioVigenteEn(precios: Precio[], comboId: string | null, fechaLimite: string): number | null {
+  if (!comboId) return null
   const candidatos = precios
-    .filter((p) => p.combo_id === comboId && p.vigente_desde <= limite)
+    .filter((p) => p.combo_id === comboId && p.vigente_desde <= fechaLimite)
     .sort((a, b) => (a.vigente_desde < b.vigente_desde ? 1 : -1))
   return candidatos[0]?.monto ?? null
+}
+
+export function precioVigente(precios: Precio[], comboId: string | null, periodo: string): number | null {
+  if (!comboId || !periodo) return null
+  return precioVigenteEn(precios, comboId, finDeMes(periodo))
+}
+
+// Adelantado: períodos ya transcurridos (fin de período <= hoy) cobran el precio
+// vigente a su cierre — mismo criterio que generar_cargos_periodo (migración 15).
+// Períodos en curso o futuros (fin de período > hoy) cobran el precio vigente HOY:
+// no existe un precio "histórico" de algo que todavía no pasó.
+export function precioVigenteAdelantado(precios: Precio[], comboId: string | null, periodo: string): number | null {
+  if (!comboId || !periodo) return null
+  const finPeriodo = finDeMes(periodo)
+  const hoy = hoyISO()
+  return precioVigenteEn(precios, comboId, finPeriodo < hoy ? finPeriodo : hoy)
 }
 
 // Aplica un descuento (resta) o recargo (suma) sobre el precio del combo,

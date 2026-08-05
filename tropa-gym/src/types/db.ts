@@ -60,6 +60,7 @@ export interface Descuento {
   descripcion: string | null
   porcentaje: number
   tipo: TipoAjuste
+  aplica_a: TipoPago[]
   created_at: string
 }
 

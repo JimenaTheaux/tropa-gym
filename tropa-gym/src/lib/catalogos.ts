@@ -1,4 +1,4 @@
-import type { Descuento, Disciplina, Combo, Perfil, Profesor, Turno } from '@/types/db'
+import type { Descuento, Disciplina, Combo, Perfil, Profesor, Turno, TipoPago } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 
 export async function fetchTurnos(): Promise<Turno[]> {
@@ -29,6 +29,13 @@ export async function fetchDescuentos(): Promise<Descuento[]> {
   const { data, error } = await supabase.from('descuentos').select('*').order('nombre')
   if (error) return []
   return data as Descuento[]
+}
+
+// Filtra el catálogo de descuentos/recargos para un selector de pago puntual
+// (Individual/Familiar/Adelantado) — un ajuste restringido a un tipo no debe
+// aparecer en los otros dos.
+export function descuentosParaTipo(descuentos: Descuento[], tipo: TipoPago): Descuento[] {
+  return descuentos.filter((d) => d.aplica_a.includes(tipo))
 }
 
 export async function fetchProfesores(perfilId?: string): Promise<Profesor[]> {

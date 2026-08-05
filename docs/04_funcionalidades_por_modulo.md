@@ -64,13 +64,17 @@ Funciona como centro de alertas. Orden de secciones:
 - Estado de cuenta (ficha del alumno): saldo por período, con badge de estado del cargo (Pendiente/Parcial/Pagado) y, si corresponde, badge rojo "Monto sin definir" (ver doc 03) — editable en el momento por Admin/Profesor.
 
 ## Pagos
+Un solo submenú: **Historial de pagos** (lista, siempre visible) + botón sólido **"+ Registrar pago"**, que abre un drawer único (`RegistrarPagoDrawer`) para los 3 tipos.
+
 - Tipos: Individual, Familiar, Adelantado.
-- Individual: alumno, período, disciplina, combo, tipo de cuota, descuento, método, total.
-- Familiar: un comprobante, varios alumnos, cada uno con disciplina/combo/tipo de cuota/descuento propio.
-- Adelantado: varios períodos en una operación, cada uno registrado individualmente.
+- El drawer arranca siempre en modo **Individual** (estado default, mantiene el flujo de siempre: buscador de alumno → se despliega el resto del form). Arriba, un segmented control de 2 botones — "Pago familiar" / "Pago adelantado" — para desviar del default; no hay un tercer botón para Individual (doc 08). Cambiar de modo desmonta el panel anterior (los 3 son componentes distintos: `IndividualPanel`/`FamiliarPanel`/`AdelantadoPanel`), así que el form se resetea solo, sin arrastrar datos entre modos.
+- Individual: alumno, período, disciplina, combo, tipo de cuota, descuento, método, total. Sin cambios de flujo respecto a como funcionaba antes de unificar el submenú.
+- Familiar: un comprobante, varios alumnos vía `AlumnoBuscador` (siempre visible arriba de la lista, se puede seguir agregando sin pasos extra), cada uno con disciplina/combo/tipo de cuota propios — pero **un solo selector de descuento al final**, aplicado sobre el total. Al elegirlo (o cambiarlo), recalcula el precio de todas las filas ya cargadas. El dato sigue viviendo en `pagos_alumnos.descuento_id` por fila (se guarda el mismo descuento en cada una), solo cambia que el staff lo carga una vez. Cada fila muestra su subtotal (precio del combo con el descuento ya aplicado) de forma permanente, no solo cuando el monto pagado difiere.
+- Adelantado: alumno, disciplina y combo se cargan **una sola vez** (no por período). Un selector múltiple de checkboxes con los próximos 12 períodos (decisión sin especificación explícita en el prompt — N=12) reemplaza el alta manual "de a uno". Cada período tildado aparece como su propia línea con subtotal y monto editable (pago parcial/sobrepago por período, igual que antes). Un solo selector de descuento al final, aplicado a todas las líneas. Al confirmar, arma el array de períodos (uno por cada tildado, con su propio `precio_snapshot`/`monto_pagado`) antes de llamar a `registrar_pago_adelantado` — el RPC no cambió.
+  - **Precio por período (`precioVigenteAdelantado` en `lib/precios.ts`)**: para períodos ya transcurridos (fin de período ≤ hoy) usa el precio vigente al **fin de ese período** (mismo criterio que `generar_cargos_periodo`, migración 15). Para períodos en curso o futuros (fin de período > hoy) usa el precio vigente **hoy** — no existe un precio "histórico" de algo que todavía no pasó.
 - El precio sale del combo elegido (la disciplina no afecta el precio).
 - Tipo de cuota (Completa/Media, selector — Individual y cada sub-pago de Familiar): decisión manual del staff al registrar el pago, no se detecta sola. Es una regla de facturación (RN-017/018), no un descuento — se aplica sobre el precio del combo antes de cualquier descuento/recargo comercial. Adelantado no lo tiene: paga el mismo plan completo para todos los períodos futuros.
-- Descuento/Recargo (opcional, selector — mismo catálogo de Configuración → Descuentos/Recargos): un ítem de tipo "descuento" resta su porcentaje sobre el precio del combo (después del tipo de cuota); uno de tipo "recargo" lo suma. El selector diferencia ambos con el signo delante del nombre (ej. "+10% Recargo tarjeta" / "-10% Descuento familiar") para no confundirlos a simple vista.
+- Descuento/Recargo (opcional, selector — mismo catálogo de Configuración → Descuentos/Recargos): un ítem de tipo "descuento" resta su porcentaje sobre el precio del combo (después del tipo de cuota); uno de tipo "recargo" lo suma. El selector diferencia ambos con el signo delante del nombre (ej. "+10% Recargo tarjeta" / "-10% Descuento familiar") para no confundirlos a simple vista. Cada uno de los 3 selectores (Individual/Familiar/Adelantado) filtra el catálogo por `descuentos.aplica_a` (`descuentosParaTipo` en `lib/catalogos.ts`) — un ajuste restringido a un tipo no aparece en los otros dos.
 - Individual y Familiar actualizan automáticamente el "plan actual" (disciplina/combo) de la ficha del alumno con lo cargado en el pago (RN-035). Adelantado no la toca.
 - Métodos: Efectivo, Transferencia, Combinado (registra importe de cada uno).
 - Pagos parciales: estado "Parcial" mientras saldo > 0.
@@ -105,7 +109,7 @@ Pantalla dedicada a gestionar la liquidación mensual (solo Admin — doc 02). E
 - Filtro de período (selector mes/año) arriba de la tabla — filtra server-side (`.gte()`/`.lt()` sobre `fecha`). Default: mes actual al entrar a la pantalla.
 
 ## Configuración
-- Descuentos/Recargos: nombre, descripción, porcentaje, tipo (Descuento resta / Recargo suma sobre el precio del combo) — mismo CRUD, un campo más. No se renombró la tabla ni `pagos_alumnos.descuento_id` (ver doc 06).
+- Descuentos/Recargos: nombre, descripción, porcentaje, tipo (Descuento resta / Recargo suma sobre el precio del combo), **Aplica a** (checkboxes Individual/Familiar/Adelantado, mapea a `descuentos.aplica_a`, los 3 tildados por default) — mismo CRUD, un campo más. No se renombró la tabla ni `pagos_alumnos.descuento_id` (ver doc 06).
 - Disciplinas: nombre, activar/desactivar. No afecta el precio.
 - Combos: nombre, frecuencia semanal de asistencia (2 días, 3 días, 5 días…), activar/desactivar. Es lo único que define el precio.
 - Precios: asociados a combo, período. Cambios no afectan pagos históricos (RN-030).

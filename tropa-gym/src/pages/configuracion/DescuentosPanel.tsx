@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { traducirError } from '@/lib/errores'
-import type { Descuento, DescuentoInsert } from '@/types/db'
+import type { Descuento, DescuentoInsert, TipoPago } from '@/types/db'
 import { useDescuentos } from '@/hooks/useCatalogos'
 import { useCatalogoMutations } from '@/hooks/useCatalogoMutations'
 import { queryKeys } from '@/lib/queryKeys'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { FormInput } from '@/components/ui/FormField'
+import { FormInput, FormCheckbox } from '@/components/ui/FormField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 
@@ -16,7 +16,25 @@ const TIPOS_AJUSTE: { value: 'descuento' | 'recargo'; label: string }[] = [
   { value: 'recargo', label: 'Recargo' },
 ]
 
-const emptyForm: DescuentoInsert = { nombre: '', descripcion: '', porcentaje: 0, tipo: 'descuento' }
+const TIPOS_PAGO_OPCIONES: { value: TipoPago; label: string }[] = [
+  { value: 'individual', label: 'Individual' },
+  { value: 'familiar', label: 'Familiar' },
+  { value: 'adelantado', label: 'Adelantado' },
+]
+
+const TIPO_PAGO_LABEL: Record<TipoPago, string> = {
+  individual: 'Individual',
+  familiar: 'Familiar',
+  adelantado: 'Adelantado',
+}
+
+const emptyForm: DescuentoInsert = {
+  nombre: '',
+  descripcion: '',
+  porcentaje: 0,
+  tipo: 'descuento',
+  aplica_a: ['individual', 'familiar', 'adelantado'],
+}
 
 function toPayload(form: DescuentoInsert): DescuentoInsert {
   return { ...form, descripcion: form.descripcion?.trim() ? form.descripcion.trim() : null }
@@ -48,13 +66,26 @@ export function DescuentosPanel() {
       descripcion: descuento.descripcion ?? '',
       porcentaje: descuento.porcentaje,
       tipo: descuento.tipo,
+      aplica_a: descuento.aplica_a,
     })
     setError(null)
     setDrawerOpen(true)
   }
 
+  function toggleAplicaA(tipo: TipoPago) {
+    setForm((f) => {
+      const yaIncluido = f.aplica_a.includes(tipo)
+      const aplica_a = yaIncluido ? f.aplica_a.filter((t) => t !== tipo) : [...f.aplica_a, tipo]
+      return { ...f, aplica_a }
+    })
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (form.aplica_a.length === 0) {
+      setError('Elegí al menos un tipo de pago al que aplica.')
+      return
+    }
     setError(null)
     const payload = toPayload(form)
 
@@ -99,6 +130,7 @@ export function DescuentosPanel() {
       ),
     },
     { header: 'Porcentaje', cell: (d) => `${d.tipo === 'recargo' ? '+' : '-'}${d.porcentaje}%` },
+    { header: 'Aplica a', cell: (d) => d.aplica_a.map((t) => TIPO_PAGO_LABEL[t]).join(', ') || '—' },
   ]
 
   return (
@@ -175,6 +207,22 @@ export function DescuentosPanel() {
             value={form.descripcion ?? ''}
             onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
           />
+          <div className="flex flex-col gap-1.5">
+            <span className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+              Aplica a
+            </span>
+            <div className="flex flex-wrap gap-4">
+              {TIPOS_PAGO_OPCIONES.map((opt) => (
+                <FormCheckbox
+                  key={opt.value}
+                  id={`descuento-aplica-${opt.value}`}
+                  label={opt.label}
+                  checked={form.aplica_a.includes(opt.value)}
+                  onChange={() => toggleAplicaA(opt.value)}
+                />
+              ))}
+            </div>
+          </div>
           {error && <p className="font-inter text-sm text-error">{error}</p>}
         </form>
       </Drawer>

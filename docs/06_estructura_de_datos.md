@@ -133,6 +133,7 @@ Usado por el Dashboard (`fetchEstadoAlumnosPorPeriodo`) para reconstruir cuánto
 | descripcion | text | opcional |
 | porcentaje | numeric | mismo campo para descuento y recargo, el signo lo da `tipo` |
 | tipo | tipo_ajuste | default `'descuento'` (migración 16). `'recargo'` **suma** el porcentaje sobre el precio del combo en vez de restarlo. La tabla y `pagos_alumnos.descuento_id` no se renombraron a propósito — siguen llamándose "descuento" aunque ahora el catálogo incluye recargos, para no romper referencias existentes |
+| aplica_a | tipo_pago[] | default `array['individual','familiar','adelantado']`. Filtra en qué selector de pago aparece el ítem (`descuentosParaTipo` en `lib/catalogos.ts`) — un ajuste puede restringirse a uno o dos tipos de pago. No afecta cargos ni RPCs, solo qué opciones ve el staff al elegir descuento en cada form |
 
 ### disciplinas
 | Campo | Tipo | Notas |

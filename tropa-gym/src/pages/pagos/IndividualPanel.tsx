@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
 import { buscarCargo } from '@/lib/cuenta'
 import { aplicarDescuento, aplicarTipoCuota, precioVigente } from '@/lib/precios'
+import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { Button } from '@/components/ui/button'
@@ -26,14 +27,16 @@ function periodoActual(): string {
 
 interface IndividualPanelProps {
   onSuccess?: () => void
+  onCancel?: () => void
 }
 
-export function IndividualPanel({ onSuccess }: IndividualPanelProps) {
+export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
   const queryClient = useQueryClient()
   const { data: precios = [] } = usePrecios()
   const { data: disciplinas = [] } = useDisciplinasActivas()
   const { data: combos = [] } = useCombosActivos()
-  const { data: descuentos = [] } = useDescuentos()
+  const { data: descuentosTodos = [] } = useDescuentos()
+  const descuentos = descuentosParaTipo(descuentosTodos, 'individual')
 
   const [alumno, setAlumno] = useState<Alumno | null>(null)
   const [periodo, setPeriodo] = useState(periodoActual())
@@ -263,7 +266,14 @@ export function IndividualPanel({ onSuccess }: IndividualPanelProps) {
           {error && <p className="font-inter text-sm text-error">{error}</p>}
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={resetForm}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                resetForm()
+                onCancel?.()
+              }}
+            >
               Cancelar
             </Button>
             <Button
