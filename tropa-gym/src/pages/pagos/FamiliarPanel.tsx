@@ -209,8 +209,6 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
         </p>
       )}
 
-      <AlumnoBuscador onSelect={agregarAlumno} placeholder="Agregar alumno al comprobante…" />
-
       {detalles.map((d) => (
         <div
           key={d.key}
@@ -292,6 +290,11 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
           )}
         </div>
       ))}
+
+      <AlumnoBuscador
+        onSelect={agregarAlumno}
+        placeholder={detalles.length === 0 ? 'Agregar alumno al comprobante…' : 'Agregar otro alumno…'}
+      />
 
       {detalles.length > 0 && (
         <div className="flex flex-col gap-4 rounded-card border border-outline-variant bg-surface-container p-5">
