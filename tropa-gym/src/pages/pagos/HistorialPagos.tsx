@@ -10,7 +10,7 @@ import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
-import { FormCurrencyInput } from '@/components/ui/FormField'
+import { FormCurrencyInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
 import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
 import { IndividualPanel } from './IndividualPanel'
@@ -41,16 +41,36 @@ function invalidarPagos(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ['dashboard'] })
 }
 
+const PAGE_SIZE = 15
+
 export function HistorialPagos() {
   const { perfil } = useAuth()
   const puedeEditar = perfil?.rol === 'admin' || perfil?.rol === 'profesor'
   const queryClient = useQueryClient()
 
-  const { data: historial = [], isLoading: loading } = useQuery({
-    queryKey: queryKeys.historialPagos,
-    queryFn: () => fetchHistorialPagos(),
+  const [nombreFiltro, setNombreFiltro] = useState('')
+  const [periodoFiltro, setPeriodoFiltro] = useState('')
+  const [page, setPage] = useState(0)
+  const nombreTerm = nombreFiltro.trim()
+
+  const { data, isLoading: loading } = useQuery({
+    queryKey: queryKeys.historialPagosPagina(nombreTerm, periodoFiltro, page),
+    queryFn: () => fetchHistorialPagos({ nombre: nombreTerm, periodo: periodoFiltro, page, pageSize: PAGE_SIZE }),
     staleTime: STALE_OPERATIVO,
   })
+  const historial = data?.filas ?? []
+  const total = data?.total ?? 0
+  const totalPaginas = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  function cambiarNombreFiltro(v: string) {
+    setNombreFiltro(v)
+    setPage(0)
+  }
+
+  function cambiarPeriodoFiltro(v: string) {
+    setPeriodoFiltro(v)
+    setPage(0)
+  }
 
   // El lápiz abre el form completo de registro precargado (mismo form que
   // "Registrar pago", en modo edición) — no un editor angosto de un solo
@@ -170,11 +190,35 @@ export function HistorialPagos() {
         Historial de pagos
       </h2>
 
+      <div className="mb-4 flex flex-wrap items-end gap-4">
+        <div className="w-full sm:w-72">
+          <FormInput
+            id="historial-buscar-nombre"
+            label="Buscar alumno"
+            placeholder="Nombre o apellido…"
+            value={nombreFiltro}
+            onChange={(e) => cambiarNombreFiltro(e.target.value)}
+          />
+        </div>
+        <div className="flex items-end gap-2">
+          <FormMonthInput id="historial-filtro-periodo" label="Período" value={periodoFiltro} onChange={cambiarPeriodoFiltro} />
+          {periodoFiltro && (
+            <button
+              type="button"
+              onClick={() => cambiarPeriodoFiltro('')}
+              className="mb-2 font-inter text-xs text-on-surface-variant hover:text-primary"
+            >
+              Ver todos
+            </button>
+          )}
+        </div>
+      </div>
+
       {loading && <p className="py-6 text-center font-inter text-sm text-on-surface-variant">Cargando…</p>}
 
       {!loading && historial.length === 0 && (
         <p className="py-6 text-center font-inter text-sm text-on-surface-variant">
-          Todavía no hay pagos registrados.
+          {nombreTerm || periodoFiltro ? 'No hay pagos que coincidan con el filtro.' : 'Todavía no hay pagos registrados.'}
         </p>
       )}
 
@@ -337,6 +381,32 @@ export function HistorialPagos() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && historial.length > 0 && (
+        <div className="mt-3 flex items-center justify-end gap-3">
+          <span className="font-inter text-xs text-on-surface-variant">
+            Página {page + 1} de {totalPaginas}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            aria-label="Página anterior"
+            className="text-on-surface-variant hover:text-primary disabled:opacity-30 disabled:hover:text-on-surface-variant"
+          >
+            <span className="material-symbols-outlined !text-[20px]">chevron_left</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPaginas - 1, p + 1))}
+            disabled={page + 1 >= totalPaginas}
+            aria-label="Página siguiente"
+            className="text-on-surface-variant hover:text-primary disabled:opacity-30 disabled:hover:text-on-surface-variant"
+          >
+            <span className="material-symbols-outlined !text-[20px]">chevron_right</span>
+          </button>
         </div>
       )}
 

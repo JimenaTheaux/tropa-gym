@@ -130,6 +130,18 @@ export interface HistorialPagoDetalle {
   estado: EstadoPago
 }
 
+export interface HistorialPagosFiltro {
+  nombre?: string
+  periodo?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface HistorialPagosResultado {
+  filas: HistorialPagoDetalle[]
+  total: number
+}
+
 // Últimos pagos registrados, a nivel detalle (1 fila = 1 alumno + 1 período)
 // — un comprobante familiar/adelantado se ve como varias filas. Necesario
 // para poder editar y mostrar estado por alumno (el estado es del cargo,
@@ -137,20 +149,47 @@ export interface HistorialPagoDetalle {
 // estado). El estado se lee de cargos.estado; si el detalle no tiene
 // cargo_id (ej. adelantado a futuro, o cualquier pago cargado antes de que
 // se genere el cargo del período) se infiere agregando TODOS los pagos de
-// ese alumno+período (no solo esta fila) contra el mayor precio_snapshot
-// visto entre ellos — igual que getEstadoCuenta. Si se comparara fila por
-// fila, dos pagos parciales que juntos completan el período mostrarían
-// estados distintos entre sí en vez del mismo estado agregado.
-export async function fetchHistorialPagos(limit = 15): Promise<HistorialPagoDetalle[]> {
-  const { data: pagosData } = await supabase.from('pagos').select('*').order('fecha', { ascending: false }).limit(limit)
-  const pagos = (pagosData ?? []) as Pago[]
-  if (pagos.length === 0) return []
+// ese alumno+período vistos en ESTA página (no toda la historia) contra el
+// mayor precio_snapshot entre ellos — igual que getEstadoCuenta. Si se
+// comparara fila por fila, dos pagos parciales que juntos completan el
+// período mostrarían estados distintos entre sí en vez del mismo estado
+// agregado; queda aproximado si las filas de un mismo alumno+período caen
+// en páginas distintas, pero eso ya era así antes de paginar.
+//
+// La paginación es a nivel de pagos_alumnos (lo que se ve en la tabla), no
+// de pagos (comprobantes) — antes se traían los últimos N comprobantes y
+// después TODOS sus detalles, lo que podía devolver más de N filas para un
+// comprobante familiar. Ordenar/paginar por pagos_alumnos.created_at en vez
+// de pagos.fecha da una página de tamaño estable a costa de asumir que
+// ambas fechas quedan casi siempre alineadas (se crean en la misma mutation).
+export async function fetchHistorialPagos(filtro: HistorialPagosFiltro = {}): Promise<HistorialPagosResultado> {
+  const { periodo, page = 0, pageSize = 15 } = filtro
+  const nombreTerm = filtro.nombre?.trim()
 
-  const pagoIds = pagos.map((p) => p.id)
-  const pagoPorId = new Map(pagos.map((p) => [p.id, p]))
+  let alumnoIdsFiltro: string[] | null = null
+  if (nombreTerm) {
+    const { data: alumnosMatch } = await supabase
+      .from('alumnos')
+      .select('id')
+      .or(`nombre.ilike.%${nombreTerm}%,apellido.ilike.%${nombreTerm}%`)
+    alumnoIdsFiltro = (alumnosMatch ?? []).map((a) => a.id)
+    if (alumnoIdsFiltro.length === 0) return { filas: [], total: 0 }
+  }
 
-  const { data: detallesData } = await supabase.from('pagos_alumnos').select('*').in('pago_id', pagoIds)
+  let query = supabase.from('pagos_alumnos').select('*', { count: 'exact' })
+  if (periodo) query = query.eq('periodo', periodo)
+  if (alumnoIdsFiltro) query = query.in('alumno_id', alumnoIdsFiltro)
+
+  const desde = page * pageSize
+  const { data: detallesData, count } = await query
+    .order('created_at', { ascending: false })
+    .range(desde, desde + pageSize - 1)
   const detalles = (detallesData ?? []) as PagoAlumno[]
+  if (detalles.length === 0) return { filas: [], total: count ?? 0 }
+
+  const pagoIds = [...new Set(detalles.map((d) => d.pago_id))]
+  const { data: pagosData } = await supabase.from('pagos').select('*').in('id', pagoIds)
+  const pagoPorId = new Map(((pagosData ?? []) as Pago[]).map((p) => [p.id, p]))
 
   const alumnoIds = [...new Set(detalles.map((d) => d.alumno_id))]
   const { data: alumnosData } = await supabase.from('alumnos').select('*').in('id', alumnoIds)
@@ -176,7 +215,7 @@ export async function fetchHistorialPagos(limit = 15): Promise<HistorialPagoDeta
     precioRefPorClave.set(clave, Math.max(precioRefPorClave.get(clave) ?? 0, Number(d.precio_snapshot)))
   }
 
-  return detalles
+  const filas = detalles
     .map((d) => {
       const pago = pagoPorId.get(d.pago_id)
       const cargo = d.cargo_id ? cargoPorId.get(d.cargo_id) ?? null : null
@@ -214,6 +253,8 @@ export async function fetchHistorialPagos(limit = 15): Promise<HistorialPagoDeta
       }
     })
     .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
+
+  return { filas, total: count ?? 0 }
 }
 
 export async function buscarCargo(alumnoId: string, periodo: string): Promise<Cargo | null> {
