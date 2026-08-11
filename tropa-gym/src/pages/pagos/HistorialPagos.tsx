@@ -9,10 +9,11 @@ import { formatFecha } from '@/lib/utils'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Drawer } from '@/components/ui/Drawer'
 import { FormCurrencyInput } from '@/components/ui/FormField'
 import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
+import { IndividualPanel } from './IndividualPanel'
 
 const TIPO_LABEL: Record<string, string> = {
   individual: 'Individual',
@@ -24,11 +25,6 @@ const METODO_LABEL: Record<string, string> = {
   efectivo: 'Efectivo',
   transferencia: 'Transferencia',
   combinado: 'Combinado',
-}
-
-interface EdicionMonto {
-  id: string
-  montoActual: number
 }
 
 interface CompletarPago {
@@ -55,10 +51,11 @@ export function HistorialPagos() {
     staleTime: STALE_OPERATIVO,
   })
 
-  const [edicion, setEdicion] = useState<EdicionMonto | null>(null)
-  const [nuevoMonto, setNuevoMonto] = useState(0)
-  const [confirmandoEdicion, setConfirmandoEdicion] = useState(false)
-  const [errorEdicion, setErrorEdicion] = useState<string | null>(null)
+  // El lápiz abre el form completo de registro precargado (mismo form que
+  // "Registrar pago", en modo edición) — no un editor angosto de un solo
+  // campo. Así corrige de una cualquier error de carga (combo, período,
+  // monto, método) y aplica la misma lógica Completo/Parcial.
+  const [editando, setEditando] = useState<HistorialPagoDetalle | null>(null)
 
   const [completar, setCompletar] = useState<CompletarPago | null>(null)
   const [montoCompletar, setMontoCompletar] = useState(0)
@@ -73,15 +70,6 @@ export function HistorialPagos() {
     enabled: !!completar,
     staleTime: STALE_OPERATIVO,
   })
-
-  const editarMonto = useMutation({
-    mutationFn: async ({ id, monto }: { id: string; monto: number }) => {
-      const { error } = await supabase.from('pagos_alumnos').update({ monto_pagado: monto }).eq('id', id)
-      if (error) throw new Error(error.message)
-    },
-    onSuccess: () => invalidarPagos(queryClient),
-  })
-  const guardandoEdicion = editarMonto.isPending
 
   const completarPago = useMutation({
     mutationFn: async (d: HistorialPagoDetalle) => {
@@ -130,34 +118,9 @@ export function HistorialPagos() {
     }
   }, [metodoCompletar, montoCompletar])
 
-  function iniciarEdicion(d: HistorialPagoDetalle) {
-    setEdicion({ id: d.id, montoActual: d.montoPagado })
-    setNuevoMonto(d.montoPagado)
-    setErrorEdicion(null)
-    setCompletar(null)
-  }
-
-  function cancelarEdicion() {
-    setEdicion(null)
-    setErrorEdicion(null)
-  }
-
-  async function confirmarEdicion() {
-    if (!edicion) return
-    try {
-      await editarMonto.mutateAsync({ id: edicion.id, monto: nuevoMonto })
-    } catch (err) {
-      setConfirmandoEdicion(false)
-      setErrorEdicion(traducirError(err instanceof Error ? err.message : null))
-      return
-    }
-    setConfirmandoEdicion(false)
-    setEdicion(null)
-  }
-
   function iniciarCompletar(d: HistorialPagoDetalle) {
     if (!d.cargoId) return
-    setEdicion(null)
+    setEditando(null)
     setErrorCompletar(null)
     setCompletar({ id: d.id, cargoId: d.cargoId, periodo: d.periodo })
     setMetodoCompletar('efectivo')
@@ -237,11 +200,11 @@ export function HistorialPagos() {
                     ${d.montoPagado.toLocaleString('es-AR')}
                   </span>
                   <BadgeEstadoCargo estado={d.estado} />
-                  {puedeEditar && edicion?.id !== d.id && (
+                  {puedeEditar && d.alumno && (
                     <button
                       type="button"
-                      onClick={() => iniciarEdicion(d)}
-                      aria-label="Editar monto pagado"
+                      onClick={() => setEditando(d)}
+                      aria-label="Editar pago"
                       className="text-on-surface-variant hover:text-primary"
                     >
                       <span className="material-symbols-outlined !text-[16px]">edit</span>
@@ -255,33 +218,6 @@ export function HistorialPagos() {
                   <Button type="button" variant="primario" onClick={() => iniciarCompletar(d)}>
                     Completar pago
                   </Button>
-                </div>
-              )}
-
-              {edicion?.id === d.id && (
-                <div className="flex flex-wrap items-end gap-3 rounded-lg border border-outline-variant bg-surface-container-low p-3">
-                  <FormCurrencyInput
-                    id={`edicion-monto-pagado-${d.id}`}
-                    label="Nuevo monto pagado"
-                    min={0}
-                    step="0.01"
-                    value={nuevoMonto}
-                    onChange={(e) => setNuevoMonto(Number(e.target.value))}
-                  />
-                  <div className="flex gap-2">
-                    <Button type="button" variant="ghost" onClick={cancelarEdicion} disabled={guardandoEdicion}>
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="solido"
-                      disabled={guardandoEdicion || nuevoMonto <= 0}
-                      onClick={() => setConfirmandoEdicion(true)}
-                    >
-                      Guardar
-                    </Button>
-                  </div>
-                  {errorEdicion && <p className="w-full font-inter text-sm text-error">{errorEdicion}</p>}
                 </div>
               )}
 
@@ -362,19 +298,26 @@ export function HistorialPagos() {
         </div>
       )}
 
-      <ConfirmDialog
-        open={confirmandoEdicion}
-        title="Editar monto pagado"
-        message={
-          edicion
-            ? `Vas a cambiar el monto de esta transacción de $${edicion.montoActual.toLocaleString('es-AR')} a $${nuevoMonto.toLocaleString('es-AR')}. Esto es una corrección retroactiva y recalcula el estado del cargo. ¿Confirmás?`
-            : ''
-        }
-        confirmLabel="Confirmar cambio"
-        loading={guardandoEdicion}
-        onConfirm={confirmarEdicion}
-        onCancel={() => setConfirmandoEdicion(false)}
-      />
+      <Drawer open={!!editando} title="Editar pago" onClose={() => setEditando(null)} size="lg">
+        {editando && editando.alumno && (
+          <IndividualPanel
+            editar={{
+              pagoAlumnoId: editando.id,
+              pagoId: editando.pagoId,
+              alumno: editando.alumno,
+              periodo: editando.periodo,
+              disciplinaId: editando.disciplinaId,
+              comboId: editando.comboId,
+              descuentoId: editando.descuentoId,
+              precioSnapshot: editando.precioSnapshot,
+              montoPagado: editando.montoPagado,
+              metodoPago: editando.metodoPago,
+            }}
+            onSuccess={() => setEditando(null)}
+            onCancel={() => setEditando(null)}
+          />
+        )}
+      </Drawer>
     </div>
   )
 }

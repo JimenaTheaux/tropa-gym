@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago, TipoCargo } from '@/types/db'
 import { supabase } from '@/lib/supabase'
@@ -32,12 +32,32 @@ function periodoActual(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+// Datos de una línea de pagos_alumnos ya registrada, para precargar el form
+// en modo edición (lápiz en Historial de Pagos). No incluye tipoCuota porque
+// no se persiste — se pierde ese dato y se asume 'completa' por default; si
+// el pago real fue media cuota, el toggle "Tipo de cuota" queda mal
+// preseleccionado (cosmético), pero el precio mostrado sí es el real
+// (precioSnapshot) porque no se recalcula hasta que el usuario toca algo.
+export interface EditarPagoInit {
+  pagoAlumnoId: string
+  pagoId: string
+  alumno: Alumno
+  periodo: string
+  disciplinaId: string
+  comboId: string
+  descuentoId: string | null
+  precioSnapshot: number
+  montoPagado: number
+  metodoPago: MetodoPago
+}
+
 interface IndividualPanelProps {
   onSuccess?: () => void
   onCancel?: () => void
+  editar?: EditarPagoInit
 }
 
-export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
+export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanelProps) {
   const queryClient = useQueryClient()
   const { data: precios = [] } = usePrecios()
   const { data: disciplinas = [] } = useDisciplinasActivas()
@@ -45,20 +65,50 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
   const { data: descuentosTodos = [] } = useDescuentos()
   const descuentos = useMemo(() => descuentosParaTipo(descuentosTodos, 'individual'), [descuentosTodos])
 
-  const [alumno, setAlumno] = useState<Alumno | null>(null)
-  const [periodo, setPeriodo] = useState(periodoActual())
-  const [disciplinaId, setDisciplinaId] = useState('')
-  const [comboId, setComboId] = useState('')
+  const [alumno, setAlumno] = useState<Alumno | null>(editar?.alumno ?? null)
+  const [periodo, setPeriodo] = useState(editar?.periodo ?? periodoActual())
+  const [disciplinaId, setDisciplinaId] = useState(editar?.disciplinaId ?? '')
+  const [comboId, setComboId] = useState(editar?.comboId ?? '')
   const [tipoCuota, setTipoCuota] = useState<TipoCargo>('completa')
-  const [descuentoId, setDescuentoId] = useState('')
-  const [precioCalculado, setPrecioCalculado] = useState(0)
-  const [montoPagado, setMontoPagado] = useState(0)
+  const [descuentoId, setDescuentoId] = useState(editar?.descuentoId ?? '')
+  const [precioCalculado, setPrecioCalculado] = useState(editar?.precioSnapshot ?? 0)
+  const [montoPagado, setMontoPagado] = useState(editar?.montoPagado ?? 0)
   const [tipoPagoParcialidad, setTipoPagoParcialidad] = useState<TipoPagoParcialidad | ''>('')
-  const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
+  const [metodo, setMetodo] = useState<MetodoPago>(editar?.metodoPago ?? 'efectivo')
   const [importeEfectivo, setImporteEfectivo] = useState(0)
   const [importeTransferencia, setImporteTransferencia] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  // Recalcular precio/monto/tipoPagoParcialidad al montar pisaría los
+  // valores precargados de una edición — se salta la primera pasada.
+  const pendienteSeed = useRef(!!editar)
+
+  // El comprobante familiar/adelantado reparte el mismo pago (método,
+  // importes, total) entre varias líneas. Al editar una sola línea acá,
+  // el total del comprobante para método de pago es el de las OTRAS líneas
+  // más esta — no solo esta línea (si no, "combinado" validaría mal y el
+  // total del comprobante quedaría pisado con el monto de una sola línea).
+  const [otrasLineasTotal, setOtrasLineasTotal] = useState(0)
+  useEffect(() => {
+    if (!editar) return
+    let cancelado = false
+    supabase
+      .from('pagos_alumnos')
+      .select('monto_pagado')
+      .eq('pago_id', editar.pagoId)
+      .neq('id', editar.pagoAlumnoId)
+      .then(({ data }) => {
+        if (cancelado) return
+        setOtrasLineasTotal((data ?? []).reduce((s, r) => s + Number(r.monto_pagado), 0))
+      })
+    return () => {
+      cancelado = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editar?.pagoAlumnoId, editar?.pagoId])
+
+  const totalRecibo = editar ? otrasLineasTotal + montoPagado : montoPagado
 
   // Ambiguo = el monto tipeado quedó por debajo de lo calculado: puede ser
   // un pago parcial (queda deuda) o un precio especial que el dueño cobró
@@ -72,6 +122,45 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
     mutationFn: async () => {
       if (!alumno) throw new Error('Falta seleccionar un alumno.')
       const cargo = await buscarCargo(alumno.id, periodo)
+
+      if (editar) {
+        const { error: detalleError } = await supabase
+          .from('pagos_alumnos')
+          .update({
+            cargo_id: cargo?.id ?? null,
+            periodo,
+            disciplina_id: disciplinaId,
+            combo_id: comboId,
+            descuento_id: descuentoId || null,
+            precio_snapshot: precioSnapshotFinal,
+            monto_pagado: montoPagado,
+          })
+          .eq('id', editar.pagoAlumnoId)
+
+        if (detalleError) throw new Error(detalleError.message)
+
+        let ajusteFallido = false
+        if (ajustarPrecio && cargo) {
+          const { error: cargoError } = await supabase
+            .from('cargos')
+            .update({ monto: montoPagado })
+            .eq('id', cargo.id)
+          if (cargoError) ajusteFallido = true
+        }
+
+        const { error: pagoError } = await supabase
+          .from('pagos')
+          .update({
+            metodo_pago: metodo,
+            importe_efectivo: importeEfectivo,
+            importe_transferencia: importeTransferencia,
+            total: totalRecibo,
+          })
+          .eq('id', editar.pagoId)
+        if (pagoError) throw new Error(pagoError.message)
+
+        return { ajusteFallido }
+      }
 
       const { data: pago, error: pagoError } = await supabase
         .from('pagos')
@@ -129,6 +218,10 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
   // El monto pagado se pre-carga con este valor pero queda editable (pago
   // parcial o sobrepago), por eso se resetea acá y no se deriva de él.
   useEffect(() => {
+    if (pendienteSeed.current) {
+      pendienteSeed.current = false
+      return
+    }
     const base = precioVigente(precios, comboId || null, periodo)
     const descuento = descuentos.find((d) => d.id === descuentoId)
     const precio = base === null ? 0 : aplicarDescuento(aplicarTipoCuota(base, tipoCuota), descuento)
@@ -139,13 +232,13 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
 
   useEffect(() => {
     if (metodo === 'efectivo') {
-      setImporteEfectivo(montoPagado)
+      setImporteEfectivo(totalRecibo)
       setImporteTransferencia(0)
     } else if (metodo === 'transferencia') {
       setImporteEfectivo(0)
-      setImporteTransferencia(montoPagado)
+      setImporteTransferencia(totalRecibo)
     }
-  }, [metodo, montoPagado])
+  }, [metodo, totalRecibo])
 
   function resetForm() {
     setAlumno(null)
@@ -170,9 +263,9 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
     }
     if (
       metodo === 'combinado' &&
-      Math.round((importeEfectivo + importeTransferencia) * 100) !== Math.round(montoPagado * 100)
+      Math.round((importeEfectivo + importeTransferencia) * 100) !== Math.round(totalRecibo * 100)
     ) {
-      setError('La suma de efectivo y transferencia debe ser igual al monto pagado.')
+      setError('La suma de efectivo y transferencia debe ser igual al total del comprobante.')
       return
     }
 
@@ -183,14 +276,20 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
     try {
       resultado = await registrarPago.mutateAsync()
     } catch (err) {
-      setError(traducirError(err instanceof Error ? err.message : null, 'No se pudo registrar el pago.'))
+      setError(
+        traducirError(
+          err instanceof Error ? err.message : null,
+          editar ? 'No se pudo guardar el pago.' : 'No se pudo registrar el pago.',
+        ),
+      )
       return
     }
 
+    const accion = editar ? 'actualizado' : 'registrado'
     setSuccess(
       resultado.ajusteFallido
-        ? `Pago de $${montoPagado.toLocaleString('es-AR')} registrado para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido}, pero no se pudo ajustar el precio del cargo — corregilo desde la ficha del alumno.`
-        : `Pago de $${montoPagado.toLocaleString('es-AR')} registrado para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido} — período ${periodo}.`,
+        ? `Pago de $${montoPagado.toLocaleString('es-AR')} ${accion} para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido}, pero no se pudo ajustar el precio del cargo — corregilo desde la ficha del alumno.`
+        : `Pago de $${montoPagado.toLocaleString('es-AR')} ${accion} para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido} — período ${periodo}.`,
     )
     resetForm()
     onSuccess?.()
@@ -284,13 +383,19 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
               idPrefix="individual"
               metodo={metodo}
               onMetodoChange={setMetodo}
-              total={montoPagado}
+              total={totalRecibo}
               importeEfectivo={importeEfectivo}
               importeTransferencia={importeTransferencia}
               onImporteEfectivoChange={setImporteEfectivo}
               onImporteTransferenciaChange={setImporteTransferencia}
             />
           </div>
+
+          {editar && otrasLineasTotal > 0 && (
+            <p className="font-inter text-xs text-on-surface-variant">
+              Esta línea es parte de un comprobante con otros alumnos o períodos (${otrasLineasTotal.toLocaleString('es-AR')} más). El método de pago que elijas acá aplica a todo el comprobante.
+            </p>
+          )}
 
           {esAmbiguo && (
             <div className="flex flex-col gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3">
@@ -336,7 +441,7 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
               disabled={saving || !disciplinaId || !comboId || montoPagado <= 0 || (esAmbiguo && tipoPagoParcialidad === '')}
               onClick={handleSubmit}
             >
-              {saving ? 'Registrando…' : 'Registrar pago'}
+              {saving ? 'Guardando…' : editar ? 'Guardar cambios' : 'Registrar pago'}
             </Button>
           </div>
         </div>

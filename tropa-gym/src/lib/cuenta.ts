@@ -104,6 +104,7 @@ export interface HistorialPagoDetalle {
   metodoPago: MetodoPago
   alumnoId: string
   alumnoNombre: string
+  alumno: Alumno | null
   periodo: string
   disciplinaId: string
   comboId: string
@@ -135,9 +136,7 @@ export async function fetchHistorialPagos(limit = 15): Promise<HistorialPagoDeta
 
   const alumnoIds = [...new Set(detalles.map((d) => d.alumno_id))]
   const { data: alumnosData } = await supabase.from('alumnos').select('*').in('id', alumnoIds)
-  const nombrePorAlumno = new Map(
-    ((alumnosData ?? []) as Alumno[]).map((a) => [a.id, `${a.nombre} ${a.apellido}`]),
-  )
+  const alumnoPorId = new Map(((alumnosData ?? []) as Alumno[]).map((a) => [a.id, a]))
 
   const cargoIds = [...new Set(detalles.map((d) => d.cargo_id).filter((id): id is string => !!id))]
   let cargoPorId = new Map<string, Cargo>()
@@ -159,6 +158,7 @@ export async function fetchHistorialPagos(limit = 15): Promise<HistorialPagoDeta
           : montoPagado >= precioSnapshot
             ? 'pagado'
             : 'parcial'
+      const alumno = alumnoPorId.get(d.alumno_id) ?? null
       return {
         id: d.id,
         pagoId: d.pago_id,
@@ -166,7 +166,8 @@ export async function fetchHistorialPagos(limit = 15): Promise<HistorialPagoDeta
         tipoPago: pago?.tipo_pago ?? 'individual',
         metodoPago: pago?.metodo_pago ?? 'efectivo',
         alumnoId: d.alumno_id,
-        alumnoNombre: nombrePorAlumno.get(d.alumno_id) ?? '—',
+        alumnoNombre: alumno ? `${alumno.nombre} ${alumno.apellido}` : '—',
+        alumno,
         periodo: d.periodo,
         disciplinaId: d.disciplina_id,
         comboId: d.combo_id,
