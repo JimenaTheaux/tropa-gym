@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago, TipoCargo } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
-import { buscarCargo } from '@/lib/cuenta'
+import { buscarCargo, fetchResumenPeriodo } from '@/lib/cuenta'
 import { aplicarDescuento, aplicarTipoCuota, precioVigente } from '@/lib/precios'
 import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
@@ -109,6 +109,32 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
   }, [editar?.pagoAlumnoId, editar?.pagoId])
 
   const totalRecibo = editar ? otrasLineasTotal + montoPagado : montoPagado
+
+  // Aviso si el alumno ya tiene un pago cargado en este mismo período — no
+  // se busca acá para editar (editar apunta a esa fila puntual), solo para
+  // registrar uno nuevo. Sirve para no confundir "completar un pago parcial
+  // con una segunda cuota" (usar "Completar pago" en Historial) con "cobrar
+  // un precio especial completo" (el selector de abajo) — si se elige
+  // Completo acá para lo que en realidad es la segunda cuota de un pago ya
+  // existente, se pisa el precio de referencia con el monto de esta sola
+  // cuota en vez de sumarlo al ya pagado.
+  const [pagoExistente, setPagoExistente] = useState<{ pagado: number; monto: number } | null>(null)
+  useEffect(() => {
+    if (editar || !alumno || !periodo) {
+      setPagoExistente(null)
+      return
+    }
+    let cancelado = false
+    ;(async () => {
+      const cargo = await buscarCargo(alumno.id, periodo)
+      const resumen = await fetchResumenPeriodo(alumno.id, periodo, cargo?.id ?? null)
+      if (!cancelado) setPagoExistente(resumen.pagado > 0 ? { pagado: resumen.pagado, monto: resumen.monto } : null)
+    })()
+    return () => {
+      cancelado = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!editar, alumno?.id, periodo])
 
   // Ambiguo = el monto tipeado quedó por debajo de lo calculado: puede ser
   // un pago parcial (queda deuda) o un precio especial que el dueño cobró
@@ -313,6 +339,14 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
             </p>
             <BadgeEstado estado={alumno.estado} />
           </div>
+
+          {pagoExistente && (
+            <p className="rounded-lg border border-error/50 bg-error/10 px-3 py-2 font-inter text-xs text-error">
+              {pagoExistente.pagado < pagoExistente.monto
+                ? `Ya hay $${pagoExistente.pagado.toLocaleString('es-AR')} pagado de $${pagoExistente.monto.toLocaleString('es-AR')} para este alumno en el período ${periodo}. Si esto es para completar ese pago, usá "Completar pago" en el Historial de Pagos en vez de cargar uno nuevo acá — si elegís "Completo" en el selector de abajo, va a fijar el precio de referencia en el monto de este pago nuevo nomás, no en la suma de ambos.`
+                : `Este alumno ya tiene $${pagoExistente.pagado.toLocaleString('es-AR')} pagados (cubre el período ${periodo}). Si es un pago aparte, continuá; si fue un error, revisá el Historial de Pagos antes de guardar.`}
+            </p>
+          )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormSelect

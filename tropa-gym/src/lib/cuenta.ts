@@ -135,8 +135,12 @@ export interface HistorialPagoDetalle {
 // para poder editar y mostrar estado por alumno (el estado es del cargo,
 // no del comprobante, y un comprobante puede mezclar alumnos en distinto
 // estado). El estado se lee de cargos.estado; si el detalle no tiene
-// cargo_id (ej. adelantado a futuro sin cargo generado) se infiere
-// comparando monto_pagado contra precio_snapshot.
+// cargo_id (ej. adelantado a futuro, o cualquier pago cargado antes de que
+// se genere el cargo del período) se infiere agregando TODOS los pagos de
+// ese alumno+período (no solo esta fila) contra el mayor precio_snapshot
+// visto entre ellos — igual que getEstadoCuenta. Si se comparara fila por
+// fila, dos pagos parciales que juntos completan el período mostrarían
+// estados distintos entre sí en vez del mismo estado agregado.
 export async function fetchHistorialPagos(limit = 15): Promise<HistorialPagoDetalle[]> {
   const { data: pagosData } = await supabase.from('pagos').select('*').order('fecha', { ascending: false }).limit(limit)
   const pagos = (pagosData ?? []) as Pago[]
@@ -159,17 +163,33 @@ export async function fetchHistorialPagos(limit = 15): Promise<HistorialPagoDeta
     cargoPorId = new Map(((cargosData ?? []) as Cargo[]).map((c) => [c.id, c]))
   }
 
+  // Agregado por alumno+período entre los detalles sin cargo de este lote
+  // (no es toda la historia del alumno — alcanza para que las filas de un
+  // mismo alumno+período que aparecen juntas en esta lista sean consistentes
+  // entre sí; getEstadoCuenta es la fuente completa para la ficha).
+  const pagadoPorClave = new Map<string, number>()
+  const precioRefPorClave = new Map<string, number>()
+  for (const d of detalles) {
+    if (d.cargo_id) continue
+    const clave = `${d.alumno_id}|${d.periodo}`
+    pagadoPorClave.set(clave, (pagadoPorClave.get(clave) ?? 0) + Number(d.monto_pagado))
+    precioRefPorClave.set(clave, Math.max(precioRefPorClave.get(clave) ?? 0, Number(d.precio_snapshot)))
+  }
+
   return detalles
     .map((d) => {
       const pago = pagoPorId.get(d.pago_id)
       const cargo = d.cargo_id ? cargoPorId.get(d.cargo_id) ?? null : null
       const montoPagado = Number(d.monto_pagado)
       const precioSnapshot = Number(d.precio_snapshot)
+      const clave = `${d.alumno_id}|${d.periodo}`
+      const pagadoGrupo = pagadoPorClave.get(clave) ?? montoPagado
+      const precioRefGrupo = precioRefPorClave.get(clave) ?? precioSnapshot
       const estado: EstadoPago = cargo
         ? cargo.estado
-        : montoPagado <= 0
+        : pagadoGrupo <= 0
           ? 'pendiente'
-          : montoPagado >= precioSnapshot
+          : pagadoGrupo >= precioRefGrupo
             ? 'pagado'
             : 'parcial'
       const alumno = alumnoPorId.get(d.alumno_id) ?? null
@@ -213,15 +233,35 @@ export interface ResumenCargo {
   saldo: number
 }
 
-// Monto del cargo y TODO lo ya pagado (suma de todos sus pagos, no solo el
-// de la fila que se está completando) — se consulta al vuelo al abrir
-// "Completar pago" para no depender de un agregado potencialmente incompleto.
-export async function fetchResumenCargo(cargoId: string): Promise<ResumenCargo> {
-  const [{ data: cargoData }, { data: pagosData }] = await Promise.all([
-    supabase.from('cargos').select('monto').eq('id', cargoId).maybeSingle(),
-    supabase.from('pagos_alumnos').select('monto_pagado').eq('cargo_id', cargoId),
-  ])
-  const monto = cargoData ? Number(cargoData.monto) : 0
-  const pagado = ((pagosData ?? []) as { monto_pagado: number }[]).reduce((s, p) => s + Number(p.monto_pagado), 0)
+// Monto de referencia y TODO lo ya pagado (suma de todos los pagos del
+// período, no solo el de la fila que se está completando) — se consulta al
+// vuelo al abrir "Completar pago" para no depender de un agregado
+// potencialmente incompleto. Si hay cargo, el monto de referencia es
+// cargos.monto (autoritativo); si todavía no hay cargo para el período
+// (caso frecuente: se paga antes de que Admin corra "Generar cargos"), se
+// usa el mayor precio_snapshot visto entre los pagos de ese alumno+período.
+export async function fetchResumenPeriodo(
+  alumnoId: string,
+  periodo: string,
+  cargoId: string | null,
+): Promise<ResumenCargo> {
+  if (cargoId) {
+    const [{ data: cargoData }, { data: pagosData }] = await Promise.all([
+      supabase.from('cargos').select('monto').eq('id', cargoId).maybeSingle(),
+      supabase.from('pagos_alumnos').select('monto_pagado').eq('cargo_id', cargoId),
+    ])
+    const monto = cargoData ? Number(cargoData.monto) : 0
+    const pagado = ((pagosData ?? []) as { monto_pagado: number }[]).reduce((s, p) => s + Number(p.monto_pagado), 0)
+    return { monto, pagado, saldo: monto - pagado }
+  }
+
+  const { data } = await supabase
+    .from('pagos_alumnos')
+    .select('monto_pagado, precio_snapshot')
+    .eq('alumno_id', alumnoId)
+    .eq('periodo', periodo)
+  const filas = (data ?? []) as { monto_pagado: number; precio_snapshot: number }[]
+  const pagado = filas.reduce((s, f) => s + Number(f.monto_pagado), 0)
+  const monto = filas.reduce((m, f) => Math.max(m, Number(f.precio_snapshot)), 0)
   return { monto, pagado, saldo: monto - pagado }
 }

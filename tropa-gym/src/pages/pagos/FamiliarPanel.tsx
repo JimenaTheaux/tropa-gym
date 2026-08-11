@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago, TipoCargo } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
-import { buscarCargo } from '@/lib/cuenta'
+import { buscarCargo, fetchResumenPeriodo } from '@/lib/cuenta'
 import { aplicarDescuento, aplicarTipoCuota, distribuirMonto, precioVigente } from '@/lib/precios'
 import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
@@ -90,6 +90,32 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   // especial que el dueño cobró completo (no debe quedar deuda).
   const esAmbiguo = montoPagado > 0 && subtotal > 0 && montoPagado < subtotal
   const ajustarPrecio = esAmbiguo && tipoPagoParcialidad === 'completo'
+
+  // Aviso por alumno si ya tiene un pago cargado en ese mismo período —
+  // mismo motivo que en IndividualPanel: si en realidad es la segunda cuota
+  // de un pago parcial ya existente, hay que usar "Completar pago" en
+  // Historial en vez de marcar "Completo" acá (pisaría el precio de
+  // referencia con lo repartido a este alumno nomás).
+  const [pagosExistentes, setPagosExistentes] = useState<Record<string, { pagado: number; monto: number } | null>>({})
+  const clavesDetalles = detalles.map((d) => `${d.alumno.id}|${d.periodo}`).join(',')
+  useEffect(() => {
+    let cancelado = false
+    ;(async () => {
+      const resultados = await Promise.all(
+        detalles.map(async (d) => {
+          if (!d.periodo) return [d.key, null] as const
+          const cargo = await buscarCargo(d.alumno.id, d.periodo)
+          const resumen = await fetchResumenPeriodo(d.alumno.id, d.periodo, cargo?.id ?? null)
+          return [d.key, resumen.pagado > 0 ? { pagado: resumen.pagado, monto: resumen.monto } : null] as const
+        }),
+      )
+      if (!cancelado) setPagosExistentes(Object.fromEntries(resultados))
+    })()
+    return () => {
+      cancelado = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clavesDetalles])
 
   function precioConDescuento(periodo: string, comboId: string, tipoCuota: TipoCargo): number {
     const base = precioVigente(precios, comboId || null, periodo)
@@ -304,6 +330,14 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             </span>
             <span className="font-inter text-sm text-on-surface">${d.precioCalculado.toLocaleString('es-AR')}</span>
           </div>
+
+          {pagosExistentes[d.key] && (
+            <p className="rounded-lg border border-error/50 bg-error/10 px-3 py-2 font-inter text-xs text-error">
+              {pagosExistentes[d.key]!.pagado < pagosExistentes[d.key]!.monto
+                ? `Ya hay $${pagosExistentes[d.key]!.pagado.toLocaleString('es-AR')} pagado de $${pagosExistentes[d.key]!.monto.toLocaleString('es-AR')} para este alumno en el período ${d.periodo}. Si es para completar ese pago, usá "Completar pago" en el Historial de Pagos — si acá elegís "Completo", el precio de referencia se fija con lo que le toque a este alumno en este comprobante nomás, no con la suma de ambos pagos.`
+                : `Este alumno ya tiene $${pagosExistentes[d.key]!.pagado.toLocaleString('es-AR')} pagados para el período ${d.periodo}. Si es un pago aparte, seguí; si fue un error, revisá el Historial de Pagos.`}
+            </p>
+          )}
         </div>
       ))}
 

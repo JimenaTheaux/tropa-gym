@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { MetodoPago } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
 import { useAuth } from '@/contexts/AuthContext'
-import { fetchHistorialPagos, fetchResumenCargo, type HistorialPagoDetalle, type ResumenCargo } from '@/lib/cuenta'
+import { fetchHistorialPagos, fetchResumenPeriodo, type HistorialPagoDetalle, type ResumenCargo } from '@/lib/cuenta'
 import { formatFecha } from '@/lib/utils'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
@@ -29,7 +29,8 @@ const METODO_LABEL: Record<string, string> = {
 
 interface CompletarPago {
   id: string
-  cargoId: string
+  cargoId: string | null
+  alumnoId: string
   periodo: string
 }
 
@@ -65,8 +66,8 @@ export function HistorialPagos() {
   const [errorCompletar, setErrorCompletar] = useState<string | null>(null)
 
   const { data: resumenCargo = null, isFetching: cargandoSaldo } = useQuery({
-    queryKey: queryKeys.resumenCargo(completar?.cargoId ?? ''),
-    queryFn: () => fetchResumenCargo(completar!.cargoId),
+    queryKey: queryKeys.resumenPeriodoAlumno(completar?.alumnoId ?? '', completar?.periodo ?? ''),
+    queryFn: () => fetchResumenPeriodo(completar!.alumnoId, completar!.periodo, completar!.cargoId),
     enabled: !!completar,
     staleTime: STALE_OPERATIVO,
   })
@@ -95,7 +96,7 @@ export function HistorialPagos() {
         disciplina_id: d.disciplinaId,
         combo_id: d.comboId,
         descuento_id: d.descuentoId,
-        precio_snapshot: d.precioSnapshot,
+        precio_snapshot: resumenCargo?.monto ?? d.precioSnapshot,
         monto_pagado: montoCompletar,
       })
 
@@ -119,10 +120,9 @@ export function HistorialPagos() {
   }, [metodoCompletar, montoCompletar])
 
   function iniciarCompletar(d: HistorialPagoDetalle) {
-    if (!d.cargoId) return
     setEditando(null)
     setErrorCompletar(null)
-    setCompletar({ id: d.id, cargoId: d.cargoId, periodo: d.periodo })
+    setCompletar({ id: d.id, cargoId: d.cargoId, alumnoId: d.alumnoId, periodo: d.periodo })
     setMetodoCompletar('efectivo')
     setMontoCompletar(0)
   }
@@ -179,122 +179,164 @@ export function HistorialPagos() {
       )}
 
       {!loading && historial.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {historial.map((d) => (
-            <div
-              key={d.id}
-              className="flex flex-col gap-3 rounded-card border border-outline-variant bg-surface-container px-4 py-3"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-col">
-                  <span className="font-inter text-sm text-on-surface">
-                    {d.alumnoNombre} — {d.periodo}
-                  </span>
-                  <span className="font-inter text-xs text-on-surface-variant">
-                    {formatFecha(d.fecha.slice(0, 10))} — {TIPO_LABEL[d.tipoPago] ?? d.tipoPago} —{' '}
-                    {METODO_LABEL[d.metodoPago] ?? d.metodoPago}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-oswald text-base font-bold text-on-surface">
-                    ${d.montoPagado.toLocaleString('es-AR')}
-                  </span>
-                  <BadgeEstadoCargo estado={d.estado} />
-                  {puedeEditar && d.alumno && (
-                    <button
-                      type="button"
-                      onClick={() => setEditando(d)}
-                      aria-label="Editar pago"
-                      className="text-on-surface-variant hover:text-primary"
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">edit</span>
-                    </button>
+        <div className="overflow-x-auto rounded-card border border-outline-variant">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="bg-surface-container-high/50">
+                <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+                  Fecha
+                </th>
+                <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+                  Alumno
+                </th>
+                <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+                  Tipo de pago
+                </th>
+                <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+                  Método de pago
+                </th>
+                <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+                  Monto
+                </th>
+                <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+                  Estado
+                </th>
+                <th className="px-4 py-3 text-right font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {historial.map((d) => (
+                <Fragment key={d.id}>
+                  <tr className="border-t border-outline-variant align-top">
+                    <td className="whitespace-nowrap px-4 py-3 font-inter text-sm text-on-surface-variant">
+                      {formatFecha(d.fecha.slice(0, 10))}
+                    </td>
+                    <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                      {d.alumnoNombre}
+                      <span className="text-on-surface-variant"> — {d.periodo}</span>
+                    </td>
+                    <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                      {TIPO_LABEL[d.tipoPago] ?? d.tipoPago}
+                    </td>
+                    <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                      {METODO_LABEL[d.metodoPago] ?? d.metodoPago}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 font-oswald text-sm font-bold text-on-surface">
+                      ${d.montoPagado.toLocaleString('es-AR')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <BadgeEstadoCargo estado={d.estado} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-3">
+                        {d.estado === 'parcial' && completar?.id !== d.id && (
+                          <Button type="button" variant="primario" onClick={() => iniciarCompletar(d)}>
+                            Completar pago
+                          </Button>
+                        )}
+                        {puedeEditar && d.alumno && (
+                          <button
+                            type="button"
+                            onClick={() => setEditando(d)}
+                            aria-label="Editar pago"
+                            className="text-on-surface-variant hover:text-primary"
+                          >
+                            <span className="material-symbols-outlined !text-[18px]">edit</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+
+                  {completar?.id === d.id && (
+                    <tr className="border-t border-outline-variant bg-surface-container-low">
+                      <td colSpan={7} className="px-4 py-3">
+                        <div className="flex flex-col gap-3">
+                          {cargandoSaldo || !resumenCargo ? (
+                            <p className="font-inter text-sm text-on-surface-variant">Calculando saldo pendiente…</p>
+                          ) : (
+                            <>
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-outline-variant/50 pb-3 font-inter text-sm">
+                                <span className="text-on-surface-variant">
+                                  Ya pagado: ${resumenCargo.pagado.toLocaleString('es-AR')} de $
+                                  {resumenCargo.monto.toLocaleString('es-AR')}
+                                </span>
+                                <span className="font-medium text-on-surface">
+                                  Saldo pendiente: ${resumenCargo.saldo.toLocaleString('es-AR')}
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-start gap-6">
+                                <FormCurrencyInput
+                                  id={`completar-monto-${d.id}`}
+                                  label="Cuánto se paga ahora"
+                                  min={0}
+                                  step="0.01"
+                                  value={montoCompletar}
+                                  onChange={(e) => setMontoCompletar(Number(e.target.value))}
+                                />
+                                <MetodoPagoField
+                                  idPrefix={`completar-${d.id}`}
+                                  metodo={metodoCompletar}
+                                  onMetodoChange={setMetodoCompletar}
+                                  total={montoCompletar}
+                                  importeEfectivo={importeEfectivoCompletar}
+                                  importeTransferencia={importeTransferenciaCompletar}
+                                  onImporteEfectivoChange={setImporteEfectivoCompletar}
+                                  onImporteTransferenciaChange={setImporteTransferenciaCompletar}
+                                />
+                              </div>
+
+                              {montoCompletar > 0 &&
+                                (() => {
+                                  const p = proyeccion(resumenCargo, montoCompletar)
+                                  if (p.estado === 'pagado') {
+                                    return (
+                                      <p className="font-inter text-xs text-primary">
+                                        {p.restante < 0
+                                          ? `Queda pagado — sobrepago de $${Math.abs(p.restante).toLocaleString('es-AR')} (saldo a favor).`
+                                          : 'Queda pagado — completa el cargo.'}
+                                      </p>
+                                    )
+                                  }
+                                  return (
+                                    <p className="font-inter text-xs text-on-surface-variant">
+                                      Sigue parcial — quedarán ${p.restante.toLocaleString('es-AR')} pendientes.
+                                    </p>
+                                  )
+                                })()}
+
+                              {errorCompletar && <p className="font-inter text-sm text-error">{errorCompletar}</p>}
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={cancelarCompletar}
+                                  disabled={guardandoCompletar}
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="solido"
+                                  disabled={guardandoCompletar || montoCompletar <= 0}
+                                  onClick={() => confirmarCompletar(d)}
+                                >
+                                  {guardandoCompletar ? 'Registrando…' : 'Registrar pago'}
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                </div>
-              </div>
-
-              {d.estado === 'parcial' && d.cargoId && completar?.id !== d.id && (
-                <div className="flex justify-end">
-                  <Button type="button" variant="primario" onClick={() => iniciarCompletar(d)}>
-                    Completar pago
-                  </Button>
-                </div>
-              )}
-
-              {completar?.id === d.id && (
-                <div className="flex flex-col gap-3 rounded-lg border border-outline-variant bg-surface-container-low p-3">
-                  {cargandoSaldo || !resumenCargo ? (
-                    <p className="font-inter text-sm text-on-surface-variant">Calculando saldo pendiente…</p>
-                  ) : (
-                    <>
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-outline-variant/50 pb-3 font-inter text-sm">
-                        <span className="text-on-surface-variant">
-                          Ya pagado: ${resumenCargo.pagado.toLocaleString('es-AR')} de ${resumenCargo.monto.toLocaleString('es-AR')}
-                        </span>
-                        <span className="font-medium text-on-surface">
-                          Saldo pendiente: ${resumenCargo.saldo.toLocaleString('es-AR')}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap items-start gap-6">
-                        <FormCurrencyInput
-                          id={`completar-monto-${d.id}`}
-                          label="Cuánto se paga ahora"
-                          min={0}
-                          step="0.01"
-                          value={montoCompletar}
-                          onChange={(e) => setMontoCompletar(Number(e.target.value))}
-                        />
-                        <MetodoPagoField
-                          idPrefix={`completar-${d.id}`}
-                          metodo={metodoCompletar}
-                          onMetodoChange={setMetodoCompletar}
-                          total={montoCompletar}
-                          importeEfectivo={importeEfectivoCompletar}
-                          importeTransferencia={importeTransferenciaCompletar}
-                          onImporteEfectivoChange={setImporteEfectivoCompletar}
-                          onImporteTransferenciaChange={setImporteTransferenciaCompletar}
-                        />
-                      </div>
-
-                      {montoCompletar > 0 && (() => {
-                        const p = proyeccion(resumenCargo, montoCompletar)
-                        if (p.estado === 'pagado') {
-                          return (
-                            <p className="font-inter text-xs text-primary">
-                              {p.restante < 0
-                                ? `Queda pagado — sobrepago de $${Math.abs(p.restante).toLocaleString('es-AR')} (saldo a favor).`
-                                : 'Queda pagado — completa el cargo.'}
-                            </p>
-                          )
-                        }
-                        return (
-                          <p className="font-inter text-xs text-on-surface-variant">
-                            Sigue parcial — quedarán ${p.restante.toLocaleString('es-AR')} pendientes.
-                          </p>
-                        )
-                      })()}
-
-                      {errorCompletar && <p className="font-inter text-sm text-error">{errorCompletar}</p>}
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" variant="ghost" onClick={cancelarCompletar} disabled={guardandoCompletar}>
-                          Cancelar
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="solido"
-                          disabled={guardandoCompletar || montoCompletar <= 0}
-                          onClick={() => confirmarCompletar(d)}
-                        >
-                          {guardandoCompletar ? 'Registrando…' : 'Registrar pago'}
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
