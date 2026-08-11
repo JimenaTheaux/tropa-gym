@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago } from '@/types/db'
 import { supabase } from '@/lib/supabase'
@@ -52,7 +52,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
   const { data: disciplinas = [] } = useDisciplinasActivas()
   const { data: combos = [] } = useCombosActivos()
   const { data: descuentosTodos = [] } = useDescuentos()
-  const descuentos = descuentosParaTipo(descuentosTodos, 'adelantado')
+  const descuentos = useMemo(() => descuentosParaTipo(descuentosTodos, 'adelantado'), [descuentosTodos])
 
   const [alumno, setAlumno] = useState<Alumno | null>(null)
   const [disciplinaId, setDisciplinaId] = useState('')

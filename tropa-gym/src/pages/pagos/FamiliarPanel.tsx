@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago, TipoCargo } from '@/types/db'
 import { supabase } from '@/lib/supabase'
@@ -17,6 +17,13 @@ import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
 const TIPOS_CUOTA: { value: TipoCargo; label: string }[] = [
   { value: 'completa', label: 'Cuota completa' },
   { value: 'media', label: 'Media cuota' },
+]
+
+type TipoPagoParcialidad = 'completo' | 'parcial'
+
+const TIPOS_PAGO_PARCIALIDAD: { value: TipoPagoParcialidad; label: string }[] = [
+  { value: 'completo', label: 'Completo (precio especial)' },
+  { value: 'parcial', label: 'Parcial' },
 ]
 
 function periodoActual(): string {
@@ -45,11 +52,12 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   const { data: disciplinas = [] } = useDisciplinasActivas()
   const { data: combos = [] } = useCombosActivos()
   const { data: descuentosTodos = [] } = useDescuentos()
-  const descuentos = descuentosParaTipo(descuentosTodos, 'familiar')
+  const descuentos = useMemo(() => descuentosParaTipo(descuentosTodos, 'familiar'), [descuentosTodos])
 
   const [detalles, setDetalles] = useState<DetalleFamiliar[]>([])
   const [descuentoId, setDescuentoId] = useState('')
   const [montoPagado, setMontoPagado] = useState(0)
+  const [tipoPagoParcialidad, setTipoPagoParcialidad] = useState<TipoPagoParcialidad | ''>('')
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [importeEfectivo, setImporteEfectivo] = useState(0)
   const [importeTransferencia, setImporteTransferencia] = useState(0)
@@ -77,6 +85,12 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
 
   const subtotal = detalles.reduce((sum, d) => sum + d.precioCalculado, 0)
 
+  // Ambiguo = el total pagado quedó por debajo del subtotal: puede ser un
+  // pago parcial (queda deuda repartida proporcionalmente) o un precio
+  // especial que el dueño cobró completo (no debe quedar deuda).
+  const esAmbiguo = montoPagado > 0 && subtotal > 0 && montoPagado < subtotal
+  const ajustarPrecio = esAmbiguo && tipoPagoParcialidad === 'completo'
+
   function precioConDescuento(periodo: string, comboId: string, tipoCuota: TipoCargo): number {
     const base = precioVigente(precios, comboId || null, periodo)
     const descuento = descuentos.find((d) => d.id === descuentoId)
@@ -101,6 +115,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   // Se resetea acá, no se deriva del subtotal en cada render.
   useEffect(() => {
     setMontoPagado(subtotal)
+    setTipoPagoParcialidad('')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subtotal])
 
@@ -149,6 +164,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
     setDetalles([])
     setDescuentoId('')
     setMontoPagado(0)
+    setTipoPagoParcialidad('')
     setMetodo('efectivo')
     setImporteEfectivo(0)
     setImporteTransferencia(0)
@@ -158,6 +174,10 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
     if (detalles.length === 0 || montoPagado <= 0) return
     if (detalles.some((d) => !d.disciplinaId || !d.comboId || !d.periodo)) {
       setError('Completá disciplina y combo para cada alumno.')
+      return
+    }
+    if (esAmbiguo && tipoPagoParcialidad === '') {
+      setError('Indicá si fue un pago parcial o el monto completo (precio especial).')
       return
     }
     if (
@@ -178,6 +198,8 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
     const p_detalles = await Promise.all(
       detalles.map(async (d, i) => {
         const cargo = await buscarCargo(d.alumno.id, d.periodo)
+        const montoAlumno = montosPorAlumno[i]
+        const ajustarPrecioAlumno = ajustarPrecio && montoAlumno < d.precioCalculado
         return {
           alumno_id: d.alumno.id,
           cargo_id: cargo?.id ?? null,
@@ -185,8 +207,9 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
           disciplina_id: d.disciplinaId,
           combo_id: d.comboId,
           descuento_id: descuentoId || null,
-          precio_snapshot: d.precioCalculado,
-          monto_pagado: montosPorAlumno[i],
+          precio_snapshot: ajustarPrecioAlumno ? montoAlumno : d.precioCalculado,
+          monto_pagado: montoAlumno,
+          ajustar_precio: ajustarPrecioAlumno,
         }
       }),
     )
@@ -331,11 +354,28 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             />
           </div>
 
-          {montoPagado > 0 && montoPagado !== subtotal && (
+          {esAmbiguo && (
+            <div className="flex flex-col gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3">
+              <SegmentedControl
+                id="familiar-tipo-pago-parcialidad"
+                label="¿Fue un pago parcial o el monto completo?"
+                value={tipoPagoParcialidad}
+                onChange={setTipoPagoParcialidad}
+                options={TIPOS_PAGO_PARCIALIDAD}
+              />
+              <p className="font-inter text-xs text-on-surface-variant">
+                {tipoPagoParcialidad === 'completo'
+                  ? 'Se va a fijar el precio de cada cuota en lo repartido proporcionalmente — no queda saldo pendiente.'
+                  : tipoPagoParcialidad === 'parcial'
+                    ? `Queda un saldo pendiente de $${(subtotal - montoPagado).toLocaleString('es-AR')}, repartido proporcionalmente entre los alumnos.`
+                    : 'El monto es menor al subtotal — elegí una opción para continuar.'}
+              </p>
+            </div>
+          )}
+
+          {montoPagado > subtotal && (
             <p className="font-inter text-xs text-on-surface-variant">
-              {montoPagado < subtotal
-                ? 'Pago parcial — quedará saldo pendiente, repartido proporcionalmente entre los alumnos.'
-                : 'Sobrepago — el excedente queda como saldo a favor, repartido proporcionalmente entre los alumnos.'}
+              Sobrepago — el excedente queda como saldo a favor, repartido proporcionalmente entre los alumnos.
             </p>
           )}
 
@@ -352,7 +392,12 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             >
               Cancelar
             </Button>
-            <Button type="button" variant="solido" disabled={saving || montoPagado <= 0} onClick={handleSubmit}>
+            <Button
+              type="button"
+              variant="solido"
+              disabled={saving || montoPagado <= 0 || (esAmbiguo && tipoPagoParcialidad === '')}
+              onClick={handleSubmit}
+            >
               {saving ? 'Registrando…' : 'Registrar pago familiar'}
             </Button>
           </div>

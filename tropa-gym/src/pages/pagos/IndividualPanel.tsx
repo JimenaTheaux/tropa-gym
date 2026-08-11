@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago, TipoCargo } from '@/types/db'
 import { supabase } from '@/lib/supabase'
@@ -20,6 +20,13 @@ const TIPOS_CUOTA: { value: TipoCargo; label: string }[] = [
   { value: 'media', label: 'Media cuota' },
 ]
 
+type TipoPagoParcialidad = 'completo' | 'parcial'
+
+const TIPOS_PAGO_PARCIALIDAD: { value: TipoPagoParcialidad; label: string }[] = [
+  { value: 'completo', label: 'Completo (precio especial)' },
+  { value: 'parcial', label: 'Parcial' },
+]
+
 function periodoActual(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -36,7 +43,7 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
   const { data: disciplinas = [] } = useDisciplinasActivas()
   const { data: combos = [] } = useCombosActivos()
   const { data: descuentosTodos = [] } = useDescuentos()
-  const descuentos = descuentosParaTipo(descuentosTodos, 'individual')
+  const descuentos = useMemo(() => descuentosParaTipo(descuentosTodos, 'individual'), [descuentosTodos])
 
   const [alumno, setAlumno] = useState<Alumno | null>(null)
   const [periodo, setPeriodo] = useState(periodoActual())
@@ -46,11 +53,20 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
   const [descuentoId, setDescuentoId] = useState('')
   const [precioCalculado, setPrecioCalculado] = useState(0)
   const [montoPagado, setMontoPagado] = useState(0)
+  const [tipoPagoParcialidad, setTipoPagoParcialidad] = useState<TipoPagoParcialidad | ''>('')
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [importeEfectivo, setImporteEfectivo] = useState(0)
   const [importeTransferencia, setImporteTransferencia] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  // Ambiguo = el monto tipeado quedó por debajo de lo calculado: puede ser
+  // un pago parcial (queda deuda) o un precio especial que el dueño cobró
+  // completo (no debe quedar deuda). Si es igual o mayor, no hay ambigüedad
+  // (completo o sobrepago, ya se resuelve solo vía trigger).
+  const esAmbiguo = montoPagado > 0 && precioCalculado > 0 && montoPagado < precioCalculado
+  const ajustarPrecio = esAmbiguo && tipoPagoParcialidad === 'completo'
+  const precioSnapshotFinal = ajustarPrecio ? montoPagado : precioCalculado
 
   const registrarPago = useMutation({
     mutationFn: async () => {
@@ -79,7 +95,7 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
         disciplina_id: disciplinaId,
         combo_id: comboId,
         descuento_id: descuentoId || null,
-        precio_snapshot: precioCalculado,
+        precio_snapshot: precioSnapshotFinal,
         monto_pagado: montoPagado,
       })
 
@@ -87,6 +103,18 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
         await supabase.from('pagos').delete().eq('id', pago.id)
         throw new Error(detalleError.message)
       }
+
+      // Se ajusta el cargo DESPUÉS de insertar el pago (no antes): si esto
+      // falla, el pago ya quedó registrado y el cargo se puede corregir a
+      // mano desde la ficha del alumno — mejor eso que un cargo con el
+      // precio cambiado sin ningún pago que lo explique.
+      let ajusteFallido = false
+      if (ajustarPrecio && cargo) {
+        const { error: cargoError } = await supabase.from('cargos').update({ monto: montoPagado }).eq('id', cargo.id)
+        if (cargoError) ajusteFallido = true
+      }
+
+      return { ajusteFallido }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.historialPagos })
@@ -106,6 +134,7 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
     const precio = base === null ? 0 : aplicarDescuento(aplicarTipoCuota(base, tipoCuota), descuento)
     setPrecioCalculado(precio)
     setMontoPagado(precio)
+    setTipoPagoParcialidad('')
   }, [comboId, periodo, tipoCuota, descuentoId, precios, descuentos])
 
   useEffect(() => {
@@ -127,6 +156,7 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
     setDescuentoId('')
     setPrecioCalculado(0)
     setMontoPagado(0)
+    setTipoPagoParcialidad('')
     setMetodo('efectivo')
     setImporteEfectivo(0)
     setImporteTransferencia(0)
@@ -134,6 +164,10 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
 
   async function handleSubmit() {
     if (!alumno || !disciplinaId || !comboId || !periodo || montoPagado <= 0) return
+    if (esAmbiguo && tipoPagoParcialidad === '') {
+      setError('Indicá si fue un pago parcial o el monto completo (precio especial).')
+      return
+    }
     if (
       metodo === 'combinado' &&
       Math.round((importeEfectivo + importeTransferencia) * 100) !== Math.round(montoPagado * 100)
@@ -145,15 +179,18 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
     setError(null)
     const alumnoRegistrado = alumno
 
+    let resultado: { ajusteFallido: boolean }
     try {
-      await registrarPago.mutateAsync()
+      resultado = await registrarPago.mutateAsync()
     } catch (err) {
       setError(traducirError(err instanceof Error ? err.message : null, 'No se pudo registrar el pago.'))
       return
     }
 
     setSuccess(
-      `Pago de $${montoPagado.toLocaleString('es-AR')} registrado para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido} — período ${periodo}.`,
+      resultado.ajusteFallido
+        ? `Pago de $${montoPagado.toLocaleString('es-AR')} registrado para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido}, pero no se pudo ajustar el precio del cargo — corregilo desde la ficha del alumno.`
+        : `Pago de $${montoPagado.toLocaleString('es-AR')} registrado para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido} — período ${periodo}.`,
     )
     resetForm()
     onSuccess?.()
@@ -255,11 +292,28 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
             />
           </div>
 
-          {montoPagado > 0 && montoPagado !== precioCalculado && (
+          {esAmbiguo && (
+            <div className="flex flex-col gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3">
+              <SegmentedControl
+                id="individual-tipo-pago-parcialidad"
+                label="¿Fue un pago parcial o el monto completo?"
+                value={tipoPagoParcialidad}
+                onChange={setTipoPagoParcialidad}
+                options={TIPOS_PAGO_PARCIALIDAD}
+              />
+              <p className="font-inter text-xs text-on-surface-variant">
+                {tipoPagoParcialidad === 'completo'
+                  ? `Se va a fijar el precio de esta cuota en $${montoPagado.toLocaleString('es-AR')} — no queda saldo pendiente.`
+                  : tipoPagoParcialidad === 'parcial'
+                    ? `Queda un saldo pendiente de $${(precioCalculado - montoPagado).toLocaleString('es-AR')} en el cargo.`
+                    : 'El monto es menor al calculado — elegí una opción para continuar.'}
+              </p>
+            </div>
+          )}
+
+          {montoPagado > precioCalculado && (
             <p className="font-inter text-xs text-on-surface-variant">
-              {montoPagado < precioCalculado
-                ? 'Pago parcial — quedará saldo pendiente en el cargo.'
-                : 'Sobrepago — el excedente queda como saldo a favor del alumno.'}
+              Sobrepago — el excedente queda como saldo a favor del alumno.
             </p>
           )}
 
@@ -279,7 +333,7 @@ export function IndividualPanel({ onSuccess, onCancel }: IndividualPanelProps) {
             <Button
               type="button"
               variant="solido"
-              disabled={saving || !disciplinaId || !comboId || montoPagado <= 0}
+              disabled={saving || !disciplinaId || !comboId || montoPagado <= 0 || (esAmbiguo && tipoPagoParcialidad === '')}
               onClick={handleSubmit}
             >
               {saving ? 'Registrando…' : 'Registrar pago'}
