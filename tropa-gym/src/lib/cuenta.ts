@@ -18,8 +18,13 @@ export interface EstadoCuenta {
 
 // Saldo por período. El estado (pendiente/parcial/pagado) vive en cargos.estado
 // (trigger recalcula por acumulado de pagos_alumnos.monto_pagado, doc 03) — acá
-// solo se lee, no se recalcula. Períodos sin cargo (ej. adelantado a futuro)
-// no tienen estado autoritativo: se infiere 'pagado' si hay algo pagado.
+// solo se lee, no se recalcula. Períodos sin cargo (ej. adelantado a futuro, o
+// cualquier período pagado antes de que Admin corra "Generar cargos") no
+// tienen estado autoritativo: se infiere igual que en fetchHistorialPagos,
+// comparando lo pagado contra el mayor precio_snapshot visto en ese período
+// (si hubiera más de un pago). Antes acá se asumía "pagado" apenas pagado>0,
+// sin contemplar 'parcial' — mostraba saldo a favor falso en cualquier pago
+// parcial de un período sin cargo todavía.
 export async function getEstadoCuenta(alumnoId: string): Promise<EstadoCuenta> {
   const [cargosRes, pagosRes] = await Promise.all([
     supabase.from('cargos').select('*').eq('alumno_id', alumnoId),
@@ -35,18 +40,27 @@ export async function getEstadoCuenta(alumnoId: string): Promise<EstadoCuenta> {
   }
 
   const pagadoPorPeriodo = new Map<string, number>()
+  const precioRefPorPeriodo = new Map<string, number>()
   for (const p of pagosAlumnos) {
     pagadoPorPeriodo.set(p.periodo, (pagadoPorPeriodo.get(p.periodo) ?? 0) + Number(p.monto_pagado))
+    const precioSnapshot = Number(p.precio_snapshot)
+    precioRefPorPeriodo.set(p.periodo, Math.max(precioRefPorPeriodo.get(p.periodo) ?? 0, precioSnapshot))
   }
 
   const periodos: PeriodoCuenta[] = [...new Set([...cargoPorPeriodo.keys(), ...pagadoPorPeriodo.keys()])]
     .sort()
     .map((periodo) => {
       const cargo = cargoPorPeriodo.get(periodo) ?? null
-      const cargoMonto = cargo ? Number(cargo.monto) : 0
       const pagado = pagadoPorPeriodo.get(periodo) ?? 0
+      const cargoMonto = cargo ? Number(cargo.monto) : (precioRefPorPeriodo.get(periodo) ?? 0)
       const saldo = cargoMonto - pagado
-      const estado: EstadoPago = cargo ? cargo.estado : pagado > 0 ? 'pagado' : 'pendiente'
+      const estado: EstadoPago = cargo
+        ? cargo.estado
+        : pagado <= 0
+          ? 'pendiente'
+          : pagado >= cargoMonto
+            ? 'pagado'
+            : 'parcial'
       return {
         periodo,
         cargoId: cargo?.id ?? null,
