@@ -7,8 +7,9 @@ import { aplicarDescuento, distribuirMonto, precioVigenteAdelantado } from '@/li
 import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
+import { hoyIso } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { FormCurrencyInput, FormSelect, FormCheckbox } from '@/components/ui/FormField'
+import { FormCurrencyInput, FormDateInput, FormSelect, FormCheckbox } from '@/components/ui/FormField'
 import { BadgeEstado } from '@/components/ui/BadgeEstado'
 import { AlumnoBuscador } from '@/components/ui/AlumnoBuscador'
 import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
@@ -61,6 +62,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
   const [periodos, setPeriodos] = useState<Record<string, DetallePeriodo>>({})
   const [montoPagado, setMontoPagado] = useState(0)
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
+  const [fechaPago, setFechaPago] = useState(hoyIso())
   const [importeEfectivo, setImporteEfectivo] = useState(0)
   const [importeTransferencia, setImporteTransferencia] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -73,6 +75,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
       p_metodo: MetodoPago
       p_importe_efectivo: number
       p_importe_transferencia: number
+      p_fecha: string
     }) => {
       const { error } = await supabase.rpc('registrar_pago_adelantado', payload)
       if (error) throw new Error(error.message)
@@ -145,12 +148,14 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
     setPeriodos({})
     setMontoPagado(0)
     setMetodo('efectivo')
+    setFechaPago(hoyIso())
     setImporteEfectivo(0)
     setImporteTransferencia(0)
   }
 
   async function handleSubmit() {
-    if (!alumno || !disciplinaId || !comboId || periodosOrdenados.length === 0 || montoPagado <= 0) return
+    if (!alumno || !disciplinaId || !comboId || periodosOrdenados.length === 0 || montoPagado <= 0 || !fechaPago)
+      return
     if (
       metodo === 'combinado' &&
       Math.round((importeEfectivo + importeTransferencia) * 100) !== Math.round(montoPagado * 100)
@@ -185,6 +190,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
         p_metodo: metodo,
         p_importe_efectivo: importeEfectivo,
         p_importe_transferencia: importeTransferencia,
+        p_fecha: fechaPago,
       })
     } catch (err) {
       setError(traducirError(err instanceof Error ? err.message : null))
@@ -335,6 +341,14 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
                 />
               </div>
 
+              <FormDateInput
+                id="adelantado-fecha-pago"
+                label="Fecha de pago"
+                required
+                value={fechaPago}
+                onChange={setFechaPago}
+              />
+
               {montoPagado > 0 && montoPagado !== subtotal && (
                 <p className="font-inter text-xs text-on-surface-variant">
                   {montoPagado < subtotal
@@ -359,7 +373,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
                 <Button
                   type="button"
                   variant="solido"
-                  disabled={saving || !disciplinaId || montoPagado <= 0}
+                  disabled={saving || !disciplinaId || montoPagado <= 0 || !fechaPago}
                   onClick={handleSubmit}
                 >
                   {saving ? 'Registrando…' : 'Registrar pago adelantado'}

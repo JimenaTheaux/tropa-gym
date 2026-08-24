@@ -8,8 +8,9 @@ import { aplicarDescuento, aplicarTipoCuota, distribuirMonto, precioVigente } fr
 import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
+import { hoyIso } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { FormCurrencyInput, FormMonthInput, FormSelect } from '@/components/ui/FormField'
+import { FormCurrencyInput, FormDateInput, FormMonthInput, FormSelect } from '@/components/ui/FormField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { AlumnoBuscador } from '@/components/ui/AlumnoBuscador'
 import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
@@ -59,6 +60,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   const [montoPagado, setMontoPagado] = useState(0)
   const [tipoPagoParcialidad, setTipoPagoParcialidad] = useState<TipoPagoParcialidad | ''>('')
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
+  const [fechaPago, setFechaPago] = useState(hoyIso())
   const [importeEfectivo, setImporteEfectivo] = useState(0)
   const [importeTransferencia, setImporteTransferencia] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -70,6 +72,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
       p_metodo: MetodoPago
       p_importe_efectivo: number
       p_importe_transferencia: number
+      p_fecha: string
     }) => {
       const { error } = await supabase.rpc('registrar_pago_familiar', payload)
       if (error) throw new Error(error.message)
@@ -192,12 +195,13 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
     setMontoPagado(0)
     setTipoPagoParcialidad('')
     setMetodo('efectivo')
+    setFechaPago(hoyIso())
     setImporteEfectivo(0)
     setImporteTransferencia(0)
   }
 
   async function handleSubmit() {
-    if (detalles.length === 0 || montoPagado <= 0) return
+    if (detalles.length === 0 || montoPagado <= 0 || !fechaPago) return
     if (detalles.some((d) => !d.disciplinaId || !d.comboId || !d.periodo)) {
       setError('Completá disciplina y combo para cada alumno.')
       return
@@ -248,6 +252,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
         p_metodo: metodo,
         p_importe_efectivo: importeEfectivo,
         p_importe_transferencia: importeTransferencia,
+        p_fecha: fechaPago,
       })
     } catch (err) {
       setError(traducirError(err instanceof Error ? err.message : null))
@@ -388,6 +393,14 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             />
           </div>
 
+          <FormDateInput
+            id="familiar-fecha-pago"
+            label="Fecha de pago"
+            required
+            value={fechaPago}
+            onChange={setFechaPago}
+          />
+
           {esAmbiguo && (
             <div className="flex flex-col gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3">
               <SegmentedControl
@@ -429,7 +442,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             <Button
               type="button"
               variant="solido"
-              disabled={saving || montoPagado <= 0 || (esAmbiguo && tipoPagoParcialidad === '')}
+              disabled={saving || montoPagado <= 0 || !fechaPago || (esAmbiguo && tipoPagoParcialidad === '')}
               onClick={handleSubmit}
             >
               {saving ? 'Registrando…' : 'Registrar pago familiar'}

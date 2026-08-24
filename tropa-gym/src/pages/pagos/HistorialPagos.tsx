@@ -5,12 +5,12 @@ import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchHistorialPagos, fetchResumenPeriodo, type HistorialPagoDetalle, type ResumenCargo } from '@/lib/cuenta'
-import { formatFecha } from '@/lib/utils'
+import { formatFecha, hoyIso } from '@/lib/utils'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
-import { FormCurrencyInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
+import { FormCurrencyInput, FormDateInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
 import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
 import { IndividualPanel } from './IndividualPanel'
@@ -81,6 +81,7 @@ export function HistorialPagos() {
   const [completar, setCompletar] = useState<CompletarPago | null>(null)
   const [montoCompletar, setMontoCompletar] = useState(0)
   const [metodoCompletar, setMetodoCompletar] = useState<MetodoPago>('efectivo')
+  const [fechaCompletar, setFechaCompletar] = useState(hoyIso())
   const [importeEfectivoCompletar, setImporteEfectivoCompletar] = useState(0)
   const [importeTransferenciaCompletar, setImporteTransferenciaCompletar] = useState(0)
   const [errorCompletar, setErrorCompletar] = useState<string | null>(null)
@@ -102,6 +103,7 @@ export function HistorialPagos() {
           importe_efectivo: importeEfectivoCompletar,
           importe_transferencia: importeTransferenciaCompletar,
           total: montoCompletar,
+          fecha: fechaCompletar,
         })
         .select()
         .single()
@@ -144,6 +146,7 @@ export function HistorialPagos() {
     setErrorCompletar(null)
     setCompletar({ id: d.id, cargoId: d.cargoId, alumnoId: d.alumnoId, periodo: d.periodo })
     setMetodoCompletar('efectivo')
+    setFechaCompletar(hoyIso())
     setMontoCompletar(0)
   }
 
@@ -163,7 +166,7 @@ export function HistorialPagos() {
   }
 
   async function confirmarCompletar(d: HistorialPagoDetalle) {
-    if (!completar || montoCompletar <= 0) return
+    if (!completar || montoCompletar <= 0 || !fechaCompletar) return
     if (
       metodoCompletar === 'combinado' &&
       Math.round((importeEfectivoCompletar + importeTransferenciaCompletar) * 100) !== Math.round(montoCompletar * 100)
@@ -333,6 +336,14 @@ export function HistorialPagos() {
                                 />
                               </div>
 
+                              <FormDateInput
+                                id={`completar-fecha-${d.id}`}
+                                label="Fecha de pago"
+                                required
+                                value={fechaCompletar}
+                                onChange={setFechaCompletar}
+                              />
+
                               {montoCompletar > 0 &&
                                 (() => {
                                   const p = proyeccion(resumenCargo, montoCompletar)
@@ -365,7 +376,7 @@ export function HistorialPagos() {
                                 <Button
                                   type="button"
                                   variant="solido"
-                                  disabled={guardandoCompletar || montoCompletar <= 0}
+                                  disabled={guardandoCompletar || montoCompletar <= 0 || !fechaCompletar}
                                   onClick={() => confirmarCompletar(d)}
                                 >
                                   {guardandoCompletar ? 'Registrando…' : 'Registrar pago'}
@@ -424,6 +435,7 @@ export function HistorialPagos() {
               precioSnapshot: editando.precioSnapshot,
               montoPagado: editando.montoPagado,
               metodoPago: editando.metodoPago,
+              fecha: editando.fecha.slice(0, 10),
             }}
             onSuccess={() => setEditando(null)}
             onCancel={() => setEditando(null)}

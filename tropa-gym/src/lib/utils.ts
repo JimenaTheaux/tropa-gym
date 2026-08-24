@@ -11,6 +11,14 @@ export function formatFecha(fecha: string): string {
   return `${d}-${m}-${y}`
 }
 
+// Fecha local de hoy en ISO (YYYY-MM-DD) — a diferencia de
+// `new Date().toISOString()`, no se corre de día cerca de medianoche en
+// zonas con offset negativo (UTC-3).
+export function hoyIso(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // Link directo al chat de WhatsApp, sin mensaje preestablecido. Asume
 // Argentina: si el teléfono no trae código de país, antepone 54 9 (celular).
 export function whatsappLink(telefono: string): string {

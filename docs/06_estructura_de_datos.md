@@ -105,7 +105,7 @@ Usado por el Dashboard (`fetchEstadoAlumnosPorPeriodo`) para reconstruir cuánto
 | importe_efectivo | numeric | si combinado |
 | importe_transferencia | numeric | si combinado |
 | total | numeric | monto real de la transacción (suma de `monto_pagado` de sus `pagos_alumnos`) |
-| fecha | timestamptz | |
+| fecha | timestamptz | Editable desde los 3 forms de registro (Individual/Familiar/Adelantado) y "Completar pago" — precarga con hoy, permite backdatear pagos atrasados (migración 19). El KPI/tendencia del dashboard filtran por esta columna, no por `created_at` |
 
 *(`pagos.estado` se eliminó — un pago es una transacción, no tiene "parcial/pagado" propio; ese estado ahora vive en `cargos.estado`. No tenía otro uso.)*
 
@@ -177,8 +177,8 @@ Usado por el Dashboard (`fetchEstadoAlumnosPorPeriodo`) para reconstruir cuánto
     3. Si ninguna de las dos vías resuelve un combo, o el combo no tiene un precio vigente (`precios.vigente_desde <= hoy`), el cargo se genera igual (siempre que haya asistencia) con `monto = 0` y `monto_definido = false` — no se pierde el alumno, queda pendiente de que Admin/Profesor complete el monto a mano (ver doc 03, "Cargo con monto sin definir").
   - **Unicidad (RN-020)**: único por (alumno_id, periodo) — un alumno ya liquidado en el período no se vuelve a insertar (`ON CONFLICT DO NOTHING`), pero sí aparece en el preview marcado `ya_existe`.
   - **Reconciliación de pagos huérfanos**: al confirmar (`p_confirmar = true`), además de insertar los cargos, vincula cualquier `pagos_alumnos` de ese período que haya quedado con `cargo_id NULL` (pago registrado antes de que este cargo existiera — caso típico: alguien paga antes de que Admin corra esta liquidación) al cargo correspondiente (recién creado o ya existente). El `UPDATE` de `cargo_id` dispara el recálculo de `cargos.estado` (ver doc 03).
-- `registrar_pago_familiar(...)`: crea 1 pago + N filas en pagos_alumnos. El detalle de cada alumno recibe `disciplina_id`/`combo_id` (antes texto libre).
-- `registrar_pago_adelantado(...)`: crea N cargos/pagos en una transacción (uno por período). El detalle de cada período recibe `disciplina_id`/`combo_id` (antes texto libre).
+- `registrar_pago_familiar(..., p_fecha?)` (migración 19 agrega `p_fecha`): crea 1 pago + N filas en pagos_alumnos. El detalle de cada alumno recibe `disciplina_id`/`combo_id` (antes texto libre). `p_fecha date DEFAULT NULL` — si no se manda, usa `now()`.
+- `registrar_pago_adelantado(..., p_fecha?)` (migración 19 agrega `p_fecha`): crea N cargos/pagos en una transacción (uno por período). El detalle de cada período recibe `disciplina_id`/`combo_id` (antes texto libre). `p_fecha date DEFAULT NULL` — si no se manda, usa `now()`.
 - `fn_registrar_cambio_estado(alumno_id, estado, origen, motivo, creado_por, fecha_desde?)` (migración 11/12): interna, no expuesta a PostgREST. Único punto que escribe `alumnos.estado*` + `alumno_estado_historial` juntos; no-op si no hay transición real.
 - `marcar_estado_manual(alumno_id, estado, motivo?, fecha_desde?)` (migración 11/12): RPC pública, Admin/Profesor. Llama a `fn_registrar_cambio_estado` con `origen='manual'`.
 - `sync_estados_automaticos()` (migración 11): recalcula inactivaciones (25 días sin asistir) sobre alumnos con `estado_origen='automatico'`. Se llama lazy al abrir la app (`useSyncEstadosAutomaticos`), no hay cron.

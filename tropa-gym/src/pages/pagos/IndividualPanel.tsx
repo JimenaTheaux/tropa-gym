@@ -8,8 +8,9 @@ import { aplicarDescuento, aplicarTipoCuota, precioVigente } from '@/lib/precios
 import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
+import { hoyIso } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { FormCurrencyInput, FormMonthInput, FormSelect } from '@/components/ui/FormField'
+import { FormCurrencyInput, FormDateInput, FormMonthInput, FormSelect } from '@/components/ui/FormField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { BadgeEstado } from '@/components/ui/BadgeEstado'
 import { AlumnoBuscador } from '@/components/ui/AlumnoBuscador'
@@ -49,6 +50,7 @@ export interface EditarPagoInit {
   precioSnapshot: number
   montoPagado: number
   metodoPago: MetodoPago
+  fecha: string
 }
 
 interface IndividualPanelProps {
@@ -75,6 +77,7 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
   const [montoPagado, setMontoPagado] = useState(editar?.montoPagado ?? 0)
   const [tipoPagoParcialidad, setTipoPagoParcialidad] = useState<TipoPagoParcialidad | ''>('')
   const [metodo, setMetodo] = useState<MetodoPago>(editar?.metodoPago ?? 'efectivo')
+  const [fechaPago, setFechaPago] = useState(editar?.fecha ?? hoyIso())
   const [importeEfectivo, setImporteEfectivo] = useState(0)
   const [importeTransferencia, setImporteTransferencia] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -181,6 +184,7 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
             importe_efectivo: importeEfectivo,
             importe_transferencia: importeTransferencia,
             total: totalRecibo,
+            fecha: fechaPago,
           })
           .eq('id', editar.pagoId)
         if (pagoError) throw new Error(pagoError.message)
@@ -196,6 +200,7 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
           importe_efectivo: importeEfectivo,
           importe_transferencia: importeTransferencia,
           total: montoPagado,
+          fecha: fechaPago,
         })
         .select()
         .single()
@@ -277,12 +282,13 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
     setMontoPagado(0)
     setTipoPagoParcialidad('')
     setMetodo('efectivo')
+    setFechaPago(hoyIso())
     setImporteEfectivo(0)
     setImporteTransferencia(0)
   }
 
   async function handleSubmit() {
-    if (!alumno || !disciplinaId || !comboId || !periodo || montoPagado <= 0) return
+    if (!alumno || !disciplinaId || !comboId || !periodo || montoPagado <= 0 || !fechaPago) return
     if (esAmbiguo && tipoPagoParcialidad === '') {
       setError('Indicá si fue un pago parcial o el monto completo (precio especial).')
       return
@@ -425,6 +431,14 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
             />
           </div>
 
+          <FormDateInput
+            id="individual-fecha-pago"
+            label="Fecha de pago"
+            required
+            value={fechaPago}
+            onChange={setFechaPago}
+          />
+
           {editar && otrasLineasTotal > 0 && (
             <p className="font-inter text-xs text-on-surface-variant">
               Esta línea es parte de un comprobante con otros alumnos o períodos (${otrasLineasTotal.toLocaleString('es-AR')} más). El método de pago que elijas acá aplica a todo el comprobante.
@@ -472,7 +486,14 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
             <Button
               type="button"
               variant="solido"
-              disabled={saving || !disciplinaId || !comboId || montoPagado <= 0 || (esAmbiguo && tipoPagoParcialidad === '')}
+              disabled={
+                saving ||
+                !disciplinaId ||
+                !comboId ||
+                montoPagado <= 0 ||
+                !fechaPago ||
+                (esAmbiguo && tipoPagoParcialidad === '')
+              }
               onClick={handleSubmit}
             >
               {saving ? 'Guardando…' : editar ? 'Guardar cambios' : 'Registrar pago'}
