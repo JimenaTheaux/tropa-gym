@@ -73,7 +73,17 @@ export function aplicarDescuento(
 ): number {
   if (!ajuste || !ajuste.porcentaje) return monto
   const signo = ajuste.tipo === 'recargo' ? 1 : -1
-  return Math.round(monto * (1 + (signo * ajuste.porcentaje) / 100) * 100) / 100
+  const conAjuste = Math.round(monto * (1 + (signo * ajuste.porcentaje) / 100) * 100) / 100
+
+  // El recargo del 8% (ej. tarjeta) redondea el monto final al múltiplo de
+  // 100 más cercano — pedido puntual del dueño para que el precio con
+  // recargo quede en un número "redondo" a cobrar. Otros recargos y
+  // descuentos no se tocan.
+  if (ajuste.tipo === 'recargo' && Number(ajuste.porcentaje) === 8) {
+    return Math.round(conAjuste / 100) * 100
+  }
+
+  return conAjuste
 }
 
 // Media cuota (RN-017/018) es una regla de facturación, no un descuento —
