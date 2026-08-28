@@ -8,6 +8,14 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 // se usa el pago del mes como evidencia de actividad para no inactivar a
 // alumnos al día. Borrar este archivo y su uso en ConfiguracionPage una vez
 // corrido. Rango [2026-08-01, 2026-09-01) sobre pagos.fecha.
+//
+// fecha_desde del RPC va sin backdatear (null = "ahora"): el KPI del
+// dashboard reconstruye el estado vigente tomando, por alumno, el evento de
+// alumno_estado_historial con fecha_desde más reciente <= hoy. Backdatear al
+// 01/08 perdía contra una inactivación automática de sync_estados_automaticos
+// fechada más tarde en agosto (el mismo escenario de "sin asistencias" que
+// motiva este ajuste), así que no impactaba el dashboard aunque sí
+// actualizaba alumnos.estado.
 const DESDE = '2026-08-01'
 const HASTA = '2026-09-01'
 
@@ -50,7 +58,7 @@ export function AjusteManualAgostoPanel() {
           alumnoId,
           'activo',
           'Ajuste manual — pago agosto sin asistencia',
-          DESDE,
+          null,
         )
         if (!errorMarcar) actualizados++
       }
@@ -87,7 +95,7 @@ export function AjusteManualAgostoPanel() {
       <ConfirmDialog
         open={confirming}
         title="Ajuste manual de agosto"
-        message={`Se marcará como "activo" a todos los alumnos con pago registrado entre el 01/08/2026 y el 31/08/2026, con fecha desde 01/08/2026. Esta acción es temporal y debería correrse una sola vez.`}
+        message={`Se marcará como "activo" (vigente desde ahora) a todos los alumnos con pago registrado entre el 01/08/2026 y el 31/08/2026. Esta acción es temporal y debería correrse una sola vez.`}
         confirmLabel={loading ? 'Procesando…' : 'Confirmar'}
         loading={loading}
         onConfirm={handleConfirm}
