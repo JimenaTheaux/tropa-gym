@@ -78,6 +78,8 @@ export function whatsappUrl(telefono: string): string {
 export interface KpiCards {
   alumnosActivos: number
   ingresos: number
+  ingresosEfectivo: number
+  ingresosTransferencia: number
   saldoACobrar: number
   egresos: number
   gananciaNeta: number
@@ -177,19 +179,28 @@ export async function fetchKpiCards(periodo: string): Promise<KpiCards> {
   const hasta = primerDiaSiguiente(periodo)
 
   const [pagosRes, egresosRes, estados, saldoACobrar] = await Promise.all([
-    supabase.from('pagos').select('total').gte('fecha', desde).lt('fecha', hasta),
+    supabase
+      .from('pagos')
+      .select('total, importe_efectivo, importe_transferencia')
+      .gte('fecha', desde)
+      .lt('fecha', hasta),
     supabase.from('egresos').select('monto').gte('fecha', desde).lt('fecha', hasta),
     fetchEstadoAlumnosPorPeriodo(periodo, 1),
     saldoACobrarPorAlumno(periodo),
   ])
 
-  const ingresos = ((pagosRes.data ?? []) as Pick<Pago, 'total'>[]).reduce((s, p) => s + Number(p.total), 0)
+  const pagos = (pagosRes.data ?? []) as Pick<Pago, 'total' | 'importe_efectivo' | 'importe_transferencia'>[]
+  const ingresos = pagos.reduce((s, p) => s + Number(p.total), 0)
+  const ingresosEfectivo = pagos.reduce((s, p) => s + Number(p.importe_efectivo), 0)
+  const ingresosTransferencia = pagos.reduce((s, p) => s + Number(p.importe_transferencia), 0)
   const egresos = ((egresosRes.data ?? []) as Pick<Egreso, 'monto'>[]).reduce((s, e) => s + Number(e.monto), 0)
   const alumnosActivos = estados[0]?.activos ?? 0
 
   return {
     alumnosActivos,
     ingresos,
+    ingresosEfectivo,
+    ingresosTransferencia,
     saldoACobrar,
     egresos,
     gananciaNeta: ingresos - egresos,

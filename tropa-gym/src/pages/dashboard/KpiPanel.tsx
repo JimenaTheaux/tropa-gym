@@ -29,6 +29,33 @@ function CardKpi({ label, value, destacado }: CardKpiProps) {
   )
 }
 
+interface CardKpiIngresosMetodoProps {
+  efectivo: string
+  transferencia: string
+}
+
+function CardKpiIngresosMetodo({ efectivo, transferencia }: CardKpiIngresosMetodoProps) {
+  return (
+    <div className="rounded-card border border-outline-variant bg-surface-container p-4">
+      <p className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+        Ingresos por método
+      </p>
+      <div className="mt-1 flex items-end gap-4">
+        <div>
+          <p className="font-oswald text-[10px] uppercase tracking-[0.05em] text-on-surface-variant">Efectivo</p>
+          <p className="font-anton text-lg text-on-surface">{efectivo}</p>
+        </div>
+        <div>
+          <p className="font-oswald text-[10px] uppercase tracking-[0.05em] text-on-surface-variant">
+            Transferencia
+          </p>
+          <p className="font-anton text-lg text-on-surface">{transferencia}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function KpiPanel() {
   const [periodo, setPeriodo] = useState(periodoActual())
 
@@ -67,9 +94,13 @@ export function KpiPanel() {
 
       {error && <p className="font-inter text-sm text-error">{error}</p>}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <CardKpi label="Alumnos activos" value={loading ? '…' : String(cards?.alumnosActivos ?? 0)} />
         <CardKpi label="Ingresos" value={loading ? '…' : money(cards?.ingresos ?? 0)} destacado />
+        <CardKpiIngresosMetodo
+          efectivo={loading ? '…' : money(cards?.ingresosEfectivo ?? 0)}
+          transferencia={loading ? '…' : money(cards?.ingresosTransferencia ?? 0)}
+        />
         <CardKpi label="Saldo a cobrar" value={loading ? '…' : money(cards?.saldoACobrar ?? 0)} />
         <CardKpi label="Egresos" value={loading ? '…' : money(cards?.egresos ?? 0)} />
         <CardKpi label="Ganancia neta" value={loading ? '…' : money(cards?.gananciaNeta ?? 0)} destacado />
