@@ -5,6 +5,8 @@ import { DescuentosPanel } from './DescuentosPanel'
 import { ProfesoresPanel } from './ProfesoresPanel'
 import { DisciplinasPanel } from './DisciplinasPanel'
 import { CombosPanel } from './CombosPanel'
+import { AjusteManualAgostoPanel } from './AjusteManualAgostoPanel'
+import { useAuth } from '@/contexts/AuthContext'
 
 const tabs = [
   { key: 'turnos', label: 'Turnos' },
@@ -18,6 +20,7 @@ const tabs = [
 type TabKey = (typeof tabs)[number]['key']
 
 export function ConfiguracionPage() {
+  const { perfil } = useAuth()
   const [active, setActive] = useState<TabKey>('turnos')
 
   return (
@@ -49,6 +52,8 @@ export function ConfiguracionPage() {
       {active === 'precios' && <PreciosPanel />}
       {active === 'descuentos' && <DescuentosPanel />}
       {active === 'profesores' && <ProfesoresPanel />}
+
+      {perfil?.rol === 'admin' && <AjusteManualAgostoPanel />}
     </div>
   )
 }
