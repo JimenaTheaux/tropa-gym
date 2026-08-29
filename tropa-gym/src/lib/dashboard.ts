@@ -109,12 +109,22 @@ export async function fetchEstadoAlumnosPorPeriodo(
 ): Promise<EstadoPeriodoPoint[]> {
   const periodos = listaPeriodos(hastaPeriodo, cantidad)
 
-  const { data } = await supabase
-    .from('alumno_estado_historial')
-    .select('alumno_id, estado, fecha_desde')
-    .order('fecha_desde', { ascending: true })
-
-  const historial = (data ?? []) as Pick<AlumnoEstadoHistorial, 'alumno_id' | 'estado' | 'fecha_desde'>[]
+  // Paginado explícito: Supabase corta en 1000 filas por default (db-max-rows).
+  // Sin esto, una vez que el historial supera esa marca se pierden las filas
+  // más nuevas (quedan último en el orden ascendente por fecha_desde) y el
+  // estado "vigente" reconstruido queda desactualizado.
+  const historial: Pick<AlumnoEstadoHistorial, 'alumno_id' | 'estado' | 'fecha_desde'>[] = []
+  const PAGE_SIZE = 1000
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data } = await supabase
+      .from('alumno_estado_historial')
+      .select('alumno_id, estado, fecha_desde')
+      .order('fecha_desde', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1)
+    const pagina = (data ?? []) as Pick<AlumnoEstadoHistorial, 'alumno_id' | 'estado' | 'fecha_desde'>[]
+    historial.push(...pagina)
+    if (pagina.length < PAGE_SIZE) break
+  }
 
   const porAlumno = new Map<string, { estado: EstadoAlumno; fecha_desde: Date }[]>()
   for (const h of historial) {
