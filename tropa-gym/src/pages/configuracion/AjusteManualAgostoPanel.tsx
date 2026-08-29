@@ -9,13 +9,20 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 // alumnos al día. Borrar este archivo y su uso en ConfiguracionPage una vez
 // corrido. Rango [2026-08-01, 2026-09-01) sobre pagos.fecha.
 //
-// fecha_desde del RPC va sin backdatear (null = "ahora"): el KPI del
-// dashboard reconstruye el estado vigente tomando, por alumno, el evento de
-// alumno_estado_historial con fecha_desde más reciente <= hoy. Backdatear al
-// 01/08 perdía contra una inactivación automática de sync_estados_automaticos
-// fechada más tarde en agosto (el mismo escenario de "sin asistencias" que
-// motiva este ajuste), así que no impactaba el dashboard aunque sí
-// actualizaba alumnos.estado.
+// Por cada alumno hacemos "activo" DOS veces (con un "inactivo" en el medio)
+// en vez de una sola llamada. fn_registrar_cambio_estado tiene un guard
+// no-op: si el alumno ya está en (estado, origen) pedido, no escribe nada
+// (ver comentario "evita ruido en el historial"). Como esta pantalla ya se
+// corrió una vez y dejó a estos alumnos en (activo, manual), una segunda
+// llamada directa a "activo" es un no-op silencioso — no actualiza
+// estado_desde ni inserta fila en alumno_estado_historial. El dashboard
+// reconstruye el estado vigente por período tomando la fila de historial con
+// fecha_desde más reciente <= hoy; sin una fila nueva, sigue ganando una
+// inactivación automática de sync_estados_automaticos fechada después de nuestra
+// primera corrida. El flip (inactivo → activo) fuerza una transición real en
+// cada paso — el guard solo frena pedidos idénticos al estado actual — y dejamos
+// una fila "activo" fechada ahora, más reciente que cualquier auto-inactivación
+// previa.
 const DESDE = '2026-08-01'
 const HASTA = '2026-09-01'
 
@@ -52,15 +59,13 @@ export function AjusteManualAgostoPanel() {
 
       const alumnoIds = [...new Set((detalles ?? []).map((d) => d.alumno_id as string))]
 
+      const motivo = 'Ajuste manual — pago agosto sin asistencia'
       let actualizados = 0
       for (const alumnoId of alumnoIds) {
-        const { error: errorMarcar } = await marcarEstadoManual(
-          alumnoId,
-          'activo',
-          'Ajuste manual — pago agosto sin asistencia',
-          null,
-        )
-        if (!errorMarcar) actualizados++
+        const { error: errorInactivar } = await marcarEstadoManual(alumnoId, 'inactivo', motivo, null)
+        if (errorInactivar) continue
+        const { error: errorActivar } = await marcarEstadoManual(alumnoId, 'activo', motivo, null)
+        if (!errorActivar) actualizados++
       }
       setResultado(actualizados)
     } catch (err) {
@@ -77,8 +82,9 @@ export function AjusteManualAgostoPanel() {
         Ajuste temporal · uso único
       </p>
       <p className="mb-3 font-inter text-sm text-on-surface-variant">
-        Marca como "activo" a todos los alumnos con un pago registrado entre el 01/08/2026 y el
-        31/08/2026, ya que agosto no tuvo registro de asistencias. Correr una sola vez.
+        Marca como "activo" (vigente desde ahora) a todos los alumnos con un pago registrado entre
+        el 01/08/2026 y el 31/08/2026, ya que agosto no tuvo registro de asistencias. Fuerza la
+        transición aunque ya se haya corrido antes.
       </p>
 
       <Button type="button" variant="ghost" onClick={() => setConfirming(true)} disabled={loading}>
