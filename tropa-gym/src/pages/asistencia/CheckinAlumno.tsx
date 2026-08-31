@@ -23,7 +23,7 @@ async function buscarAlumnos(term: string): Promise<AlumnoCheckin[]> {
   const { data, error } = await supabase
     .from('alumnos')
     .select('id, nombre, apellido, dni, disciplina_id')
-    .or(`dni.ilike.%${term}%,nombre.ilike.%${term}%,apellido.ilike.%${term}%`)
+    .ilike('dni', `%${term}%`)
     .order('apellido')
     .limit(8)
   if (error) return []
@@ -73,7 +73,7 @@ export function CheckinAlumno() {
   const { data: resultados = [], isFetching: buscando } = useQuery({
     queryKey: queryKeys.alumnosBusqueda(term),
     queryFn: () => buscarAlumnos(term),
-    enabled: term.length >= 2,
+    enabled: term.length >= 6,
     staleTime: STALE_OPERATIVO,
   })
 
@@ -184,9 +184,10 @@ export function CheckinAlumno() {
             </h1>
             <input
               type="text"
+              inputMode="none"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="DNI, nombre o apellido…"
+              readOnly
+              placeholder="Ingrese DNI"
               className="w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-center font-inter text-lg text-on-surface outline-none focus:border-primary"
             />
 
@@ -207,9 +208,9 @@ export function CheckinAlumno() {
               </div>
             )}
 
-            {!buscando && query.trim().length >= 2 && resultados.length === 0 && (
+            {!buscando && query.trim().length >= 6 && resultados.length === 0 && (
               <p className="font-inter text-sm text-on-surface-variant">
-                No se encontró ningún alumno. Consultá en recepción.
+                No se encontró el DNI. Podes registrarte con algún profe
               </p>
             )}
 
