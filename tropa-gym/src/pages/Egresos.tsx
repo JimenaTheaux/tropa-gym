@@ -13,12 +13,9 @@ import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FormCurrencyInput, FormDateInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
+import { fechaLocalISO } from '@/lib/fecha'
 
-function hoy(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-const emptyForm: EgresoInsert = { concepto: '', monto: 0, fecha: hoy(), categoria: '' }
+const emptyForm: EgresoInsert = { concepto: '', monto: 0, fecha: fechaLocalISO(), categoria: '' }
 
 async function fetchEgresos(periodo: string): Promise<Egreso[]> {
   const { data, error } = await supabase
@@ -50,7 +47,7 @@ export function Egresos() {
 
   function openCreate() {
     setEditing(null)
-    setForm({ ...emptyForm, fecha: hoy() })
+    setForm({ ...emptyForm, fecha: fechaLocalISO() })
     setError(null)
     setDrawerOpen(true)
   }

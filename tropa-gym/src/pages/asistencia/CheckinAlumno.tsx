@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { NumericKeypad } from '@/components/ui/NumericKeypad'
 import { FormDateInput, FormTimeInput } from '@/components/ui/FormField'
 import { Footer } from '@/components/layout/Footer'
+import { fechaLocalISO } from '@/lib/fecha'
 
 type AlumnoCheckin = Pick<Alumno, 'id' | 'nombre' | 'apellido' | 'dni' | 'disciplina_id'>
 
@@ -28,10 +29,6 @@ async function buscarAlumnos(term: string): Promise<AlumnoCheckin[]> {
     .limit(8)
   if (error) return []
   return data ?? []
-}
-
-function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 // Redondea a los 5 minutos más cercanos (hacia abajo) para calzar con las
@@ -60,7 +57,7 @@ export function CheckinAlumno() {
   const [alumno, setAlumno] = useState<AlumnoCheckin | null>(null)
   const [disciplinaId, setDisciplinaId] = useState('')
   const [turnoId, setTurnoId] = useState('')
-  const [fecha, setFecha] = useState(hoyISO())
+  const [fecha, setFecha] = useState(fechaLocalISO())
   const [horaLibre, setHoraLibre] = useState(horaActualRedondeada())
 
   const [guardando, setGuardando] = useState(false)
@@ -81,7 +78,7 @@ export function CheckinAlumno() {
   // suscripción realtime a nuevos inserts del día, para que el número se
   // actualice solo si otro alumno marca asistencia mientras esta pantalla
   // sigue abierta.
-  const hoy = hoyISO()
+  const hoy = fechaLocalISO()
   const { data: conteoTurnos = {} } = useQuery({
     queryKey: queryKeys.conteoPorTurno(hoy),
     queryFn: () => fetchConteoPorTurno(hoy),
@@ -117,7 +114,7 @@ export function CheckinAlumno() {
     setQuery('')
     setDisciplinaId(a.disciplina_id ?? '')
     setTurnoId('')
-    setFecha(hoyISO())
+    setFecha(fechaLocalISO())
     setHoraLibre(horaActualRedondeada())
     setError(null)
   }
@@ -128,7 +125,7 @@ export function CheckinAlumno() {
     setQuery('')
     setDisciplinaId('')
     setTurnoId('')
-    setFecha(hoyISO())
+    setFecha(fechaLocalISO())
     setResultado(null)
     setError(null)
   }

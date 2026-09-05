@@ -11,6 +11,7 @@ import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FormDateInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
 import { formatFecha } from '@/lib/utils'
+import { fechaLocalISO } from '@/lib/fecha'
 
 async function fetchAbiertos(ids: string[]): Promise<Record<string, AsistenciaProfesor>> {
   if (ids.length === 0) return {}
@@ -110,10 +111,9 @@ export function AsistenciaProfesores() {
   async function registrarEntrada(profesorId: string) {
     setActionLoading(profesorId)
     setError(null)
-    const ahora = new Date()
     const { error } = await supabase.from('asistencias_profesores').insert({
       profesor_id: profesorId,
-      fecha: ahora.toISOString().slice(0, 10),
+      fecha: fechaLocalISO(),
       hora_entrada: horaActual(),
       hora_salida: null,
     })

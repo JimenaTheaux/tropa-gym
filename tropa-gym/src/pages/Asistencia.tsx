@@ -20,10 +20,7 @@ import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-
-function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
+import { fechaLocalISO } from '@/lib/fecha'
 
 function fechaDisplay(iso: string): string {
   return iso.split('-').reverse().join('/')
@@ -47,7 +44,7 @@ export function Asistencia() {
   const [success, setSuccess] = useState<string | null>(null)
 
   // Control: listado del día
-  const [fechaFiltro, setFechaFiltro] = useState(hoyISO())
+  const [fechaFiltro, setFechaFiltro] = useState(fechaLocalISO())
   const [vista, setVista] = useState<'listado' | 'turnos'>('listado')
 
   // Edición
@@ -112,7 +109,7 @@ export function Asistencia() {
       alumnoId: alumno.id,
       disciplinaId,
       turnoId: esHorarioLibre ? null : turnoId,
-      fecha: hoyISO(),
+      fecha: fechaLocalISO(),
       hora,
     })
 
@@ -124,7 +121,7 @@ export function Asistencia() {
 
     setSuccess(`Asistencia registrada para ${alumno.nombre} ${alumno.apellido}.`)
     cancelar()
-    if (fechaFiltro === hoyISO()) refrescarListado()
+    if (fechaFiltro === fechaLocalISO()) refrescarListado()
   }
 
   function abrirEdicion(a: AsistenciaConDetalle) {
