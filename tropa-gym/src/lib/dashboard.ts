@@ -157,7 +157,12 @@ export interface HorarioOcupacion {
   turnoId: string
   nombre: string
   cantidad: number
+  dias: number
+  promedio: number
 }
+
+/** Bajo este umbral de días con clase, el promedio se muestra igual pero marcado como poco representativo. */
+export const DIAS_MINIMOS_PROMEDIO_CONFIABLE = 3
 
 async function saldoACobrarPorAlumno(periodo: string): Promise<number> {
   const [cargosRes, pagosRes] = await Promise.all([
@@ -255,24 +260,29 @@ export async function fetchTopHorarios(periodo: string, top = 5): Promise<Horari
   const hasta = primerDiaSiguiente(periodo)
 
   const [asistenciasRes, turnosRes] = await Promise.all([
-    supabase.from('asistencias_alumnos').select('turno_id').gte('fecha', desde).lt('fecha', hasta),
+    supabase.from('asistencias_alumnos').select('turno_id, fecha').gte('fecha', desde).lt('fecha', hasta),
     supabase.from('turnos').select('*'),
   ])
 
   const turnos = (turnosRes.data ?? []) as Turno[]
   const conteo = new Map<string, number>()
-  for (const a of (asistenciasRes.data ?? []) as Pick<AsistenciaAlumno, 'turno_id'>[]) {
+  const diasPorTurno = new Map<string, Set<string>>()
+  for (const a of (asistenciasRes.data ?? []) as Pick<AsistenciaAlumno, 'turno_id' | 'fecha'>[]) {
     if (!a.turno_id) continue // horario libre (ej. Musculación) — no cuenta como ocupación de un turno fijo
     conteo.set(a.turno_id, (conteo.get(a.turno_id) ?? 0) + 1)
+    if (!diasPorTurno.has(a.turno_id)) diasPorTurno.set(a.turno_id, new Set())
+    diasPorTurno.get(a.turno_id)!.add(a.fecha)
   }
 
   return [...conteo.entries()]
     .map(([turnoId, cantidad]) => {
       const t = turnos.find((tu) => tu.id === turnoId)
       const nombre = t ? `${t.nombre} (${t.hora.slice(0, 5)})` : turnoId
-      return { turnoId, nombre, cantidad }
+      const dias = diasPorTurno.get(turnoId)?.size ?? 0
+      const promedio = dias > 0 ? cantidad / dias : 0
+      return { turnoId, nombre, cantidad, dias, promedio }
     })
-    .sort((a, b) => b.cantidad - a.cantidad)
+    .sort((a, b) => b.promedio - a.promedio)
     .slice(0, top)
 }
 

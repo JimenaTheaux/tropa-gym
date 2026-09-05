@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchKpiCards, fetchTopHorarios, fetchTrend, periodoActual, periodoLabel } from '@/lib/dashboard'
+import {
+  DIAS_MINIMOS_PROMEDIO_CONFIABLE,
+  fetchKpiCards,
+  fetchTopHorarios,
+  fetchTrend,
+  periodoActual,
+  periodoLabel,
+} from '@/lib/dashboard'
 import { traducirError } from '@/lib/errores'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
@@ -84,7 +91,7 @@ export function KpiPanel() {
     ? traducirError(queryError instanceof Error ? queryError.message : null, 'Error al cargar el dashboard')
     : null
 
-  const maxHorario = Math.max(1, ...horarios.map((h) => h.cantidad))
+  const maxHorario = Math.max(1, ...horarios.map((h) => h.promedio))
 
   return (
     <div className="flex flex-col gap-6">
@@ -125,27 +132,48 @@ export function KpiPanel() {
       </div>
 
       <div className="rounded-card border border-outline-variant bg-surface-container p-5">
-        <p className="mb-4 font-oswald text-[13px] font-bold uppercase tracking-[0.03em] text-on-surface">
+        <p className="mb-1 font-oswald text-[13px] font-bold uppercase tracking-[0.03em] text-on-surface">
           Top horarios con mayor ocupación
         </p>
+        <p className="mb-4 font-inter text-xs text-on-surface-variant">Promedio de alumnos por clase en el período</p>
         {loading && <p className="font-inter text-sm text-on-surface-variant">Cargando…</p>}
         {!loading && horarios.length === 0 && (
           <p className="font-inter text-sm text-on-surface-variant">Sin asistencias registradas en el período.</p>
         )}
         <div className="flex flex-col gap-3">
-          {horarios.map((h) => (
-            <div key={h.turnoId} className="flex items-center gap-3">
-              <p className="w-40 shrink-0 font-inter text-sm text-on-surface">{h.nombre}</p>
-              <div className="h-3 flex-1 overflow-hidden rounded-full bg-surface-container-highest">
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${(h.cantidad / maxHorario) * 100}%`, background: '#40e432' }}
-                />
+          {horarios.map((h) => {
+            const pocosDatos = h.dias < DIAS_MINIMOS_PROMEDIO_CONFIABLE
+            return (
+              <div key={h.turnoId} className="flex items-center gap-3">
+                <p className="w-40 shrink-0 font-inter text-sm text-on-surface">{h.nombre}</p>
+                <div className="h-3 flex-1 overflow-hidden rounded-full bg-surface-container-highest">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${(h.promedio / maxHorario) * 100}%`, background: '#40e432' }}
+                  />
+                </div>
+                <p className="w-24 shrink-0 text-right font-inter text-sm text-on-surface-variant">
+                  {h.promedio.toFixed(1)} / clase
+                  {pocosDatos && (
+                    <span
+                      title={`Solo ${h.dias} día(s) con clase en el período`}
+                      className="ml-1"
+                      style={{ color: '#e4a800' }}
+                    >
+                      *
+                    </span>
+                  )}
+                </p>
               </div>
-              <p className="w-10 shrink-0 text-right font-inter text-sm text-on-surface-variant">{h.cantidad}</p>
-            </div>
-          ))}
+            )
+          })}
         </div>
+        {horarios.some((h) => h.dias < DIAS_MINIMOS_PROMEDIO_CONFIABLE) && (
+          <p className="mt-3 font-inter text-xs text-on-surface-variant">
+            * Promedio calculado con menos de {DIAS_MINIMOS_PROMEDIO_CONFIABLE} días de clase en el período — puede no
+            ser representativo.
+          </p>
+        )}
       </div>
     </div>
   )
