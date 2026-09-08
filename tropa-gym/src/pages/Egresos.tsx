@@ -11,11 +11,11 @@ import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { FormCurrencyInput, FormDateInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
+import { FormCurrencyInput, FormDateInput, FormInput, FormMonthInput, FormTextarea } from '@/components/ui/FormField'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { fechaLocalISO } from '@/lib/fecha'
 
-const emptyForm: EgresoInsert = { concepto: '', monto: 0, fecha: fechaLocalISO(), categoria: '' }
+const emptyForm: EgresoInsert = { concepto: '', monto: 0, fecha: fechaLocalISO(), categoria: '', observaciones: '' }
 
 async function fetchEgresos(periodo: string): Promise<Egreso[]> {
   const { data, error } = await supabase
@@ -59,6 +59,7 @@ export function Egresos() {
       monto: egreso.monto,
       fecha: egreso.fecha,
       categoria: egreso.categoria,
+      observaciones: egreso.observaciones ?? '',
     })
     setError(null)
     setDrawerOpen(true)
@@ -97,6 +98,7 @@ export function Egresos() {
     { header: 'Categoría', cell: (e) => e.categoria },
     { header: 'Fecha', cell: (e) => formatFecha(e.fecha) },
     { header: 'Monto', cell: (e) => `$${Number(e.monto).toLocaleString('es-AR')}` },
+    { header: 'Observaciones', cell: (e) => e.observaciones || '—' },
   ]
 
   return (
@@ -183,6 +185,12 @@ export function Egresos() {
               onChange={(e) => setForm({ ...form, monto: Number(e.target.value) })}
             />
           </div>
+          <FormTextarea
+            id="egreso-observaciones"
+            label="Observaciones"
+            value={form.observaciones ?? ''}
+            onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
+          />
           {error && <p className="font-inter text-sm text-error">{error}</p>}
         </form>
       </Drawer>

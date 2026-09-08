@@ -141,6 +141,7 @@ export interface Egreso {
   monto: number
   fecha: string
   categoria: string
+  observaciones: string | null
   created_at: string
 }
 

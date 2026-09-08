@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ChangeEvent, FocusEvent, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
+import type {
+  ChangeEvent,
+  FocusEvent,
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from 'react'
 import { cn } from '@/lib/utils'
 
 const fieldClass =
@@ -44,6 +51,19 @@ export function FormInput({ label, error, id, className, onFocus, ...props }: Fo
   return (
     <FieldShell label={label} htmlFor={id!} error={error}>
       <input id={id} className={`${fieldClass} ${className ?? ''}`} {...props} onFocus={handleFocus} />
+    </FieldShell>
+  )
+}
+
+interface FormTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label: string
+  error?: string
+}
+
+export function FormTextarea({ label, error, id, className, ...props }: FormTextareaProps) {
+  return (
+    <FieldShell label={label} htmlFor={id!} error={error}>
+      <textarea id={id} className={`${fieldClass} resize-none ${className ?? ''}`} rows={3} {...props} />
     </FieldShell>
   )
 }
