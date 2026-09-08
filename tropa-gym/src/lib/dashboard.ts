@@ -436,7 +436,9 @@ async function fetchHorasProfesor(periodo: string): Promise<HorasProfesorFila[]>
   return profesores
     .map((profesor) => ({
       profesor,
-      horas: Math.round(((minutosPorProfesor.get(profesor.id) ?? 0) / 60) * 10) / 10,
+      // Horas completas: la suma de minutos (ya redondeados por registro)
+      // se redondea a la hora entera para el resumen mensual.
+      horas: Math.round((minutosPorProfesor.get(profesor.id) ?? 0) / 60),
       asistencias: conteoPorProfesor.get(profesor.id) ?? 0,
     }))
     .filter((f) => f.asistencias > 0)

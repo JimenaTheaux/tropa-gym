@@ -220,7 +220,7 @@ export function ResumenMensualPanel() {
         />
         <AlertaChica
           label="Horas de profesores en el período"
-          value={alertasLoading ? '…' : `${Math.round(horasTotalesProfesores * 10) / 10} hs`}
+          value={alertasLoading ? '…' : `${horasTotalesProfesores} hs`}
         />
         <AlertaChica
           label="Cargos sin monto definido"
