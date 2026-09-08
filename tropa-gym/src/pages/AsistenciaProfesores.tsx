@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FormDateInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
 import { formatFecha } from '@/lib/utils'
 import { fechaLocalISO } from '@/lib/fecha'
+import { calcularMinutosTrabajados, formatHoras } from '@/lib/horasProfesor'
 
 async function fetchAbiertos(ids: string[]): Promise<Record<string, AsistenciaProfesor>> {
   if (ids.length === 0) return {}
@@ -55,19 +56,16 @@ function horaActual(): string {
   return new Date().toTimeString().slice(0, 8)
 }
 
-// Minutos trabajados, redondeados al múltiplo de 10 más cercano.
-function minutosTrabajados(horaEntrada: string, horaSalida: string): number {
-  const [eh, em] = horaEntrada.split(':').map(Number)
-  const [sh, sm] = horaSalida.split(':').map(Number)
-  let minutos = sh * 60 + sm - (eh * 60 + em)
-  if (minutos < 0) minutos += 24 * 60
-  return Math.round(minutos / 10) * 10
-}
-
-function formatHoras(minutos: number): string {
-  const h = Math.floor(minutos / 60)
-  const m = minutos % 60
-  return m === 0 ? `${h}h` : `${h}h ${m}m`
+// Máscara dd/mm/aaaa para el filtro de fecha por columna — sólo dígitos,
+// sin validar completitud (se filtra por prefijo a medida que se escribe).
+function maskFechaFiltro(raw: string): string {
+  const digitos = raw.replace(/\D/g, '').slice(0, 8)
+  let dd = digitos.slice(0, 2)
+  let mm = digitos.slice(2, 4)
+  const yyyy = digitos.slice(4, 8)
+  if (dd.length === 2 && Number(dd) > 31) dd = '31'
+  if (mm.length === 2 && Number(mm) > 12) mm = '12'
+  return [dd, mm, yyyy].filter(Boolean).join('/')
 }
 
 export function AsistenciaProfesores() {
@@ -86,6 +84,9 @@ export function AsistenciaProfesores() {
   const [deleting, setDeleting] = useState<AsistenciaProfesor | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
+  const [filtroProfesorId, setFiltroProfesorId] = useState('')
+  const [filtroFechaTexto, setFiltroFechaTexto] = useState('')
+
   const { data: profesores = [], isFetching: loadingProfesores } = useProfesores(isAdmin ? undefined : perfil?.id)
   const idsKey = [...profesores.map((p) => p.id)].sort().join(',')
 
@@ -103,6 +104,42 @@ export function AsistenciaProfesores() {
   const abiertos = abiertosQuery.data ?? {}
   const historial = historialQuery.data ?? []
   const loading = loadingProfesores || abiertosQuery.isFetching || historialQuery.isFetching
+
+  const digitosFiltroFecha = filtroFechaTexto.replace(/\D/g, '')
+  const historialFiltrado = historial.filter((r) => {
+    if (filtroProfesorId && r.profesor_id !== filtroProfesorId) return false
+    if (digitosFiltroFecha) {
+      const [y, m, d] = r.fecha.split('-')
+      if (!`${d}${m}${y}`.startsWith(digitosFiltroFecha)) return false
+    }
+    return true
+  })
+
+  function renderHoras(registro: AsistenciaProfesor) {
+    if (!registro.hora_salida) return '—'
+    const { minutosReales, minutosRedondeados, redondeado } = calcularMinutosTrabajados(
+      registro.hora_entrada,
+      registro.hora_salida,
+    )
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        {formatHoras(minutosRedondeados)}
+        {redondeado && (
+          <span className="group relative inline-flex" title={`Real: ${formatHoras(minutosReales)}`}>
+            <span
+              tabIndex={0}
+              className="material-symbols-outlined cursor-help !text-[14px] text-on-surface-variant outline-none"
+            >
+              history
+            </span>
+            <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 w-max -translate-x-1/2 rounded-md bg-surface-container-highest px-2 py-1 font-inter text-xs text-on-surface opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+              Real: {formatHoras(minutosReales)}
+            </span>
+          </span>
+        )}
+      </span>
+    )
+  }
 
   function refrescar() {
     return queryClient.invalidateQueries({ queryKey: ['asistencias-profesores'] })
@@ -293,19 +330,53 @@ export function AsistenciaProfesores() {
                     </th>
                   )}
                 </tr>
+                <tr className="border-t border-outline-variant bg-surface-container-high/50">
+                  <th className="px-4 py-2">
+                    <select
+                      aria-label="Filtrar por profesor"
+                      value={filtroProfesorId}
+                      onChange={(e) => setFiltroProfesorId(e.target.value)}
+                      className="w-full rounded-lg border border-outline-variant bg-surface-container-low px-2 py-1.5 font-inter text-xs text-on-surface outline-none focus:border-primary"
+                    >
+                      <option value="">Todos</option>
+                      {profesores.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre} {p.apellido}
+                        </option>
+                      ))}
+                    </select>
+                  </th>
+                  <th className="px-4 py-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      aria-label="Filtrar por fecha"
+                      placeholder="dd/mm/aaaa"
+                      maxLength={10}
+                      value={filtroFechaTexto}
+                      onChange={(e) => setFiltroFechaTexto(maskFechaFiltro(e.target.value))}
+                      className="w-full rounded-lg border border-outline-variant bg-surface-container-low px-2 py-1.5 font-inter text-xs text-on-surface outline-none focus:border-primary"
+                    />
+                  </th>
+                  <th className="px-4 py-2" colSpan={isAdmin ? 3 : 2} />
+                </tr>
               </thead>
               <tbody>
-                {historial.length === 0 && (
+                {historialFiltrado.length === 0 && (
                   <tr>
                     <td
                       colSpan={isAdmin ? 6 : 5}
                       className="px-4 py-10 text-center font-inter text-sm text-on-surface-variant"
                     >
-                      {loading ? 'Cargando…' : 'Sin registros en el período.'}
+                      {loading
+                        ? 'Cargando…'
+                        : historial.length === 0
+                          ? 'Sin registros en el período.'
+                          : 'Ningún registro coincide con el filtro.'}
                     </td>
                   </tr>
                 )}
-                {historial.map((r) => (
+                {historialFiltrado.map((r) => (
                   <tr key={r.id} className="border-t border-outline-variant">
                     <td className="px-4 py-3 font-inter text-sm text-on-surface">
                       {profesorNombre(r.profesor_id)}
@@ -317,9 +388,7 @@ export function AsistenciaProfesores() {
                     <td className="px-4 py-3 font-inter text-sm text-on-surface-variant">
                       {r.hora_salida ? r.hora_salida.slice(0, 5) : 'En curso'}
                     </td>
-                    <td className="px-4 py-3 font-inter text-sm text-on-surface">
-                      {r.hora_salida ? formatHoras(minutosTrabajados(r.hora_entrada, r.hora_salida)) : '—'}
-                    </td>
+                    <td className="px-4 py-3 font-inter text-sm text-on-surface">{renderHoras(r)}</td>
                     {isAdmin && (
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-3">

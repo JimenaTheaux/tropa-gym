@@ -14,6 +14,7 @@ import type {
 } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 import { whatsappLink } from '@/lib/utils'
+import { calcularMinutosTrabajados } from '@/lib/horasProfesor'
 
 // ---- Período (YYYY-MM) — helpers ----
 
@@ -422,22 +423,20 @@ async function fetchHorasProfesor(periodo: string): Promise<HorasProfesorFila[]>
   const profesores = (profesoresRes.data ?? []) as Profesor[]
   const asistencias = (asistenciasRes.data ?? []) as AsistenciaProfesor[]
 
-  const horasPorProfesor = new Map<string, number>()
+  const minutosPorProfesor = new Map<string, number>()
   const conteoPorProfesor = new Map<string, number>()
   for (const a of asistencias) {
     conteoPorProfesor.set(a.profesor_id, (conteoPorProfesor.get(a.profesor_id) ?? 0) + 1)
     if (a.hora_salida) {
-      const entrada = new Date(`1970-01-01T${a.hora_entrada}`).getTime()
-      const salida = new Date(`1970-01-01T${a.hora_salida}`).getTime()
-      const horas = Math.max(0, (salida - entrada) / 3_600_000)
-      horasPorProfesor.set(a.profesor_id, (horasPorProfesor.get(a.profesor_id) ?? 0) + horas)
+      const { minutosRedondeados } = calcularMinutosTrabajados(a.hora_entrada, a.hora_salida)
+      minutosPorProfesor.set(a.profesor_id, (minutosPorProfesor.get(a.profesor_id) ?? 0) + minutosRedondeados)
     }
   }
 
   return profesores
     .map((profesor) => ({
       profesor,
-      horas: Math.round((horasPorProfesor.get(profesor.id) ?? 0) * 10) / 10,
+      horas: Math.round(((minutosPorProfesor.get(profesor.id) ?? 0) / 60) * 10) / 10,
       asistencias: conteoPorProfesor.get(profesor.id) ?? 0,
     }))
     .filter((f) => f.asistencias > 0)
