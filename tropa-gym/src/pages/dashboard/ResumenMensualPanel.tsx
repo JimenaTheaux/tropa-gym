@@ -175,7 +175,6 @@ export function ResumenMensualPanel() {
   const completasPagadas = cargosPeriodo.filter((c) => c.tipo === 'completa' && c.estado === 'pagado').length
   const medias = cargosPeriodo.filter((c) => c.tipo === 'media').length
   const mediasPagadas = cargosPeriodo.filter((c) => c.tipo === 'media' && c.estado === 'pagado').length
-  const sinValidar = cargosPeriodo.filter((c) => !c.validado).length
   const montoTotal = cargosPeriodo.reduce((sum, c) => sum + Number(c.monto), 0)
 
   const deudores = alertas?.deudores ?? []
@@ -245,10 +244,10 @@ export function ResumenMensualPanel() {
               info="Alumnos cuya primera asistencia del período fue del día 15 en adelante (mitad del precio del combo). El número verde es cuántos de esos cargos ya están pagados."
             />
             <AlertaChica
-              label="Sin validar"
-              value={sinValidar}
+              label="Situaciones a definir"
+              value={alertasLoading ? '…' : cargosSinDefinir.length}
               tono="ambar"
-              info="Cargos que el sistema todavía puede recalcular solo (tipo/monto) al llegar una asistencia nueva del alumno. Se validan a mano en la pantalla Cargos, o solos cuando un pago cubre el monto completo."
+              info="Alumnos con asistencia en el período pero sin combo/precio resuelto — el cargo se generó igual, con el monto a completar manualmente."
             />
             <AlertaChica label="Monto total del período" value={money(montoTotal)} tono="blanco" />
           </div>
@@ -258,7 +257,7 @@ export function ResumenMensualPanel() {
       {alertasError && <p className="font-inter text-sm text-error">{alertasError}</p>}
 
       {/* B. Fila de alertas */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <AlertaChica
           label="Alumnos con deuda"
           value={
@@ -282,12 +281,6 @@ export function ResumenMensualPanel() {
           label="Horas de profesores en el período"
           value={alertasLoading ? '…' : `${horasTotalesProfesores} hs`}
           tono="blanco"
-        />
-        <AlertaChica
-          label="Cargos sin monto definido"
-          value={alertasLoading ? '…' : cargosSinDefinir.length}
-          tono="ambar"
-          info="Alumnos con asistencia en el período pero sin combo/precio resuelto — el cargo se generó igual, con el monto a completar manualmente."
         />
       </div>
 
