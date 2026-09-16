@@ -53,7 +53,7 @@ function InfoIcon({ info }: { info: string }) {
       >
         info
       </span>
-      <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-64 rounded-lg border border-outline-variant bg-surface-container-highest p-3 font-inter text-xs leading-relaxed text-on-surface opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-64 -translate-x-1/2 rounded-lg border border-outline-variant bg-surface-container-highest p-3 font-inter text-xs leading-relaxed text-on-surface opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         {info}
       </div>
     </>
@@ -76,7 +76,7 @@ function AlertaChica({
   tono?: Tono
 }) {
   return (
-    <div className="group relative rounded-card border border-outline-variant bg-surface-container-high/50 px-4 py-3">
+    <div className="group relative mx-auto flex w-full max-w-[190px] flex-col items-center gap-0.5 rounded-card border border-outline-variant bg-surface-container-high/50 px-3 py-3 text-center">
       <div className="flex items-center gap-1">
         <p className="font-oswald text-[10px] uppercase tracking-[0.05em] text-on-surface-variant">{label}</p>
         {info && <InfoIcon info={info} />}
@@ -88,7 +88,7 @@ function AlertaChica({
 
 // Card de fracción (parte lograda / total) con jerarquía de dos colores:
 // la parte en verde, el total en gris claro, y una etiqueta apilada por
-// cada color debajo del número.
+// cada color exactamente debajo del número (todo centrado).
 function AlertaFraccion({
   label,
   parte,
@@ -105,7 +105,7 @@ function AlertaFraccion({
   info?: string
 }) {
   return (
-    <div className="group relative rounded-card border border-outline-variant bg-surface-container-high/50 px-4 py-3">
+    <div className="group relative mx-auto flex w-full max-w-[190px] flex-col items-center gap-0.5 rounded-card border border-outline-variant bg-surface-container-high/50 px-3 py-3 text-center">
       <div className="flex items-center gap-1">
         <p className="font-oswald text-[10px] uppercase tracking-[0.05em] text-on-surface-variant">{label}</p>
         {info && <InfoIcon info={info} />}
@@ -115,7 +115,7 @@ function AlertaFraccion({
         <span className="text-on-surface-variant">/</span>
         <span className="text-on-surface">{total}</span>
       </p>
-      <div className="mt-0.5 flex flex-col leading-tight">
+      <div className="flex flex-col leading-tight">
         <span className="font-inter text-[12px] font-semibold text-primary-fixed-dim">{labelParte}</span>
         <span className="font-inter text-[12px] font-semibold text-on-surface-variant">{labelTotal}</span>
       </div>
