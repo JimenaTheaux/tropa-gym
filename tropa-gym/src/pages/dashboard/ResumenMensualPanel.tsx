@@ -17,6 +17,8 @@ import { FormMonthInput, FormInput, FormSelect } from '@/components/ui/FormField
 import { FichaAlumnoDrawer } from '@/components/ui/FichaAlumnoDrawer'
 import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { EditarMontoCargo } from '@/components/ui/EditarMontoCargo'
+import { AsistenciasPeriodoDrawer } from '@/components/ui/AsistenciasPeriodoDrawer'
+import { PagosPeriodoDrawer } from '@/components/ui/PagosPeriodoDrawer'
 
 const FILTRO_ESTADO_DEUDA_OPTIONS = [
   { value: 'pendiente', label: 'Pendiente' },
@@ -62,6 +64,16 @@ export function ResumenMensualPanel() {
   const [fichaAlumno, setFichaAlumno] = useState<Alumno | null>(null)
   const [editandoDeudaCargoId, setEditandoDeudaCargoId] = useState<string | null>(null)
   const [editandoSinDefinirCargoId, setEditandoSinDefinirCargoId] = useState<string | null>(null)
+  const [verAsistenciasDe, setVerAsistenciasDe] = useState<{ alumnoId: string; nombre: string; periodo: string } | null>(
+    null,
+  )
+  const [verPagosDe, setVerPagosDe] = useState<{
+    alumnoId: string
+    nombre: string
+    periodo: string
+    cargoMonto: number
+    cargoEstado: EstadoPago
+  } | null>(null)
 
   const [buscarDeudor, setBuscarDeudor] = useState('')
   const [filtroEstadoDeudor, setFiltroEstadoDeudor] = useState<EstadoPago | ''>('')
@@ -254,7 +266,7 @@ export function ResumenMensualPanel() {
                   <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
                     Estado
                   </th>
-                  <th className="px-4 py-3 text-right font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+                  <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
                     Acciones
                   </th>
                 </tr>
@@ -270,14 +282,14 @@ export function ResumenMensualPanel() {
                 {deudoresFiltrados.map((d) => {
                   const telValido = telefonoWhatsappValido(d.alumno.telefono)
                   return (
-                    <tr key={d.cargoId} className="border-t border-outline-variant align-top">
-                      <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                    <tr key={d.cargoId} className="border-t border-outline-variant">
+                      <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface">
                         {d.alumno.nombre} {d.alumno.apellido}
                       </td>
-                      <td className="px-4 py-3 font-inter text-sm text-on-surface-variant">
+                      <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface-variant">
                         {d.periodo} · {d.diasVencimiento} día(s) de vencimiento
                       </td>
-                      <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                      <td className="px-4 py-2 font-inter text-sm text-on-surface">
                         {editandoDeudaCargoId === d.cargoId ? (
                           <EditarMontoCargo
                             cargoId={d.cargoId}
@@ -291,7 +303,7 @@ export function ResumenMensualPanel() {
                           />
                         ) : (
                           <div className="flex items-center gap-2">
-                            <span>{money(d.cargoMonto)}</span>
+                            <span className="whitespace-nowrap">{money(d.cargoMonto)}</span>
                             <button
                               type="button"
                               onClick={() => setEditandoDeudaCargoId(d.cargoId)}
@@ -303,36 +315,71 @@ export function ResumenMensualPanel() {
                           </div>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-oswald text-sm font-bold" style={{ color: '#ffb4ab' }}>
+                      <td className="whitespace-nowrap px-4 py-2 font-oswald text-sm font-bold" style={{ color: '#ffb4ab' }}>
                         {money(d.monto)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2">
                         <BadgeEstadoCargo estado={d.estado} />
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-4 py-2">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setVerAsistenciasDe({
+                                alumnoId: d.alumno.id,
+                                nombre: `${d.alumno.nombre} ${d.alumno.apellido}`,
+                                periodo: d.periodo,
+                              })
+                            }
+                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                          >
+                            <span className="material-symbols-outlined !text-[16px]">event_available</span>
+                            Ver asistencias
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setVerPagosDe({
+                                alumnoId: d.alumno.id,
+                                nombre: `${d.alumno.nombre} ${d.alumno.apellido}`,
+                                periodo: d.periodo,
+                                cargoMonto: d.cargoMonto,
+                                cargoEstado: d.estado,
+                              })
+                            }
+                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                          >
+                            <span className="material-symbols-outlined !text-[16px]">payments</span>
+                            Ver pagos
+                          </button>
                           {telValido ? (
                             <a
                               href={whatsappUrl(d.alumno.telefono as string)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary bg-surface-container-high px-3 py-1.5 font-oswald text-xs font-semibold uppercase tracking-[0.03em] text-primary hover:bg-surface-container-highest"
+                              className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
                             >
-                              <span className="material-symbols-outlined !text-[14px]">chat</span>
+                              <span className="material-symbols-outlined !text-[16px]">chat</span>
                               WhatsApp
                             </a>
                           ) : (
                             <span
                               title="Teléfono no cargado o en formato inválido — no se puede abrir WhatsApp"
-                              className="inline-flex cursor-not-allowed items-center justify-center gap-1.5 rounded-lg border border-outline-variant bg-transparent px-3 py-1.5 font-oswald text-xs font-semibold uppercase tracking-[0.03em] text-on-surface-variant opacity-50"
+                              className="inline-flex cursor-not-allowed items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant opacity-50"
                             >
-                              <span className="material-symbols-outlined !text-[14px]">chat</span>
+                              <span className="material-symbols-outlined !text-[16px]">chat</span>
                               WhatsApp
                             </span>
                           )}
-                          <Button type="button" variant="ghost" onClick={() => setFichaAlumno(d.alumno)}>
+                          <button
+                            type="button"
+                            onClick={() => setFichaAlumno(d.alumno)}
+                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                          >
+                            <span className="material-symbols-outlined !text-[16px]">badge</span>
                             Ver ficha
-                          </Button>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -393,7 +440,7 @@ export function ResumenMensualPanel() {
                   <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
                     Monto
                   </th>
-                  <th className="px-4 py-3 text-right font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+                  <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
                     Acciones
                   </th>
                 </tr>
@@ -407,15 +454,15 @@ export function ResumenMensualPanel() {
                   </tr>
                 )}
                 {cargosSinDefinirFiltrados.map((c) => (
-                  <tr key={c.cargoId} className="border-t border-outline-variant align-top">
-                    <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                  <tr key={c.cargoId} className="border-t border-outline-variant">
+                    <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface">
                       {c.alumno.nombre} {c.alumno.apellido}
                     </td>
-                    <td className="px-4 py-3 font-inter text-sm text-on-surface-variant">{c.periodo}</td>
-                    <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                    <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface-variant">{c.periodo}</td>
+                    <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface">
                       {c.tipo === 'completa' ? 'Cuota completa' : 'Media cuota'}
                     </td>
-                    <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                    <td className="px-4 py-2 font-inter text-sm text-on-surface">
                       {editandoSinDefinirCargoId === c.cargoId ? (
                         <EditarMontoCargo
                           cargoId={c.cargoId}
@@ -429,7 +476,7 @@ export function ResumenMensualPanel() {
                         />
                       ) : (
                         <div className="flex items-center gap-2">
-                          <span>{money(c.monto)}</span>
+                          <span className="whitespace-nowrap">{money(c.monto)}</span>
                           <button
                             type="button"
                             onClick={() => setEditandoSinDefinirCargoId(c.cargoId)}
@@ -441,10 +488,47 @@ export function ResumenMensualPanel() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button type="button" variant="ghost" onClick={() => setFichaAlumno(c.alumno)}>
-                        Ver ficha
-                      </Button>
+                    <td className="px-4 py-2">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVerAsistenciasDe({
+                              alumnoId: c.alumno.id,
+                              nombre: `${c.alumno.nombre} ${c.alumno.apellido}`,
+                              periodo: c.periodo,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">event_available</span>
+                          Ver asistencias
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVerPagosDe({
+                              alumnoId: c.alumno.id,
+                              nombre: `${c.alumno.nombre} ${c.alumno.apellido}`,
+                              periodo: c.periodo,
+                              cargoMonto: c.monto,
+                              cargoEstado: c.estado,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">payments</span>
+                          Ver pagos
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFichaAlumno(c.alumno)}
+                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">badge</span>
+                          Ver ficha
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -559,6 +643,22 @@ export function ResumenMensualPanel() {
       </div>
 
       <FichaAlumnoDrawer alumno={fichaAlumno} onClose={() => setFichaAlumno(null)} />
+
+      <AsistenciasPeriodoDrawer
+        alumnoId={verAsistenciasDe?.alumnoId ?? null}
+        alumnoNombre={verAsistenciasDe?.nombre ?? ''}
+        periodo={verAsistenciasDe?.periodo ?? periodo}
+        onClose={() => setVerAsistenciasDe(null)}
+      />
+
+      <PagosPeriodoDrawer
+        alumnoId={verPagosDe?.alumnoId ?? null}
+        alumnoNombre={verPagosDe?.nombre ?? ''}
+        periodo={verPagosDe?.periodo ?? periodo}
+        cargoMonto={verPagosDe?.cargoMonto ?? 0}
+        cargoEstado={verPagosDe?.cargoEstado ?? 'pendiente'}
+        onClose={() => setVerPagosDe(null)}
+      />
     </div>
   )
 }

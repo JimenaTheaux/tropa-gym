@@ -316,6 +316,7 @@ export interface CargoSinDefinir {
   periodo: string
   tipo: Cargo['tipo']
   monto: number
+  estado: EstadoPago
 }
 
 export interface AlertasResumen {
@@ -467,7 +468,7 @@ async function fetchCargosSinDefinir(periodo: string, alumnos: Alumno[]): Promis
     .map((c) => {
       const alumno = alumnos.find((a) => a.id === c.alumno_id)
       if (!alumno) return null
-      return { cargoId: c.id, alumno, periodo: c.periodo, tipo: c.tipo, monto: Number(c.monto) }
+      return { cargoId: c.id, alumno, periodo: c.periodo, tipo: c.tipo, monto: Number(c.monto), estado: c.estado }
     })
     .filter((c): c is CargoSinDefinir => c !== null)
 }

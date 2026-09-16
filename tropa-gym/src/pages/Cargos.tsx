@@ -237,14 +237,14 @@ export function Cargos() {
                   </tr>
                 )}
                 {filas.map(({ cargo, alumno }) => (
-                  <tr key={cargo.id} className="border-t border-outline-variant align-top">
-                    <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                  <tr key={cargo.id} className="border-t border-outline-variant">
+                    <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface">
                       {alumno ? `${alumno.nombre} ${alumno.apellido}` : alumnoNombre(cargo.alumno_id)}
                     </td>
-                    <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                    <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface">
                       {cargo.tipo === 'completa' ? 'Cuota completa' : 'Media cuota'}
                     </td>
-                    <td className="px-4 py-3 font-inter text-sm text-on-surface">
+                    <td className="px-4 py-2 font-inter text-sm text-on-surface">
                       {editandoCargoId === cargo.id ? (
                         <EditarMontoCargo
                           cargoId={cargo.id}
@@ -254,8 +254,8 @@ export function Cargos() {
                           onCancelar={() => setEditandoCargoId(null)}
                         />
                       ) : (
-                        <div className="flex items-center gap-3">
-                          <span>{money(Number(cargo.monto))}</span>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <span className="whitespace-nowrap">{money(Number(cargo.monto))}</span>
                           {!cargo.monto_definido && (
                             <span
                               title="No se pudo resolver combo/precio — completá el monto a mano."
@@ -276,8 +276,8 @@ export function Cargos() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col items-start gap-1.5">
+                    <td className="px-4 py-2">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                         <button
                           type="button"
                           onClick={() =>
@@ -286,7 +286,7 @@ export function Cargos() {
                               nombre: alumno ? `${alumno.nombre} ${alumno.apellido}` : alumnoNombre(cargo.alumno_id),
                             })
                           }
-                          className="inline-flex items-center gap-1 font-inter text-xs font-medium text-primary hover:underline"
+                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
                         >
                           <span className="material-symbols-outlined !text-[16px]">event_available</span>
                           Ver asistencias
@@ -301,14 +301,14 @@ export function Cargos() {
                               cargoEstado: cargo.estado,
                             })
                           }
-                          className="inline-flex items-center gap-1 font-inter text-xs font-medium text-primary hover:underline"
+                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
                         >
                           <span className="material-symbols-outlined !text-[16px]">payments</span>
                           Ver pagos
                         </button>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2">
                       <BadgeEstadoCargo estado={cargo.estado} />
                     </td>
                   </tr>
