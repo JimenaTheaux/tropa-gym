@@ -34,6 +34,11 @@ const FILTRO_ESTADO_OPTIONS = [
   { value: 'pendiente', label: 'Pendiente' },
 ]
 
+const FILTRO_VALIDADO_OPTIONS = [
+  { value: 'sin_validar', label: 'Sin validar' },
+  { value: 'validado', label: 'Validado' },
+]
+
 // Checkbox "Validar" — UPDATE directo de cargos.validado, sin confirmación
 // (a diferencia de editar el monto): es una acción de bajo riesgo y
 // reversible, tildar/destildar no cambia ningún número.
@@ -74,6 +79,7 @@ export function Cargos() {
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<TipoCargo | ''>('')
   const [filtroEstado, setFiltroEstado] = useState<EstadoPago | ''>('')
+  const [filtroValidado, setFiltroValidado] = useState<'validado' | 'sin_validar' | ''>('')
 
   const [confirmarValidarTodos, setConfirmarValidarTodos] = useState(false)
   const [errorValidarTodos, setErrorValidarTodos] = useState<string | null>(null)
@@ -99,6 +105,8 @@ export function Cargos() {
     .filter(({ cargo, alumno }) => {
       if (filtroTipo && cargo.tipo !== filtroTipo) return false
       if (filtroEstado && cargo.estado !== filtroEstado) return false
+      if (filtroValidado === 'validado' && !cargo.validado) return false
+      if (filtroValidado === 'sin_validar' && cargo.validado) return false
       if (busquedaTerm) {
         const nombre = alumno ? `${alumno.nombre} ${alumno.apellido}`.toLowerCase() : ''
         if (!nombre.includes(busquedaTerm)) return false
@@ -205,9 +213,19 @@ export function Cargos() {
                 options={FILTRO_ESTADO_OPTIONS}
               />
             </div>
+            <div className="w-full sm:w-48">
+              <FormSelect
+                id="cargos-filtro-validado"
+                label="Validado"
+                placeholder="Todos"
+                value={filtroValidado}
+                onChange={(e) => setFiltroValidado(e.target.value as 'validado' | 'sin_validar' | '')}
+                options={FILTRO_VALIDADO_OPTIONS}
+              />
+            </div>
           </div>
 
-          {(filtroTipo || filtroEstado || busquedaTerm) && (
+          {(filtroTipo || filtroEstado || filtroValidado || busquedaTerm) && (
             <p className="font-inter text-xs text-on-surface-variant">
               Mostrando {filas.length} de {cargos.length}
             </p>
