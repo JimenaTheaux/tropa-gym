@@ -74,7 +74,7 @@ export function EditarMontoCargo({
             Cancelar
           </Button>
         )}
-        <Button type="button" variant="solido" disabled={guardando || monto <= 0} onClick={() => setConfirmando(true)}>
+        <Button type="button" variant="solido" disabled={guardando || monto < 0} onClick={() => setConfirmando(true)}>
           Guardar
         </Button>
       </div>
