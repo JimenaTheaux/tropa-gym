@@ -202,8 +202,8 @@ export function CumpleanosPanel() {
           </div>
         </div>
 
-        <div className="rounded-card border border-outline-variant bg-surface-container p-5 lg:col-span-4">
-          <p className="mb-3 font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+        <div className="flex flex-col rounded-card border border-outline-variant bg-surface-container p-5 lg:col-span-4 lg:h-full">
+          <p className="mb-3 shrink-0 font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
             Cumpleaños de {MESES[viewMonth]}
           </p>
 
@@ -211,19 +211,17 @@ export function CumpleanosPanel() {
             <p className="font-inter text-sm text-on-surface-variant">Nadie cumple años este mes.</p>
           )}
 
-          <div className="flex flex-col divide-y divide-outline-variant">
+          <div className="flex min-h-0 flex-1 flex-col divide-y divide-outline-variant overflow-y-auto pr-1">
             {delMes.map((c) => (
-              <div key={c.alumno.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-container-highest font-oswald text-xs font-bold text-on-surface">
+              <div key={c.alumno.id} className="flex items-center gap-2.5 py-1.5 first:pt-0 last:pb-0">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-container-highest font-oswald text-[11px] font-bold text-on-surface">
                   {c.dia}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-inter text-sm text-on-surface">
-                    {c.alumno.nombre} {c.alumno.apellido}
-                  </p>
-                  <p className="font-inter text-xs text-on-surface-variant">Cumple {viewYear - c.anioNacimiento} años</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <p className="min-w-0 flex-1 truncate font-inter text-sm text-on-surface">
+                  {c.alumno.nombre} {c.alumno.apellido}{' '}
+                  <span className="text-on-surface-variant">({viewYear - c.anioNacimiento})</span>
+                </p>
+                <div className="flex shrink-0 items-center gap-1.5">
                   <BadgeEstado estado={c.alumno.estado} />
                   {c.alumno.telefono && (
                     <a
@@ -232,9 +230,9 @@ export function CumpleanosPanel() {
                       rel="noopener noreferrer"
                       aria-label={`Enviar WhatsApp a ${c.alumno.nombre} ${c.alumno.apellido}`}
                       title="Enviar WhatsApp"
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
                     >
-                      <WhatsAppIcon className="h-[18px] w-[18px]" />
+                      <WhatsAppIcon className="h-4 w-4" />
                     </a>
                   )}
                 </div>
