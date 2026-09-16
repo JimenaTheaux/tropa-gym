@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Cargo } from '@/types/db'
-import { fetchCargosPeriodo, marcarCargoValidado } from '@/lib/cargos'
+import type { Cargo, EstadoPago, TipoCargo } from '@/types/db'
+import { traducirError } from '@/lib/errores'
+import { fetchCargosPeriodo, marcarCargoValidado, validarCargosPagadosDelPeriodo } from '@/lib/cargos'
 import { useAlumnos } from '@/hooks/useAlumnos'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
-import { FormMonthInput, FormCheckbox } from '@/components/ui/FormField'
+import { FormMonthInput, FormCheckbox, FormInput, FormSelect } from '@/components/ui/FormField'
+import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { EditarMontoCargo } from '@/components/ui/EditarMontoCargo'
 import { AsistenciasPeriodoDrawer } from '@/components/ui/AsistenciasPeriodoDrawer'
@@ -18,6 +21,17 @@ function periodoActual(): string {
 function money(v: number): string {
   return `$${Math.round(v).toLocaleString('es-AR')}`
 }
+
+const FILTRO_TIPO_OPTIONS = [
+  { value: 'completa', label: 'Cuota completa' },
+  { value: 'media', label: 'Media cuota' },
+]
+
+const FILTRO_ESTADO_OPTIONS = [
+  { value: 'pagado', label: 'Pagado' },
+  { value: 'parcial', label: 'Parcial' },
+  { value: 'pendiente', label: 'Pendiente' },
+]
 
 // Checkbox "Validar" — UPDATE directo de cargos.validado, sin confirmación
 // (a diferencia de editar el monto): es una acción de bajo riesgo y
@@ -44,10 +58,18 @@ function ValidarCheckbox({ cargo }: { cargo: Cargo }) {
 }
 
 export function Cargos() {
+  const queryClient = useQueryClient()
   const [periodo, setPeriodo] = useState(periodoActual())
   const { data: alumnos = [] } = useAlumnos()
   const [editandoCargoId, setEditandoCargoId] = useState<string | null>(null)
   const [verAsistenciasDe, setVerAsistenciasDe] = useState<{ alumnoId: string; nombre: string } | null>(null)
+
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState<TipoCargo | ''>('')
+  const [filtroEstado, setFiltroEstado] = useState<EstadoPago | ''>('')
+
+  const [confirmarValidarTodos, setConfirmarValidarTodos] = useState(false)
+  const [errorValidarTodos, setErrorValidarTodos] = useState<string | null>(null)
 
   const cargosQuery = useQuery({
     queryKey: queryKeys.cargosPeriodo(periodo),
@@ -64,8 +86,18 @@ export function Cargos() {
     return a ? `${a.nombre} ${a.apellido}` : id
   }
 
+  const busquedaTerm = busqueda.trim().toLowerCase()
   const filas = cargos
     .map((c) => ({ cargo: c, alumno: alumnos.find((a) => a.id === c.alumno_id) }))
+    .filter(({ cargo, alumno }) => {
+      if (filtroTipo && cargo.tipo !== filtroTipo) return false
+      if (filtroEstado && cargo.estado !== filtroEstado) return false
+      if (busquedaTerm) {
+        const nombre = alumno ? `${alumno.nombre} ${alumno.apellido}`.toLowerCase() : ''
+        if (!nombre.includes(busquedaTerm)) return false
+      }
+      return true
+    })
     .sort((a, b) => (a.alumno?.apellido ?? '').localeCompare(b.alumno?.apellido ?? ''))
 
   const completas = cargos.filter((c) => c.tipo === 'completa').length
@@ -73,6 +105,20 @@ export function Cargos() {
   const sinValidar = cargos.filter((c) => !c.validado).length
   const montoTotal = cargos.reduce((sum, c) => sum + Number(c.monto), 0)
   const sinCargo = alumnos.filter((a) => a.estado === 'activo' && !cargosPeriodo.has(a.id))
+  const pagadosSinValidar = cargos.filter((c) => c.estado === 'pagado' && !c.validado).length
+
+  const validarTodosMutation = useMutation({
+    mutationFn: () => validarCargosPagadosDelPeriodo(periodo),
+    onSuccess: ({ error }) => {
+      setConfirmarValidarTodos(false)
+      if (error) {
+        setErrorValidarTodos(traducirError(error))
+        return
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.cargosPeriodo(periodo) })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
 
   return (
     <div className="flex flex-col gap-6">
@@ -82,7 +128,14 @@ export function Cargos() {
 
       <div className="flex flex-wrap items-end gap-4 rounded-card border border-outline-variant bg-surface-container p-5">
         <FormMonthInput id="cargos-periodo" label="Período" required value={periodo} onChange={setPeriodo} />
+        {pagadosSinValidar > 0 && (
+          <Button type="button" variant="primario" onClick={() => setConfirmarValidarTodos(true)}>
+            Validar pagados ({pagadosSinValidar})
+          </Button>
+        )}
       </div>
+
+      {errorValidarTodos && <p className="font-inter text-sm text-error">{errorValidarTodos}</p>}
 
       {loading && <p className="font-inter text-sm text-on-surface-variant">Cargando…</p>}
 
@@ -115,6 +168,38 @@ export function Cargos() {
             </div>
           </div>
 
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="w-full sm:w-72">
+              <FormInput
+                id="cargos-buscar-nombre"
+                label="Buscar alumno"
+                placeholder="Nombre o apellido…"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
+            </div>
+            <div className="w-full sm:w-48">
+              <FormSelect
+                id="cargos-filtro-tipo"
+                label="Tipo"
+                placeholder="Todos"
+                value={filtroTipo}
+                onChange={(e) => setFiltroTipo(e.target.value as TipoCargo | '')}
+                options={FILTRO_TIPO_OPTIONS}
+              />
+            </div>
+            <div className="w-full sm:w-48">
+              <FormSelect
+                id="cargos-filtro-estado"
+                label="Estado"
+                placeholder="Todos"
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value as EstadoPago | '')}
+                options={FILTRO_ESTADO_OPTIONS}
+              />
+            </div>
+          </div>
+
           <div className="overflow-x-auto rounded-card border border-outline-variant">
             <table className="w-full border-collapse text-left">
               <thead>
@@ -138,7 +223,9 @@ export function Cargos() {
                 {filas.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-4 py-10 text-center font-inter text-sm text-on-surface-variant">
-                      Sin cargos en este período todavía.
+                      {cargos.length === 0
+                        ? 'Sin cargos en este período todavía.'
+                        : 'Ningún cargo coincide con el filtro.'}
                     </td>
                   </tr>
                 )}
@@ -218,6 +305,16 @@ export function Cargos() {
           )}
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmarValidarTodos}
+        title="Validar pagados"
+        message={`Se van a marcar como validados ${pagadosSinValidar} cargo(s) del período ${periodo} que ya están pagados (coincidencia exacta o sobrepago). No cambia ningún monto, solo los protege de un recálculo automático. ¿Confirmás?`}
+        confirmLabel="Validar"
+        loading={validarTodosMutation.isPending}
+        onConfirm={() => validarTodosMutation.mutate()}
+        onCancel={() => setConfirmarValidarTodos(false)}
+      />
 
       <AsistenciasPeriodoDrawer
         alumnoId={verAsistenciasDe?.alumnoId ?? null}

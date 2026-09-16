@@ -291,6 +291,9 @@ export async function fetchTopHorarios(periodo: string, top = 5): Promise<Horari
 
 export interface Deudor {
   alumno: Alumno
+  cargoId: string
+  periodo: string
+  cargoMonto: number
   monto: number
   diasVencimiento: number
   estado: EstadoPago
@@ -367,6 +370,9 @@ async function fetchDeudores(alumnos: Alumno[]): Promise<Deudor[]> {
       if (!alumno) continue
       deudores.push({
         alumno,
+        cargoId: cargoMasAntiguoConDeuda.id,
+        periodo: cargoMasAntiguoConDeuda.periodo,
+        cargoMonto: Number(cargoMasAntiguoConDeuda.monto),
         monto: saldo,
         diasVencimiento: Math.max(0, diasEntre(finDeMes(cargoMasAntiguoConDeuda.periodo), hoy)),
         estado: cargoMasAntiguoConDeuda.estado,

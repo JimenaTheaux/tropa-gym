@@ -51,3 +51,24 @@ export async function marcarCargoValidado(cargoId: string, validado: boolean): P
   const { error } = await supabase.from('cargos').update({ validado }).eq('id', cargoId)
   return { error: error?.message ?? null }
 }
+
+// Barrido manual: valida de una todos los cargos del período que ya están
+// 'pagado' (coincidencia exacta o sobrepago) pero por lo que sea todavía no
+// quedaron validado=true — no hace falta ir fila por fila con el checkbox.
+// El trigger de base ya autovalida en el momento en que un pago deja el
+// cargo en 'pagado' (ver migración 22); esto cubre el resto: cargos que ya
+// estaban pagados antes de ese cambio, o cualquier caso que se haya
+// escapado por una reconciliación manual fuera de la app.
+export async function validarCargosPagadosDelPeriodo(
+  periodo: string,
+): Promise<{ error: string | null; actualizados: number }> {
+  const { data, error } = await supabase
+    .from('cargos')
+    .update({ validado: true })
+    .eq('periodo', periodo)
+    .eq('estado', 'pagado')
+    .eq('validado', false)
+    .select('id')
+  if (error) return { error: error.message, actualizados: 0 }
+  return { error: null, actualizados: (data ?? []).length }
+}
