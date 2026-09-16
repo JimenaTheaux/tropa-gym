@@ -80,6 +80,8 @@ export default {
         error: '#ffb4ab',
         'error-container': '#93000a',
         'on-error-container': '#ffdad6',
+
+        warning: '#ffca28',
       },
       fontFamily: {
         anton: ['Anton', 'sans-serif'],

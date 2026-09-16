@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, Cargo, EstadoPago, TipoCargo } from '@/types/db'
 import { traducirError } from '@/lib/errores'
@@ -35,26 +35,90 @@ function money(v: number): string {
   return `$${Math.round(v).toLocaleString('es-AR')}`
 }
 
-function AlertaChica({ label, value, info }: { label: string; value: string; info?: string }) {
+type Tono = 'verde' | 'rojo' | 'ambar' | 'blanco'
+
+const TONO_CLASE: Record<Tono, string> = {
+  verde: 'text-primary-fixed-dim',
+  rojo: 'text-error',
+  ambar: 'text-warning',
+  blanco: 'text-on-surface',
+}
+
+function InfoIcon({ info }: { info: string }) {
+  return (
+    <>
+      <span
+        tabIndex={0}
+        className="material-symbols-outlined !text-[13px] text-on-surface-variant/70 outline-none focus-visible:text-primary"
+      >
+        info
+      </span>
+      <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-64 rounded-lg border border-outline-variant bg-surface-container-highest p-3 font-inter text-xs leading-relaxed text-on-surface opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        {info}
+      </div>
+    </>
+  )
+}
+
+// Card de valor único (o combinado con nodos de color mixto vía `value`).
+// `tono` colorea el número entero; para mezclar colores dentro del valor
+// (ej. cantidad en blanco + monto en rojo), pasar `value` como JSX con
+// spans ya coloreados y dejar `tono` en su default.
+function AlertaChica({
+  label,
+  value,
+  info,
+  tono = 'blanco',
+}: {
+  label: string
+  value: ReactNode
+  info?: string
+  tono?: Tono
+}) {
   return (
     <div className="group relative rounded-card border border-outline-variant bg-surface-container-high/50 px-4 py-3">
       <div className="flex items-center gap-1">
-        <p className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">{label}</p>
-        {info && (
-          <span
-            tabIndex={0}
-            className="material-symbols-outlined !text-[13px] text-on-surface-variant/70 outline-none focus-visible:text-primary"
-          >
-            info
-          </span>
-        )}
+        <p className="font-oswald text-[10px] uppercase tracking-[0.05em] text-on-surface-variant">{label}</p>
+        {info && <InfoIcon info={info} />}
       </div>
-      <p className="font-anton text-xl text-on-surface">{value}</p>
-      {info && (
-        <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-64 rounded-lg border border-outline-variant bg-surface-container-highest p-3 font-inter text-xs leading-relaxed text-on-surface opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-          {info}
-        </div>
-      )}
+      <p className={`font-anton text-2xl leading-tight ${TONO_CLASE[tono]}`}>{value}</p>
+    </div>
+  )
+}
+
+// Card de fracción (parte lograda / total) con jerarquía de dos colores:
+// la parte en verde, el total en gris claro, y una etiqueta apilada por
+// cada color debajo del número.
+function AlertaFraccion({
+  label,
+  parte,
+  total,
+  labelParte,
+  labelTotal,
+  info,
+}: {
+  label: string
+  parte: number
+  total: number
+  labelParte: string
+  labelTotal: string
+  info?: string
+}) {
+  return (
+    <div className="group relative rounded-card border border-outline-variant bg-surface-container-high/50 px-4 py-3">
+      <div className="flex items-center gap-1">
+        <p className="font-oswald text-[10px] uppercase tracking-[0.05em] text-on-surface-variant">{label}</p>
+        {info && <InfoIcon info={info} />}
+      </div>
+      <p className="font-anton text-3xl leading-tight">
+        <span className="text-primary-fixed-dim">{parte}</span>
+        <span className="text-on-surface-variant">/</span>
+        <span className="text-on-surface">{total}</span>
+      </p>
+      <div className="mt-0.5 flex flex-col leading-tight">
+        <span className="font-inter text-[12px] font-semibold text-primary-fixed-dim">{labelParte}</span>
+        <span className="font-inter text-[12px] font-semibold text-on-surface-variant">{labelTotal}</span>
+      </div>
     </div>
   )
 }
@@ -164,22 +228,29 @@ export function ResumenMensualPanel() {
 
         {!cargosLoading && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <AlertaChica
+            <AlertaFraccion
               label="Cuotas completas"
-              value={`${completasPagadas}/${completas} pagadas`}
-              info="Alumnos cuya primera asistencia del período fue entre el día 1 y el 14 (precio completo del combo). El número de la derecha es cuántos de esos cargos ya están pagados."
+              parte={completasPagadas}
+              total={completas}
+              labelParte="pagadas"
+              labelTotal="cuotas"
+              info="Alumnos cuya primera asistencia del período fue entre el día 1 y el 14 (precio completo del combo). El número verde es cuántos de esos cargos ya están pagados."
             />
-            <AlertaChica
+            <AlertaFraccion
               label="Medias cuotas"
-              value={`${mediasPagadas}/${medias} pagadas`}
-              info="Alumnos cuya primera asistencia del período fue del día 15 en adelante (mitad del precio del combo). El número de la derecha es cuántos de esos cargos ya están pagados."
+              parte={mediasPagadas}
+              total={medias}
+              labelParte="pagadas"
+              labelTotal="cuotas"
+              info="Alumnos cuya primera asistencia del período fue del día 15 en adelante (mitad del precio del combo). El número verde es cuántos de esos cargos ya están pagados."
             />
             <AlertaChica
               label="Sin validar"
-              value={String(sinValidar)}
+              value={sinValidar}
+              tono="ambar"
               info="Cargos que el sistema todavía puede recalcular solo (tipo/monto) al llegar una asistencia nueva del alumno. Se validan a mano en la pantalla Cargos, o solos cuando un pago cubre el monto completo."
             />
-            <AlertaChica label="Monto total del período" value={money(montoTotal)} />
+            <AlertaChica label="Monto total del período" value={money(montoTotal)} tono="blanco" />
           </div>
         )}
       </div>
@@ -190,19 +261,32 @@ export function ResumenMensualPanel() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <AlertaChica
           label="Alumnos con deuda"
-          value={alertasLoading ? '…' : `${deudores.length} · ${money(montoTotalDeuda)}`}
+          value={
+            alertasLoading ? (
+              '…'
+            ) : (
+              <>
+                <span className="text-on-surface">{deudores.length}</span>
+                <span className="text-on-surface-variant"> · </span>
+                <span className="text-error">{money(montoTotalDeuda)}</span>
+              </>
+            )
+          }
         />
         <AlertaChica
           label="Próximos a inactivarse"
-          value={alertasLoading ? '…' : String(proximosInactivarse.length)}
+          value={alertasLoading ? '…' : proximosInactivarse.length}
+          tono="ambar"
         />
         <AlertaChica
           label="Horas de profesores en el período"
           value={alertasLoading ? '…' : `${horasTotalesProfesores} hs`}
+          tono="blanco"
         />
         <AlertaChica
           label="Cargos sin monto definido"
-          value={alertasLoading ? '…' : String(cargosSinDefinir.length)}
+          value={alertasLoading ? '…' : cargosSinDefinir.length}
+          tono="ambar"
           info="Alumnos con asistencia en el período pero sin combo/precio resuelto — el cargo se generó igual, con el monto a completar manualmente."
         />
       </div>
