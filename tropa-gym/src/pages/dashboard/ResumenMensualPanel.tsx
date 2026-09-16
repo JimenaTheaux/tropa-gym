@@ -68,13 +68,10 @@ export function ResumenMensualPanel() {
   const [verAsistenciasDe, setVerAsistenciasDe] = useState<{ alumnoId: string; nombre: string; periodo: string } | null>(
     null,
   )
-  const [verPagosDe, setVerPagosDe] = useState<{
-    alumnoId: string
-    nombre: string
-    periodo: string
-    cargoMonto: number
-    cargoEstado: EstadoPago
-  } | null>(null)
+  // Sin período: trae todo el historial de pagos del alumno, no solo el del
+  // período que disparó la alerta (pedido explícito — acá interesa ver el
+  // cuadro completo, a diferencia de la pantalla Cargos donde sí se acota).
+  const [verPagosDe, setVerPagosDe] = useState<{ alumnoId: string; nombre: string } | null>(null)
 
   const [buscarDeudor, setBuscarDeudor] = useState('')
   const [filtroEstadoDeudor, setFiltroEstadoDeudor] = useState<EstadoPago | ''>('')
@@ -111,8 +108,9 @@ export function ResumenMensualPanel() {
   }
 
   const completas = cargosPeriodo.filter((c) => c.tipo === 'completa').length
+  const completasPagadas = cargosPeriodo.filter((c) => c.tipo === 'completa' && c.estado === 'pagado').length
   const medias = cargosPeriodo.filter((c) => c.tipo === 'media').length
-  const pagadas = cargosPeriodo.filter((c) => c.estado === 'pagado').length
+  const mediasPagadas = cargosPeriodo.filter((c) => c.tipo === 'media' && c.estado === 'pagado').length
   const sinValidar = cargosPeriodo.filter((c) => !c.validado).length
   const montoTotal = cargosPeriodo.reduce((sum, c) => sum + Number(c.monto), 0)
 
@@ -165,21 +163,16 @@ export function ResumenMensualPanel() {
         {cargosLoading && <p className="font-inter text-sm text-on-surface-variant">Cargando…</p>}
 
         {!cargosLoading && (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <AlertaChica
               label="Cuotas completas"
-              value={String(completas)}
-              info="Alumnos cuya primera asistencia del período fue entre el día 1 y el 14. Se les cobra el precio completo del combo."
+              value={`${completasPagadas}/${completas} pagadas`}
+              info="Alumnos cuya primera asistencia del período fue entre el día 1 y el 14 (precio completo del combo). El número de la derecha es cuántos de esos cargos ya están pagados."
             />
             <AlertaChica
               label="Medias cuotas"
-              value={String(medias)}
-              info="Alumnos cuya primera asistencia del período fue del día 15 en adelante. Se les cobra la mitad del precio del combo."
-            />
-            <AlertaChica
-              label="Cuotas pagadas"
-              value={String(pagadas)}
-              info="Cargos del período cuyo acumulado de pagos ya cubre el monto (coincidencia exacta o sobrepago)."
+              value={`${mediasPagadas}/${medias} pagadas`}
+              info="Alumnos cuya primera asistencia del período fue del día 15 en adelante (mitad del precio del combo). El número de la derecha es cuántos de esos cargos ya están pagados."
             />
             <AlertaChica
               label="Sin validar"
@@ -245,6 +238,11 @@ export function ResumenMensualPanel() {
         {alertasLoading && <p className="font-inter text-sm text-on-surface-variant">Cargando…</p>}
         {!alertasLoading && deudores.length === 0 && (
           <p className="font-inter text-sm text-on-surface-variant">No hay alumnos con deuda.</p>
+        )}
+        {!alertasLoading && deudores.length > 0 && (filtroEstadoDeudor || buscarDeudorTerm) && (
+          <p className="mb-2 font-inter text-xs text-on-surface-variant">
+            Mostrando {deudoresFiltrados.length} de {deudores.length}
+          </p>
         )}
 
         {!alertasLoading && deudores.length > 0 && (
@@ -345,13 +343,10 @@ export function ResumenMensualPanel() {
                               setVerPagosDe({
                                 alumnoId: d.alumno.id,
                                 nombre: `${d.alumno.nombre} ${d.alumno.apellido}`,
-                                periodo: d.periodo,
-                                cargoMonto: d.cargoMonto,
-                                cargoEstado: d.estado,
                               })
                             }
-                            aria-label="Ver pagos"
-                            title="Ver pagos"
+                            aria-label="Ver historial de pagos"
+                            title="Ver historial de pagos"
                             className="inline-flex items-center text-on-surface-variant hover:text-primary"
                           >
                             <span className="material-symbols-outlined !text-[18px]">payments</span>
@@ -426,6 +421,12 @@ export function ResumenMensualPanel() {
               />
             </div>
           </div>
+
+          {(filtroTipoSinDefinir || buscarSinDefinirTerm) && (
+            <p className="mb-2 font-inter text-xs text-on-surface-variant">
+              Mostrando {cargosSinDefinirFiltrados.length} de {cargosSinDefinir.length}
+            </p>
+          )}
 
           <div className="overflow-x-auto rounded-lg border border-outline-variant">
             <table className="w-full border-collapse text-left">
@@ -514,13 +515,10 @@ export function ResumenMensualPanel() {
                             setVerPagosDe({
                               alumnoId: c.alumno.id,
                               nombre: `${c.alumno.nombre} ${c.alumno.apellido}`,
-                              periodo: c.periodo,
-                              cargoMonto: c.monto,
-                              cargoEstado: c.estado,
                             })
                           }
-                          aria-label="Ver pagos"
-                          title="Ver pagos"
+                          aria-label="Ver historial de pagos"
+                          title="Ver historial de pagos"
                           className="inline-flex items-center text-on-surface-variant hover:text-primary"
                         >
                           <span className="material-symbols-outlined !text-[18px]">payments</span>
@@ -659,9 +657,6 @@ export function ResumenMensualPanel() {
       <PagosPeriodoDrawer
         alumnoId={verPagosDe?.alumnoId ?? null}
         alumnoNombre={verPagosDe?.nombre ?? ''}
-        periodo={verPagosDe?.periodo ?? periodo}
-        cargoMonto={verPagosDe?.cargoMonto ?? 0}
-        cargoEstado={verPagosDe?.cargoEstado ?? 'pendiente'}
         onClose={() => setVerPagosDe(null)}
       />
     </div>

@@ -207,6 +207,12 @@ export function Cargos() {
             </div>
           </div>
 
+          {(filtroTipo || filtroEstado || busquedaTerm) && (
+            <p className="font-inter text-xs text-on-surface-variant">
+              Mostrando {filas.length} de {cargos.length}
+            </p>
+          )}
+
           <div className="overflow-x-auto rounded-card border border-outline-variant">
             <table className="w-full border-collapse text-left">
               <thead>

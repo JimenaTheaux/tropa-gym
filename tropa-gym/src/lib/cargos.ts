@@ -1,4 +1,4 @@
-import type { AsistenciaAlumno, Cargo, MetodoPago, Pago, PagoAlumno } from '@/types/db'
+import type { AsistenciaAlumno, Cargo, EstadoPago, MetodoPago, Pago, PagoAlumno } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 
 // Cargo continuo (migración 22): ya no hay preview/confirmación por lote —
@@ -53,17 +53,24 @@ export interface PagoCargoDetalle {
   fecha: string
   monto: number
   metodoPago: MetodoPago
+  estado: EstadoPago
 }
 
-// Historial de pagos de un alumno acotado a un período — para el modal "Ver
-// pagos" de la pantalla Cargos (contrapartida de "Ver asistencias"): permite
-// revisar de un vistazo qué se cobró antes de tildar "Validar".
-export async function fetchPagosAlumnoPeriodo(alumnoId: string, periodo: string): Promise<PagoCargoDetalle[]> {
-  const { data: detallesData } = await supabase
-    .from('pagos_alumnos')
-    .select('*')
-    .eq('alumno_id', alumnoId)
-    .eq('periodo', periodo)
+// Historial de pagos de un alumno — para el modal "Ver pagos". Con `periodo`
+// queda acotado a ese período (pantalla Cargos, contrapartida de "Ver
+// asistencias"); sin `periodo`, trae todo el historial del alumno (Resumen
+// Mensual — Deudores/Cargos sin monto definido, donde interesa ver todos los
+// pagos previos, no solo los del período que disparó la alerta).
+//
+// El estado es por fila, no un valor único pasado desde afuera: si la fila
+// ya tiene cargo_id, se lee cargos.estado (fuente autoritativa); si no
+// (pago huérfano, todavía sin cargo vinculado), se infiere agregando los
+// pagos sin cargo del mismo período contra el mayor precio_snapshot visto
+// entre ellos — mismo criterio que fetchHistorialPagos (lib/cuenta.ts).
+export async function fetchPagosAlumnoPeriodo(alumnoId: string, periodo?: string): Promise<PagoCargoDetalle[]> {
+  let query = supabase.from('pagos_alumnos').select('*').eq('alumno_id', alumnoId)
+  if (periodo) query = query.eq('periodo', periodo)
+  const { data: detallesData } = await query
   const detalles = (detallesData ?? []) as PagoAlumno[]
   if (detalles.length === 0) return []
 
@@ -71,15 +78,41 @@ export async function fetchPagosAlumnoPeriodo(alumnoId: string, periodo: string)
   const { data: pagosData } = await supabase.from('pagos').select('*').in('id', pagoIds)
   const pagoPorId = new Map(((pagosData ?? []) as Pago[]).map((p) => [p.id, p]))
 
+  const cargoIds = [...new Set(detalles.map((d) => d.cargo_id).filter((id): id is string => !!id))]
+  let cargoPorId = new Map<string, Cargo>()
+  if (cargoIds.length > 0) {
+    const { data: cargosData } = await supabase.from('cargos').select('*').in('id', cargoIds)
+    cargoPorId = new Map(((cargosData ?? []) as Cargo[]).map((c) => [c.id, c]))
+  }
+
+  const pagadoPorPeriodo = new Map<string, number>()
+  const precioRefPorPeriodo = new Map<string, number>()
+  for (const d of detalles) {
+    if (d.cargo_id) continue
+    pagadoPorPeriodo.set(d.periodo, (pagadoPorPeriodo.get(d.periodo) ?? 0) + Number(d.monto_pagado))
+    precioRefPorPeriodo.set(d.periodo, Math.max(precioRefPorPeriodo.get(d.periodo) ?? 0, Number(d.precio_snapshot)))
+  }
+
   return detalles
     .map((d) => {
       const pago = pagoPorId.get(d.pago_id)
+      const cargo = d.cargo_id ? cargoPorId.get(d.cargo_id) : null
+      const pagadoGrupo = pagadoPorPeriodo.get(d.periodo) ?? 0
+      const precioRefGrupo = precioRefPorPeriodo.get(d.periodo) ?? 0
+      const estado: EstadoPago = cargo
+        ? cargo.estado
+        : pagadoGrupo <= 0
+          ? 'pendiente'
+          : pagadoGrupo >= precioRefGrupo
+            ? 'pagado'
+            : 'parcial'
       return {
         id: d.id,
         periodo: d.periodo,
         fecha: pago?.fecha ?? d.created_at,
         monto: Number(d.monto_pagado),
         metodoPago: pago?.metodo_pago ?? 'efectivo',
+        estado,
       }
     })
     .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))

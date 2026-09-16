@@ -23,6 +23,7 @@ export const queryKeys = {
   asistenciasAlumnoPeriodo: (alumnoId: string, periodo: string) =>
     ['asistencias', 'alumno-periodo', alumnoId, periodo] as const,
   pagosAlumnoPeriodo: (alumnoId: string, periodo: string) => ['pagos', 'alumno-periodo', alumnoId, periodo] as const,
+  pagosAlumno: (alumnoId: string) => ['pagos', 'alumno-historial', alumnoId] as const,
 
   estadoCuenta: (alumnoId: string) => ['cuenta', alumnoId] as const,
   historialAlumno: (alumnoId: string) => ['cuenta', 'historial', alumnoId] as const,
