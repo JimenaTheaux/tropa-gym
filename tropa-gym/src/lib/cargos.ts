@@ -1,4 +1,4 @@
-import type { AsistenciaAlumno, Cargo } from '@/types/db'
+import type { AsistenciaAlumno, Cargo, MetodoPago, Pago, PagoAlumno } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 
 // Cargo continuo (migración 22): ya no hay preview/confirmación por lote —
@@ -45,6 +45,44 @@ export function agruparAsistenciasPorSemana(asistencias: AsistenciaAlumno[]): Se
   return [...conteoPorSemana.entries()]
     .sort(([a], [b]) => a - b)
     .map(([semana, cantidad]) => ({ semana, cantidad }))
+}
+
+export interface PagoCargoDetalle {
+  id: string
+  periodo: string
+  fecha: string
+  monto: number
+  metodoPago: MetodoPago
+}
+
+// Historial de pagos de un alumno acotado a un período — para el modal "Ver
+// pagos" de la pantalla Cargos (contrapartida de "Ver asistencias"): permite
+// revisar de un vistazo qué se cobró antes de tildar "Validar".
+export async function fetchPagosAlumnoPeriodo(alumnoId: string, periodo: string): Promise<PagoCargoDetalle[]> {
+  const { data: detallesData } = await supabase
+    .from('pagos_alumnos')
+    .select('*')
+    .eq('alumno_id', alumnoId)
+    .eq('periodo', periodo)
+  const detalles = (detallesData ?? []) as PagoAlumno[]
+  if (detalles.length === 0) return []
+
+  const pagoIds = [...new Set(detalles.map((d) => d.pago_id))]
+  const { data: pagosData } = await supabase.from('pagos').select('*').in('id', pagoIds)
+  const pagoPorId = new Map(((pagosData ?? []) as Pago[]).map((p) => [p.id, p]))
+
+  return detalles
+    .map((d) => {
+      const pago = pagoPorId.get(d.pago_id)
+      return {
+        id: d.id,
+        periodo: d.periodo,
+        fecha: pago?.fecha ?? d.created_at,
+        monto: Number(d.monto_pagado),
+        metodoPago: pago?.metodo_pago ?? 'efectivo',
+      }
+    })
+    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
 }
 
 export async function marcarCargoValidado(cargoId: string, validado: boolean): Promise<{ error: string | null }> {

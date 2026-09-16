@@ -17,7 +17,7 @@
 **Fase 4 — Flujo principal**
 - Asistencia Alumnos (buscar → estado de cuenta → turno → confirmar).
 - Pagos (individual → familiar → adelantado).
-- Cargos (RPC `generar_cargos_periodo` con preview + confirmación).
+- Cargos (RPC `generar_cargos_periodo` con preview + confirmación — reemplazado por el cargo continuo de la migración 22, ver doc 03).
 - Probar flujo completo con datos reales.
 
 **Fase 5 — Dashboard y KPIs**

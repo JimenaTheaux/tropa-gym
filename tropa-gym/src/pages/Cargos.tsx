@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { EditarMontoCargo } from '@/components/ui/EditarMontoCargo'
 import { AsistenciasPeriodoDrawer } from '@/components/ui/AsistenciasPeriodoDrawer'
+import { PagosPeriodoDrawer } from '@/components/ui/PagosPeriodoDrawer'
 
 function periodoActual(): string {
   const d = new Date()
@@ -63,6 +64,12 @@ export function Cargos() {
   const { data: alumnos = [] } = useAlumnos()
   const [editandoCargoId, setEditandoCargoId] = useState<string | null>(null)
   const [verAsistenciasDe, setVerAsistenciasDe] = useState<{ alumnoId: string; nombre: string } | null>(null)
+  const [verPagosDe, setVerPagosDe] = useState<{
+    alumnoId: string
+    nombre: string
+    cargoMonto: number
+    cargoEstado: EstadoPago
+  } | null>(null)
 
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<TipoCargo | ''>('')
@@ -270,19 +277,36 @@ export function Cargos() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setVerAsistenciasDe({
-                            alumnoId: cargo.alumno_id,
-                            nombre: alumno ? `${alumno.nombre} ${alumno.apellido}` : alumnoNombre(cargo.alumno_id),
-                          })
-                        }
-                        className="inline-flex items-center gap-1 font-inter text-xs font-medium text-primary hover:underline"
-                      >
-                        <span className="material-symbols-outlined !text-[16px]">event_available</span>
-                        Ver asistencias
-                      </button>
+                      <div className="flex flex-col items-start gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVerAsistenciasDe({
+                              alumnoId: cargo.alumno_id,
+                              nombre: alumno ? `${alumno.nombre} ${alumno.apellido}` : alumnoNombre(cargo.alumno_id),
+                            })
+                          }
+                          className="inline-flex items-center gap-1 font-inter text-xs font-medium text-primary hover:underline"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">event_available</span>
+                          Ver asistencias
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVerPagosDe({
+                              alumnoId: cargo.alumno_id,
+                              nombre: alumno ? `${alumno.nombre} ${alumno.apellido}` : alumnoNombre(cargo.alumno_id),
+                              cargoMonto: Number(cargo.monto),
+                              cargoEstado: cargo.estado,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 font-inter text-xs font-medium text-primary hover:underline"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">payments</span>
+                          Ver pagos
+                        </button>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <BadgeEstadoCargo estado={cargo.estado} />
@@ -321,6 +345,15 @@ export function Cargos() {
         alumnoNombre={verAsistenciasDe?.nombre ?? ''}
         periodo={periodo}
         onClose={() => setVerAsistenciasDe(null)}
+      />
+
+      <PagosPeriodoDrawer
+        alumnoId={verPagosDe?.alumnoId ?? null}
+        alumnoNombre={verPagosDe?.nombre ?? ''}
+        periodo={periodo}
+        cargoMonto={verPagosDe?.cargoMonto ?? 0}
+        cargoEstado={verPagosDe?.cargoEstado ?? 'pendiente'}
+        onClose={() => setVerPagosDe(null)}
       />
     </div>
   )

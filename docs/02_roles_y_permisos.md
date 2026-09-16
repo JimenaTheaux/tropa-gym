@@ -2,7 +2,7 @@
 
 ## Administrador
 - Acceso total al sistema.
-- Ejecuta la liquidación mensual ("Generar cargos del período") — desde el Centro de Resumen Mensual (Dashboard) o desde la pantalla Cargos, dedicada a gestionar la liquidación completa (ver doc 04).
+- Revisa y valida los cargos del período (ya se generan solos con cada asistencia, migración 22) — desde el Centro de Resumen Mensual (Dashboard) o desde la pantalla Cargos, dedicada a gestionar la validación completa (ver doc 04).
 - Gestiona Configuración (precios, descuentos, turnos, profesores).
 - Accede a Egresos.
 - Accede a Dashboard completo.

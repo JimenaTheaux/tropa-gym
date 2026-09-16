@@ -24,4 +24,6 @@ No incluye (fuera de MVP, a definir a futuro):
 - App mobile nativa (se resuelve como PWA)
 
 ## Regla rectora
-Las deudas y cargos NO se generan automáticamente. Existe una acción administrativa explícita: "Generar cargos del período".
+**Actualizado en migración 22** — las deudas y cargos pasaron a generarse automáticamente: cada asistencia crea o actualiza sola el cargo del período (trigger de base, ver doc 03 "Flujo de liquidación mensual — cargo continuo"). Ya no existe la acción administrativa explícita "Generar cargos del período". Lo que sigue siendo explícito y manual es la **validación**: Admin/Profesor confirma (o corrige) el monto de un cargo antes de que quede protegido de futuros recálculos automáticos (`cargos.validado`, doc 03/06).
+
+*(Regla original del MVP, ya superada: "Las deudas y cargos NO se generan automáticamente. Existe una acción administrativa explícita: 'Generar cargos del período'." — se deja registrada acá por contexto histórico de la decisión inicial.)*

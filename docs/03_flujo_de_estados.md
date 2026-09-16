@@ -53,7 +53,7 @@ Si la suma de `monto_pagado` supera `cargos.monto`, el cargo igual queda **pagad
 ### Cargo con monto sin definir
 "¿Tiene que pagar, y qué tipo (completa/media)?" se resuelve solo con la asistencia (RN-017/018) y siempre es calculable. "¿Cuánto exactamente?" depende de combo+precio (RN-030), que a veces no se puede resolver (alumno sin plan asignado y sin pago previo en un período anterior). Antes, si fallaba lo segundo, se perdía silenciosamente lo primero — el alumno no aparecía en ningún lado.
 
-Ahora `generar_cargos_periodo` separa las dos cosas: si hay asistencia, el cargo **siempre** se genera (con el `tipo` correcto); si no resuelve precio, se crea con `monto = 0` y `monto_definido = false` — un placeholder visible, no un cargo perdido. Admin/Profesor lo completa a mano (misma edición de `cargos.monto` de excepción, doc 02), lo que marca `monto_definido = true` y dispara el recálculo de `estado` normal.
+Ahora `fn_recalcular_cargo_automatico` (migración 22, ex `generar_cargos_periodo`) separa las dos cosas: si hay asistencia, el cargo **siempre** se genera/actualiza (con el `tipo` correcto); si no resuelve precio, queda con `monto = 0` y `monto_definido = false` — un placeholder visible, no un cargo perdido. Admin/Profesor lo completa a mano (misma edición de `cargos.monto` de excepción, doc 02), lo que marca `monto_definido = true` y **`validado = true`** (ver "Cargo continuo y validación" más abajo), y dispara el recálculo de `estado` normal.
 
 Mientras `monto_definido = false`, si llega un pago contra ese cargo, el `estado` puede mostrar momentáneamente `pagado` (cualquier pago supera el umbral de $0) — se autocorrige solo apenas se define el monto real. Es un efecto transitorio esperado, no un error.
 
@@ -69,18 +69,25 @@ Esto es independiente de cómo se calcula el precio de un cargo (RN-030 sigue ig
 ## Estado de cuenta
 Saldo = Cargos − Pagos (por alumno, acumulado).
 
-## Flujo de liquidación mensual
-Hay dos puntos de entrada, mismo cálculo de fondo (`generar_cargos_periodo`, RN-016/027):
+## Flujo de liquidación mensual — cargo continuo (migración 22)
+Reemplaza por completo el flujo anterior de "generar cargos del período" (botón + preview + confirmación por lote, RN-016/027 — ya no aplican). No hay ningún paso manual que dispare la creación de cargos: cada asistencia nueva crea o actualiza sola el cargo de ese alumno/período, vía trigger de base (`trg_asistencia_actualiza_cargo` → `fn_recalcular_cargo_automatico`, ver doc 06). El Centro de Resumen Mensual y la pantalla Cargos son dos ventanas de **lectura y edición en vivo** sobre la misma tabla `cargos`, no dos pasos de un mismo proceso de generación.
 
-- **Centro de Resumen Mensual** (Dashboard): resumen agregado — cantidades y monto total — pensado para ver de un vistazo si la liquidación está pendiente o generada. No tiene tabla alumno por alumno ni edición de montos.
-- **Pantalla Cargos**: la vista completa para gestionar la liquidación. Tiene la tabla fila por fila y es donde se completan los montos sin definir. Ver detalle en doc 04.
+### Cargo validado — protección contra el recálculo automático
+Mientras un cargo tiene `validado = false`, el trigger automático puede seguir recalculando `tipo` y `monto` libremente cada vez que llega una asistencia nueva del alumno en ese período (por ejemplo, si el combo/precio se resuelve recién con una asistencia posterior). Apenas `validado = true`, el trigger **nunca más** toca ese cargo — solo una acción humana lo cambia.
 
-Pasos (pantalla Cargos, la vía completa):
-1. Admin elige el período y toca "Ver preview". El sistema calcula (sin persistir todavía) cuotas completas, medias cuotas, alumnos sin asistencia y el monto de cada cargo — resuelto automáticamente cuando hay combo+precio, o marcado "A definir" cuando no.
-2. Para las filas "A definir", el admin carga el monto ahí mismo, en la misma tabla. El total ("Monto a generar") se recalcula en vivo con lo que va completando — el preview deja de ser una foto ciega y pasa a ser el lugar donde se valida la liquidación completa antes de confirmar.
-3. Admin confirma "Generar cargos del período" (modal de confirmación, RN-027 — única vía para liquidar). El modal muestra el total real y avisa si van a quedar cargos sin monto definido (se generan igual, en $0, para no perder al alumno — ver "Cargo con monto sin definir" arriba).
-4. Sistema crea los cargos (uno por alumno con asistencia en el período) y aplica automáticamente los montos que el admin cargó a mano en el paso 2.
-5. Si igual quedan cargos sin definir (el admin no llegó a completarlos), se pueden resolver después desde la misma pantalla Cargos, desde la ficha del alumno, o desde el panel del Centro de Resumen Mensual — las tres vías escriben sobre el mismo `cargos.monto`.
+`validado` pasa a `true` en dos casos:
+- **Automático**: el acumulado de pagos deja el cargo en `estado = 'pagado'` (coincidencia exacta o sobrepago) — el pago ya confirmó que el monto estimado era correcto, no hace falta que nadie lo revise. Un pago **parcial** no autovalida: el cargo sigue con el monto resuelto por combo, la deuda restante se ve sola (mismo cálculo de `estado` de siempre), y queda a la espera de que un humano lo valide.
+- **Manual**: Admin/Profesor edita `cargos.monto` a mano (misma edición de excepción de siempre, doc 02) — se toma como una decisión consciente, así que también valida. O tilda el checkbox "Validar" en la pantalla Cargos, sin cambiar el monto — sirve para los casos donde el monto ya está bien y solo hace falta confirmarlo.
+
+Como el volumen de cargos que ya están pagados pero no llegaron a autovalidarse antes de este cambio (o por cualquier reconciliación hecha fuera de la app) puede ser grande, la pantalla Cargos tiene un botón **"Validar pagados (N)"** que tilda `validado = true` de una sola vez en todos los cargos del período que ya están en `estado = 'pagado'` — no hace falta ir fila por fila.
+
+### Precio del cargo — prioridad (RN-030 extendida)
+1. Si el alumno **ya tiene un pago registrado en este mismo período**, se usa directamente el `precio_snapshot` de ese pago (sin recalcularlo) — el pago ya es la fuente de verdad de cuánto correspondía cobrar. Cubre tanto "pagó y después vino a entrenar" (pago huérfano, se reconcilia solo apenas exista el cargo) como "vino a entrenar y pagó después".
+2. Si no, la vía original: combo del **último pago en un período anterior** → si no, el plan actual del alumno (`alumnos.combo_id`) → si ninguna resuelve combo+precio vigente, `monto = 0` y `monto_definido = false` ("Cargo con monto sin definir", arriba). Si ese último pago anterior tuvo un descuento, también se fuerza "a definir" (migración 20) — un descuento no se reaplica solo al período siguiente.
+
+### Pantallas
+- **Pantalla Cargos**: tabla en vivo, una fila por cargo del período — alumno, tipo, monto (editable inline + checkbox Validar), botón "Ver asistencias" (detalle + resumen por semana del mes) y "Ver pagos" (historial de pagos del alumno en ese período: fecha, monto, forma de pago, estado), estado (solo lectura). Buscador por nombre y filtros por tipo/estado. Alumnos activos sin ningún cargo en el período (todavía sin asistencia) se listan aparte.
+- **Centro de Resumen Mensual** (Dashboard): mismos datos, resumidos — cantidades de cuotas completas/medias/pagadas/sin validar y monto total del período, sin tabla fila por fila. Los paneles de Deudores y Cargos sin monto definido sí son tablas completas (buscador, filtro, monto editable inline) — ver doc 04.
 
 ## Flujo de asistencia (alumno)
 1. Buscar por DNI/nombre/apellido.
