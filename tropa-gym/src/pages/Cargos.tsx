@@ -286,7 +286,7 @@ export function Cargos() {
                               nombre: alumno ? `${alumno.nombre} ${alumno.apellido}` : alumnoNombre(cargo.alumno_id),
                             })
                           }
-                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
                         >
                           <span className="material-symbols-outlined !text-[16px]">event_available</span>
                           Ver asistencias
@@ -301,7 +301,7 @@ export function Cargos() {
                               cargoEstado: cargo.estado,
                             })
                           }
-                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
                         >
                           <span className="material-symbols-outlined !text-[16px]">payments</span>
                           Ver pagos

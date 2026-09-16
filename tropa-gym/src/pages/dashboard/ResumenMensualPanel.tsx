@@ -332,7 +332,7 @@ export function ResumenMensualPanel() {
                                 periodo: d.periodo,
                               })
                             }
-                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
                           >
                             <span className="material-symbols-outlined !text-[16px]">event_available</span>
                             Ver asistencias
@@ -348,38 +348,38 @@ export function ResumenMensualPanel() {
                                 cargoEstado: d.estado,
                               })
                             }
-                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
                           >
                             <span className="material-symbols-outlined !text-[16px]">payments</span>
                             Ver pagos
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFichaAlumno(d.alumno)}
+                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
+                          >
+                            <span className="material-symbols-outlined !text-[16px]">badge</span>
+                            Ver ficha
                           </button>
                           {telValido ? (
                             <a
                               href={whatsappUrl(d.alumno.telefono as string)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                              aria-label={`WhatsApp a ${d.alumno.nombre} ${d.alumno.apellido}`}
+                              title="WhatsApp"
+                              className="inline-flex items-center text-on-surface-variant hover:text-primary"
                             >
-                              <span className="material-symbols-outlined !text-[16px]">chat</span>
-                              WhatsApp
+                              <span className="material-symbols-outlined !text-[18px]">chat</span>
                             </a>
                           ) : (
                             <span
                               title="Teléfono no cargado o en formato inválido — no se puede abrir WhatsApp"
-                              className="inline-flex cursor-not-allowed items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant opacity-50"
+                              className="inline-flex cursor-not-allowed items-center text-on-surface-variant opacity-40"
                             >
-                              <span className="material-symbols-outlined !text-[16px]">chat</span>
-                              WhatsApp
+                              <span className="material-symbols-outlined !text-[18px]">chat</span>
                             </span>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => setFichaAlumno(d.alumno)}
-                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
-                          >
-                            <span className="material-symbols-outlined !text-[16px]">badge</span>
-                            Ver ficha
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -499,7 +499,7 @@ export function ResumenMensualPanel() {
                               periodo: c.periodo,
                             })
                           }
-                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
                         >
                           <span className="material-symbols-outlined !text-[16px]">event_available</span>
                           Ver asistencias
@@ -515,7 +515,7 @@ export function ResumenMensualPanel() {
                               cargoEstado: c.estado,
                             })
                           }
-                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
                         >
                           <span className="material-symbols-outlined !text-[16px]">payments</span>
                           Ver pagos
@@ -523,7 +523,7 @@ export function ResumenMensualPanel() {
                         <button
                           type="button"
                           onClick={() => setFichaAlumno(c.alumno)}
-                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-primary hover:underline"
+                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
                         >
                           <span className="material-symbols-outlined !text-[16px]">badge</span>
                           Ver ficha
