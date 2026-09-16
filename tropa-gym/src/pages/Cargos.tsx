@@ -277,7 +277,7 @@ export function Cargos() {
                       )}
                     </td>
                     <td className="px-4 py-2">
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                      <div className="flex flex-wrap items-center gap-3">
                         <button
                           type="button"
                           onClick={() =>
@@ -286,10 +286,11 @@ export function Cargos() {
                               nombre: alumno ? `${alumno.nombre} ${alumno.apellido}` : alumnoNombre(cargo.alumno_id),
                             })
                           }
-                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
+                          aria-label="Ver asistencias"
+                          title="Ver asistencias"
+                          className="inline-flex items-center text-on-surface-variant hover:text-primary"
                         >
-                          <span className="material-symbols-outlined !text-[16px]">event_available</span>
-                          Ver asistencias
+                          <span className="material-symbols-outlined !text-[18px]">event_available</span>
                         </button>
                         <button
                           type="button"
@@ -301,10 +302,11 @@ export function Cargos() {
                               cargoEstado: cargo.estado,
                             })
                           }
-                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
+                          aria-label="Ver pagos"
+                          title="Ver pagos"
+                          className="inline-flex items-center text-on-surface-variant hover:text-primary"
                         >
-                          <span className="material-symbols-outlined !text-[16px]">payments</span>
-                          Ver pagos
+                          <span className="material-symbols-outlined !text-[18px]">payments</span>
                         </button>
                       </div>
                     </td>

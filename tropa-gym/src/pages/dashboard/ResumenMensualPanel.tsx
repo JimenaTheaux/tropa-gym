@@ -19,6 +19,7 @@ import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { EditarMontoCargo } from '@/components/ui/EditarMontoCargo'
 import { AsistenciasPeriodoDrawer } from '@/components/ui/AsistenciasPeriodoDrawer'
 import { PagosPeriodoDrawer } from '@/components/ui/PagosPeriodoDrawer'
+import { WhatsAppIcon } from '@/components/ui/WhatsAppIcon'
 
 const FILTRO_ESTADO_DEUDA_OPTIONS = [
   { value: 'pendiente', label: 'Pendiente' },
@@ -322,7 +323,7 @@ export function ResumenMensualPanel() {
                         <BadgeEstadoCargo estado={d.estado} />
                       </td>
                       <td className="px-4 py-2">
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <div className="flex flex-wrap items-center gap-3">
                           <button
                             type="button"
                             onClick={() =>
@@ -332,10 +333,11 @@ export function ResumenMensualPanel() {
                                 periodo: d.periodo,
                               })
                             }
-                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
+                            aria-label="Ver asistencias"
+                            title="Ver asistencias"
+                            className="inline-flex items-center text-on-surface-variant hover:text-primary"
                           >
-                            <span className="material-symbols-outlined !text-[16px]">event_available</span>
-                            Ver asistencias
+                            <span className="material-symbols-outlined !text-[18px]">event_available</span>
                           </button>
                           <button
                             type="button"
@@ -348,10 +350,11 @@ export function ResumenMensualPanel() {
                                 cargoEstado: d.estado,
                               })
                             }
-                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
+                            aria-label="Ver pagos"
+                            title="Ver pagos"
+                            className="inline-flex items-center text-on-surface-variant hover:text-primary"
                           >
-                            <span className="material-symbols-outlined !text-[16px]">payments</span>
-                            Ver pagos
+                            <span className="material-symbols-outlined !text-[18px]">payments</span>
                           </button>
                           <button
                             type="button"
@@ -359,7 +362,7 @@ export function ResumenMensualPanel() {
                             className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
                           >
                             <span className="material-symbols-outlined !text-[16px]">badge</span>
-                            Ver ficha
+                            Ficha de alumno
                           </button>
                           {telValido ? (
                             <a
@@ -370,14 +373,14 @@ export function ResumenMensualPanel() {
                               title="WhatsApp"
                               className="inline-flex items-center text-on-surface-variant hover:text-primary"
                             >
-                              <span className="material-symbols-outlined !text-[18px]">chat</span>
+                              <WhatsAppIcon className="h-[18px] w-[18px]" />
                             </a>
                           ) : (
                             <span
                               title="Teléfono no cargado o en formato inválido — no se puede abrir WhatsApp"
                               className="inline-flex cursor-not-allowed items-center text-on-surface-variant opacity-40"
                             >
-                              <span className="material-symbols-outlined !text-[18px]">chat</span>
+                              <WhatsAppIcon className="h-[18px] w-[18px]" />
                             </span>
                           )}
                         </div>
@@ -489,7 +492,7 @@ export function ResumenMensualPanel() {
                       )}
                     </td>
                     <td className="px-4 py-2">
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                      <div className="flex flex-wrap items-center gap-3">
                         <button
                           type="button"
                           onClick={() =>
@@ -499,10 +502,11 @@ export function ResumenMensualPanel() {
                               periodo: c.periodo,
                             })
                           }
-                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
+                          aria-label="Ver asistencias"
+                          title="Ver asistencias"
+                          className="inline-flex items-center text-on-surface-variant hover:text-primary"
                         >
-                          <span className="material-symbols-outlined !text-[16px]">event_available</span>
-                          Ver asistencias
+                          <span className="material-symbols-outlined !text-[18px]">event_available</span>
                         </button>
                         <button
                           type="button"
@@ -515,10 +519,11 @@ export function ResumenMensualPanel() {
                               cargoEstado: c.estado,
                             })
                           }
-                          className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
+                          aria-label="Ver pagos"
+                          title="Ver pagos"
+                          className="inline-flex items-center text-on-surface-variant hover:text-primary"
                         >
-                          <span className="material-symbols-outlined !text-[16px]">payments</span>
-                          Ver pagos
+                          <span className="material-symbols-outlined !text-[18px]">payments</span>
                         </button>
                         <button
                           type="button"
@@ -526,7 +531,7 @@ export function ResumenMensualPanel() {
                           className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
                         >
                           <span className="material-symbols-outlined !text-[16px]">badge</span>
-                          Ver ficha
+                          Ficha de alumno
                         </button>
                       </div>
                     </td>
@@ -562,7 +567,7 @@ export function ResumenMensualPanel() {
                 </p>
               </div>
               <Button type="button" variant="ghost" onClick={() => setFichaAlumno(p.alumno)}>
-                Ver ficha
+                Ficha de alumno
               </Button>
             </div>
           ))}
@@ -591,7 +596,7 @@ export function ResumenMensualPanel() {
                 {a.nombre} {a.apellido}
               </p>
               <Button type="button" variant="ghost" onClick={() => setFichaAlumno(a)}>
-                Ver ficha
+                Ficha de alumno
               </Button>
             </div>
           ))}
