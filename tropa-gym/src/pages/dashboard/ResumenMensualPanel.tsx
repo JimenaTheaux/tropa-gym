@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Alumno } from '@/types/db'
+import type { Alumno, Cargo } from '@/types/db'
 import { traducirError } from '@/lib/errores'
 import {
   fetchAlertasResumen,
@@ -9,12 +9,10 @@ import {
   whatsappUrl,
   type AlertasResumen,
 } from '@/lib/dashboard'
-import { confirmarGeneracionCargos, previewCargosPeriodo } from '@/lib/cargos'
-import { useAlumnos } from '@/hooks/useAlumnos'
+import { fetchCargosPeriodo } from '@/lib/cargos'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FormMonthInput } from '@/components/ui/FormField'
 import { FichaAlumnoDrawer } from '@/components/ui/FichaAlumnoDrawer'
 import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
@@ -51,16 +49,13 @@ function AlertaChica({ label, value, info }: { label: string; value: string; inf
 export function ResumenMensualPanel() {
   const queryClient = useQueryClient()
   const [periodo, setPeriodo] = useState(periodoActual())
-  const { data: alumnos = [] } = useAlumnos()
-  const [confirmando, setConfirmando] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [confirmError, setConfirmError] = useState<string | null>(null)
-  const [liquidacionSuccess, setLiquidacionSuccess] = useState<string | null>(null)
   const [fichaAlumno, setFichaAlumno] = useState<Alumno | null>(null)
 
-  const previewQuery = useQuery({
-    queryKey: queryKeys.cargosPreview(periodo),
-    queryFn: () => previewCargosPeriodo(periodo),
+  // Cargos continuos (migración 22): no hay "generar" — cada asistencia crea
+  // o actualiza el cargo sola. Este panel solo lee el estado vigente.
+  const cargosQuery = useQuery({
+    queryKey: queryKeys.cargosPeriodo(periodo),
+    queryFn: () => fetchCargosPeriodo(periodo),
     staleTime: STALE_OPERATIVO,
   })
   const alertasQuery = useQuery({
@@ -69,9 +64,8 @@ export function ResumenMensualPanel() {
     staleTime: STALE_OPERATIVO,
   })
 
-  const previewLoading = previewQuery.isFetching
-  const filas = previewQuery.data?.filas ?? null
-  const liquidacionError = confirmError ?? (previewQuery.data?.error ? traducirError(previewQuery.data.error) : null)
+  const cargosLoading = cargosQuery.isFetching
+  const cargosPeriodo = [...(cargosQuery.data ?? new Map<string, Cargo>()).values()]
 
   const alertas: AlertasResumen | null = alertasQuery.data ?? null
   const alertasLoading = alertasQuery.isFetching
@@ -86,123 +80,58 @@ export function ResumenMensualPanel() {
     return queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAlertas(periodo) })
   }
 
-  async function confirmarGeneracion() {
-    setConfirmando(true)
-    setConfirmError(null)
-    const { filas: resultado, error } = await confirmarGeneracionCargos(periodo)
-    setConfirmando(false)
-    setModalOpen(false)
-    if (error) {
-      setConfirmError(traducirError(error))
-      return
-    }
-    const nuevosCreados = resultado.filter((f) => !f.ya_existe).length
-    queryClient.setQueryData(queryKeys.cargosPreview(periodo), {
-      error: null,
-      filas: resultado.map((f) => ({ ...f, ya_existe: true })),
-    })
-    setLiquidacionSuccess(`Se generaron ${nuevosCreados} cargo(s) nuevo(s) para el período ${periodo}.`)
-    queryClient.invalidateQueries({ queryKey: ['cuenta'] })
-    cargarAlertas()
-  }
-
-  const nuevos = filas?.filter((f) => !f.ya_existe) ?? []
-  const montoTotal = nuevos.reduce((sum, f) => sum + Number(f.monto), 0)
-  const estadoLiquidacion: 'pendiente' | 'generada' =
-    filas && filas.length > 0 && filas.every((f) => f.ya_existe) ? 'generada' : 'pendiente'
+  const completas = cargosPeriodo.filter((c) => c.tipo === 'completa').length
+  const medias = cargosPeriodo.filter((c) => c.tipo === 'media').length
+  const sinValidar = cargosPeriodo.filter((c) => !c.validado).length
+  const montoTotal = cargosPeriodo.reduce((sum, c) => sum + Number(c.monto), 0)
 
   const deudores = alertas?.deudores ?? []
   const proximosInactivarse = alertas?.proximosInactivarse ?? []
   const horasProfesor = alertas?.horasProfesor ?? []
   const cargosSinDefinir = alertas?.cargosSinDefinir ?? []
+  const alumnosSinCargo = alertas?.alumnosSinCargo ?? []
   const montoTotalDeuda = deudores.reduce((s, d) => s + d.monto, 0)
   const horasTotalesProfesores = horasProfesor.reduce((s, h) => s + h.horas, 0)
 
   return (
     <div className="flex flex-col gap-6">
-      {/* A. Liquidación del período */}
+      {/* A. Cargos del período — lectura en vivo, sin botón "generar" (migración 22:
+          cada asistencia crea/actualiza el cargo sola vía trigger de base). */}
       <div className="flex flex-col gap-4 rounded-card border border-outline-variant bg-surface-container p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="font-oswald text-[13px] font-bold uppercase tracking-[0.03em] text-on-surface">
-              Liquidación del período
-            </p>
-            <span
-              className="mt-1 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-inter text-xs font-medium"
-              style={
-                estadoLiquidacion === 'generada'
-                  ? { borderColor: '#40e432', color: '#40e432' }
-                  : { borderColor: '#3d4b37', color: '#bbcbb2' }
-              }
-            >
-              <span className="material-symbols-outlined !text-[14px]">
-                {estadoLiquidacion === 'generada' ? 'check_circle' : 'hourglass_empty'}
-              </span>
-              {estadoLiquidacion === 'generada' ? 'Generada' : 'Pendiente'}
-            </span>
-          </div>
+          <p className="font-oswald text-[13px] font-bold uppercase tracking-[0.03em] text-on-surface">
+            Cargos del período
+          </p>
           <FormMonthInput
             id="resumen-periodo"
             label="Período"
             required
             value={periodo}
-            onChange={(periodo) => {
-              setPeriodo(periodo)
-              setLiquidacionSuccess(null)
-              setConfirmError(null)
-            }}
+            onChange={setPeriodo}
           />
         </div>
 
-        {liquidacionError && <p className="font-inter text-sm text-error">{liquidacionError}</p>}
-        {liquidacionSuccess && (
-          <p className="rounded-lg border border-primary bg-surface-container-high px-4 py-3 font-inter text-sm text-primary">
-            {liquidacionSuccess}
-          </p>
-        )}
+        {cargosLoading && <p className="font-inter text-sm text-on-surface-variant">Cargando…</p>}
 
-        {previewLoading && <p className="font-inter text-sm text-on-surface-variant">Calculando preview…</p>}
-
-        {!previewLoading && filas && (
-          <>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <AlertaChica
-                label="Cuotas completas"
-                value={String(filas.filter((f) => f.tipo === 'completa').length)}
-                info="Alumnos cuya primera asistencia del período fue entre el día 1 y el 14. Se les cobra el precio completo del combo."
-              />
-              <AlertaChica
-                label="Medias cuotas"
-                value={String(filas.filter((f) => f.tipo === 'media').length)}
-                info="Alumnos cuya primera asistencia del período fue del día 15 en adelante. Se les cobra la mitad del precio del combo."
-              />
-              <AlertaChica
-                label="Alumnos sin asistencia"
-                value={String(
-                  alumnos.filter(
-                    (a) => a.estado === 'activo' && !filas.some((f) => f.alumno_id === a.id),
-                  ).length,
-                )}
-                info="Alumnos activos que no registraron ninguna asistencia en el período — no se les genera cargo."
-              />
-              <AlertaChica
-                label="Monto a generar"
-                value={money(montoTotal)}
-                info="Suma de los cargos nuevos a crear. El precio de cada uno sale del combo con el que el alumno pagó el período anterior (o su plan actual si es la primera vez), según el precio vigente de ese combo."
-              />
-            </div>
-
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="solido"
-                disabled={confirmando || nuevos.length === 0}
-                onClick={() => setModalOpen(true)}
-              >
-                {`Generar cargos del período (${nuevos.length})`}
-              </Button>
-            </div>
-          </>
+        {!cargosLoading && (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <AlertaChica
+              label="Cuotas completas"
+              value={String(completas)}
+              info="Alumnos cuya primera asistencia del período fue entre el día 1 y el 14. Se les cobra el precio completo del combo."
+            />
+            <AlertaChica
+              label="Medias cuotas"
+              value={String(medias)}
+              info="Alumnos cuya primera asistencia del período fue del día 15 en adelante. Se les cobra la mitad del precio del combo."
+            />
+            <AlertaChica
+              label="Sin validar"
+              value={String(sinValidar)}
+              info="Cargos que el sistema todavía puede recalcular solo (tipo/monto) al llegar una asistencia nueva del alumno. Se validan a mano en la pantalla Cargos, o solos cuando un pago cubre el monto completo."
+            />
+            <AlertaChica label="Monto total del período" value={money(montoTotal)} />
+          </div>
         )}
       </div>
 
@@ -355,6 +284,35 @@ export function ResumenMensualPanel() {
         </div>
       </div>
 
+      {/* D.2 Panel Alumnos sin cargo todavía */}
+      <div className="rounded-card border border-outline-variant bg-surface-container p-5">
+        <p className="mb-1 font-oswald text-[13px] font-bold uppercase tracking-[0.03em] text-on-surface">
+          Alumnos sin cargo todavía
+        </p>
+        <p className="mb-4 font-inter text-xs text-on-surface-variant">
+          Alumnos activos sin ninguna asistencia registrada en este período — el cargo se crea solo apenas asistan.
+        </p>
+        {alertasLoading && <p className="font-inter text-sm text-on-surface-variant">Cargando…</p>}
+        {!alertasLoading && alumnosSinCargo.length === 0 && (
+          <p className="font-inter text-sm text-on-surface-variant">Todos los alumnos activos ya tienen cargo.</p>
+        )}
+        <div className="flex flex-col gap-3">
+          {alumnosSinCargo.map((a) => (
+            <div
+              key={a.id}
+              className="flex items-center justify-between gap-3 rounded-lg border border-outline-variant px-4 py-3"
+            >
+              <p className="font-inter text-sm font-medium text-on-surface">
+                {a.nombre} {a.apellido}
+              </p>
+              <Button type="button" variant="ghost" onClick={() => setFichaAlumno(a)}>
+                Ver ficha
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* E. Panel Horas por profesor */}
       <div className="overflow-x-auto rounded-card border border-outline-variant">
         <table className="w-full border-collapse text-left">
@@ -398,16 +356,6 @@ export function ResumenMensualPanel() {
           </tbody>
         </table>
       </div>
-
-      <ConfirmDialog
-        open={modalOpen}
-        title="Generar cargos del período"
-        message={`Se van a generar ${nuevos.length} cargo(s) nuevo(s) para el período ${periodo}, por un total de ${money(montoTotal)}. Esta es la única vía para liquidar el período. ¿Confirmás?`}
-        confirmLabel="Generar cargos"
-        loading={confirmando}
-        onConfirm={confirmarGeneracion}
-        onCancel={() => setModalOpen(false)}
-      />
 
       <FichaAlumnoDrawer alumno={fichaAlumno} onClose={() => setFichaAlumno(null)} />
     </div>

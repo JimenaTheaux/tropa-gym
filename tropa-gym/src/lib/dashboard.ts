@@ -320,6 +320,7 @@ export interface AlertasResumen {
   proximosInactivarse: ProximoInactivo[]
   horasProfesor: HorasProfesorFila[]
   cargosSinDefinir: CargoSinDefinir[]
+  alumnosSinCargo: Alumno[]
 }
 
 function diasEntre(desde: string, hasta: Date): number {
@@ -465,16 +466,29 @@ async function fetchCargosSinDefinir(periodo: string, alumnos: Alumno[]): Promis
     .filter((c): c is CargoSinDefinir => c !== null)
 }
 
+// Alumnos activos sin ningún cargo en el período — con el trigger de cargos
+// continuos (migración 22) un cargo existe apenas hay una asistencia, así que
+// "sin cargo" equivale a "sin asistencia registrada este período todavía".
+async function fetchAlumnosSinCargo(periodo: string, alumnos: Alumno[]): Promise<Alumno[]> {
+  const activos = alumnos.filter((a) => a.estado === 'activo')
+  if (activos.length === 0) return []
+
+  const { data } = await supabase.from('cargos').select('alumno_id').eq('periodo', periodo)
+  const conCargo = new Set((data ?? []).map((c) => c.alumno_id as string))
+  return activos.filter((a) => !conCargo.has(a.id))
+}
+
 export async function fetchAlertasResumen(periodo: string): Promise<AlertasResumen> {
   const { data: alumnosData } = await supabase.from('alumnos').select('*')
   const alumnos = (alumnosData ?? []) as Alumno[]
 
-  const [deudores, proximosInactivarse, horasProfesor, cargosSinDefinir] = await Promise.all([
+  const [deudores, proximosInactivarse, horasProfesor, cargosSinDefinir, alumnosSinCargo] = await Promise.all([
     fetchDeudores(alumnos),
     fetchProximosInactivarse(alumnos),
     fetchHorasProfesor(periodo),
     fetchCargosSinDefinir(periodo, alumnos),
+    fetchAlumnosSinCargo(periodo, alumnos),
   ])
 
-  return { deudores, proximosInactivarse, horasProfesor, cargosSinDefinir }
+  return { deudores, proximosInactivarse, horasProfesor, cargosSinDefinir, alumnosSinCargo }
 }

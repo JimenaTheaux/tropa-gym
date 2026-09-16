@@ -55,7 +55,7 @@ export function precioVigente(precios: Precio[], comboId: string | null, periodo
 }
 
 // Adelantado: períodos ya transcurridos (fin de período <= hoy) cobran el precio
-// vigente a su cierre — mismo criterio que generar_cargos_periodo (migración 15).
+// vigente a su cierre — mismo criterio que fn_recalcular_cargo_automatico (migración 22, ex migración 15).
 // Períodos en curso o futuros (fin de período > hoy) cobran el precio vigente HOY:
 // no existe un precio "histórico" de algo que todavía no pasó.
 export function precioVigenteAdelantado(precios: Precio[], comboId: string | null, periodo: string): number | null {

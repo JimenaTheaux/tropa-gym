@@ -4,14 +4,21 @@ import type { Alumno } from '@/types/db'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchHistorialAlumno, getEstadoCuenta } from '@/lib/cuenta'
 import { fetchHistorialEstado } from '@/lib/alumnos'
+import { fetchAsistenciasAlumnoPeriodo } from '@/lib/cargos'
 import { formatFecha } from '@/lib/utils'
-import { useCombos, useDisciplinas } from '@/hooks/useCatalogos'
+import { useCombos, useDisciplinas, useTurnos } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Drawer } from '@/components/ui/Drawer'
 import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { EditarMontoCargo } from '@/components/ui/EditarMontoCargo'
 import { EstadoToggleButton } from '@/components/ui/EstadoToggleButton'
+import { FormMonthInput } from '@/components/ui/FormField'
+
+function periodoActual(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
 
 interface FichaAlumnoDrawerProps {
   alumno: Alumno | null
@@ -33,8 +40,12 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
 
   const { data: disciplinas = [] } = useDisciplinas()
   const { data: combos = [] } = useCombos()
+  const { data: turnos = [] } = useTurnos()
   const disciplina = disciplinas.find((d) => d.id === alumno?.disciplina_id) ?? null
   const combo = combos.find((c) => c.id === alumno?.combo_id) ?? null
+
+  const [historialEstadoAbierto, setHistorialEstadoAbierto] = useState(false)
+  const [periodoAsistencias, setPeriodoAsistencias] = useState(periodoActual())
 
   const cuentaQuery = useQuery({
     queryKey: queryKeys.estadoCuenta(alumno?.id ?? ''),
@@ -54,16 +65,25 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
     enabled: !!alumno,
     staleTime: STALE_OPERATIVO,
   })
+  const asistenciasQuery = useQuery({
+    queryKey: queryKeys.asistenciasAlumnoPeriodo(alumno?.id ?? '', periodoAsistencias),
+    queryFn: () => fetchAsistenciasAlumnoPeriodo(alumno!.id, periodoAsistencias),
+    enabled: !!alumno,
+    staleTime: STALE_OPERATIVO,
+  })
 
   const cuenta = cuentaQuery.data ?? null
   const historial = historialQuery.data ?? []
   const historialEstado = historialEstadoQuery.data ?? []
+  const asistenciasPeriodo = asistenciasQuery.data ?? []
   const loading = cuentaQuery.isFetching || historialQuery.isFetching
 
   const [editandoPeriodo, setEditandoPeriodo] = useState<string | null>(null)
 
   useEffect(() => {
     setEditandoPeriodo(null)
+    setHistorialEstadoAbierto(false)
+    setPeriodoAsistencias(periodoActual())
   }, [alumno])
 
   function onMontoGuardado() {
@@ -112,22 +132,64 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
 
           {historialEstado.length > 0 && (
             <div className="border-t border-outline-variant pt-4">
-              <p className="mb-2 font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+              <button
+                type="button"
+                onClick={() => setHistorialEstadoAbierto((v) => !v)}
+                className="flex w-full items-center justify-between font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant"
+              >
                 Historial de estado
-              </p>
-              <div className="flex flex-col gap-2">
-                {historialEstado.map((h) => (
-                  <div key={h.id} className="flex items-center justify-between font-inter text-xs">
-                    <span className="text-on-surface-variant">
-                      {formatFecha(h.fecha_desde.slice(0, 10))} — {h.origen === 'manual' ? 'manual' : 'automático'}
-                      {h.motivo ? ` (${h.motivo})` : ''}
-                    </span>
-                    <span className="text-on-surface">{h.estado === 'activo' ? 'Activo' : 'Inactivo'}</span>
-                  </div>
-                ))}
-              </div>
+                <span className="material-symbols-outlined !text-[18px]">
+                  {historialEstadoAbierto ? 'expand_less' : 'expand_more'}
+                </span>
+              </button>
+              {historialEstadoAbierto && (
+                <div className="mt-2 flex flex-col gap-2">
+                  {historialEstado.map((h) => (
+                    <div key={h.id} className="flex items-center justify-between font-inter text-xs">
+                      <span className="text-on-surface-variant">
+                        {formatFecha(h.fecha_desde.slice(0, 10))} — {h.origen === 'manual' ? 'manual' : 'automático'}
+                        {h.motivo ? ` (${h.motivo})` : ''}
+                      </span>
+                      <span className="text-on-surface">{h.estado === 'activo' ? 'Activo' : 'Inactivo'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+
+          <div className="border-t border-outline-variant pt-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+              <p className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
+                Historial de asistencias
+              </p>
+              <FormMonthInput
+                id={`ficha-asistencias-periodo-${alumno.id}`}
+                label="Período"
+                value={periodoAsistencias}
+                onChange={setPeriodoAsistencias}
+              />
+            </div>
+            {asistenciasQuery.isFetching && <p className="font-inter text-sm text-on-surface-variant">Cargando…</p>}
+            {!asistenciasQuery.isFetching && asistenciasPeriodo.length === 0 && (
+              <p className="font-inter text-sm text-on-surface-variant">Sin asistencias en este período.</p>
+            )}
+            {!asistenciasQuery.isFetching && asistenciasPeriodo.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {asistenciasPeriodo.map((a) => {
+                  const turno = turnos.find((t) => t.id === a.turno_id)
+                  return (
+                    <div key={a.id} className="flex items-center justify-between font-inter text-sm">
+                      <span className="text-on-surface">{formatFecha(a.fecha)}</span>
+                      <span className="text-on-surface-variant">
+                        {turno ? `${turno.nombre} (${turno.hora.slice(0, 5)})` : '—'}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
 
           <div className="border-t border-outline-variant pt-4">
             <p className="mb-2 font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">

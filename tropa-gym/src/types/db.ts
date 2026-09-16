@@ -159,6 +159,7 @@ export interface Cargo {
   tipo: TipoCargo
   monto: number
   monto_definido: boolean
+  validado: boolean
   estado: EstadoPago
   created_at: string
 }
