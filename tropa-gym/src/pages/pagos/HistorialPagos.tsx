@@ -9,6 +9,7 @@ import { formatFecha, hoyIso } from '@/lib/utils'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Drawer } from '@/components/ui/Drawer'
 import { FormCurrencyInput, FormDateInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
 import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
@@ -46,6 +47,7 @@ const PAGE_SIZE = 15
 export function HistorialPagos() {
   const { perfil } = useAuth()
   const puedeEditar = perfil?.rol === 'admin' || perfil?.rol === 'profesor'
+  const isAdmin = perfil?.rol === 'admin'
   const queryClient = useQueryClient()
 
   const [nombreFiltro, setNombreFiltro] = useState('')
@@ -130,6 +132,30 @@ export function HistorialPagos() {
     onSuccess: () => invalidarPagos(queryClient),
   })
   const guardandoCompletar = completarPago.isPending
+
+  const [eliminando, setEliminando] = useState<HistorialPagoDetalle | null>(null)
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
+
+  const eliminarPago = useMutation({
+    mutationFn: async (d: HistorialPagoDetalle) => {
+      const { error } = await supabase.rpc('eliminar_pago', { p_pago_id: d.pagoId })
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      invalidarPagos(queryClient)
+      setEliminando(null)
+    },
+  })
+
+  async function confirmarEliminar() {
+    if (!eliminando) return
+    setErrorEliminar(null)
+    try {
+      await eliminarPago.mutateAsync(eliminando)
+    } catch (err) {
+      setErrorEliminar(traducirError(err instanceof Error ? err.message : null, 'No se pudo eliminar el pago.'))
+    }
+  }
 
   useEffect(() => {
     if (metodoCompletar === 'efectivo') {
@@ -217,6 +243,8 @@ export function HistorialPagos() {
         </div>
       </div>
 
+      {errorEliminar && <p className="mb-4 font-inter text-sm text-error">{errorEliminar}</p>}
+
       {loading && <p className="py-6 text-center font-inter text-sm text-on-surface-variant">Cargando…</p>}
 
       {!loading && historial.length === 0 && (
@@ -291,6 +319,19 @@ export function HistorialPagos() {
                             className="text-on-surface-variant hover:text-primary"
                           >
                             <span className="material-symbols-outlined !text-[18px]">edit</span>
+                          </button>
+                        )}
+                        {isAdmin && d.alumno && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setErrorEliminar(null)
+                              setEliminando(d)
+                            }}
+                            aria-label="Eliminar pago"
+                            className="text-on-surface-variant hover:text-error"
+                          >
+                            <span className="material-symbols-outlined !text-[18px]">delete</span>
                           </button>
                         )}
                       </div>
@@ -442,6 +483,22 @@ export function HistorialPagos() {
           />
         )}
       </Drawer>
+
+      <ConfirmDialog
+        open={!!eliminando}
+        title="Eliminar pago"
+        message={
+          eliminando
+            ? `¿Eliminar el pago de "${eliminando.alumnoNombre}" (${eliminando.periodo}, $${eliminando.montoPagado.toLocaleString('es-AR')})? Esta acción no se puede deshacer.` +
+              (eliminando.tipoPago !== 'individual'
+                ? ' Este pago es parte de un comprobante familiar/adelantado: se eliminarán todas sus líneas juntas.'
+                : '')
+            : ''
+        }
+        loading={eliminarPago.isPending}
+        onConfirm={confirmarEliminar}
+        onCancel={() => setEliminando(null)}
+      />
     </div>
   )
 }
