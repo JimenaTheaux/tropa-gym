@@ -49,7 +49,10 @@ export function TrendChart({ title, data, formatValue, diverging = false }: Tren
           return (
             <div key={d.periodo} className="relative flex flex-1 flex-col items-center">
               {diverging ? (
-                <div className="relative flex flex-col items-center" style={{ height: altoZona * 2 }}>
+                <div
+                  className="relative flex flex-col items-center"
+                  style={{ height: altoZona * 2, width: '100%' }}
+                >
                   <div className="flex flex-col justify-end" style={{ height: altoZona, width: '100%' }}>
                     <button
                       type="button"
