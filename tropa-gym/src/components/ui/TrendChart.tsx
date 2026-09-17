@@ -10,6 +10,14 @@ interface TrendChartProps {
 const POSITIVO = '#40e432'
 const NEGATIVO = '#ffb4ab'
 
+// La fila de barras usa items-end para anclar cada columna a la base — sin
+// esta reserva, la columna más alta (barra + label del eje) es más alta que
+// la fila y se desborda hacia arriba, tapando el header/leyenda de arriba.
+// El mt-8 de la fila (ver abajo) reserva espacio aparte para el label
+// flotante del último valor (-top-6, fuera del flujo): sin ese margen se
+// tapa con la leyenda "Positivo/Negativo" cuando la última barra es la más alta.
+const ALTURA_ETIQUETA = 24
+
 // Gráfico de barras propio (sin lib externa) — mark specs doc dataviz: barra ≤24px,
 // extremo redondeado 4px anclado a la base, gap entre barras, tooltip por barra.
 export function TrendChart({ title, data, formatValue, diverging = false }: TrendChartProps) {
@@ -40,7 +48,10 @@ export function TrendChart({ title, data, formatValue, diverging = false }: Tren
         )}
       </div>
 
-      <div className="flex items-end justify-between gap-2" style={{ height: diverging ? altoZona * 2 : altoZona }}>
+      <div
+        className="mt-8 flex items-end justify-between gap-2"
+        style={{ height: (diverging ? altoZona * 2 : altoZona) + ALTURA_ETIQUETA }}
+      >
         {data.map((d, i) => {
           const color = diverging ? (d.value >= 0 ? POSITIVO : NEGATIVO) : POSITIVO
           const alturaPx = Math.max(2, (Math.abs(d.value) / maxAbs) * altoZona)
