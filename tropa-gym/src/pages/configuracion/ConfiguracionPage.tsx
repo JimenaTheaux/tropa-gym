@@ -5,7 +5,6 @@ import { DescuentosPanel } from './DescuentosPanel'
 import { ProfesoresPanel } from './ProfesoresPanel'
 import { DisciplinasPanel } from './DisciplinasPanel'
 import { CombosPanel } from './CombosPanel'
-import { AjusteManualAgostoPanel } from './AjusteManualAgostoPanel'
 import { LogErroresPanel } from './LogErroresPanel'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -57,8 +56,6 @@ export function ConfiguracionPage() {
       {active === 'descuentos' && <DescuentosPanel />}
       {active === 'profesores' && <ProfesoresPanel />}
       {active === 'logs' && isAdmin && <LogErroresPanel />}
-
-      {isAdmin && <AjusteManualAgostoPanel />}
     </div>
   )
 }
