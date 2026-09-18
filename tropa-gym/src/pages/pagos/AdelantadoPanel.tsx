@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
+import { logError } from '@/lib/logErrores'
+import { useAuth } from '@/contexts/AuthContext'
 import { aplicarDescuento, distribuirMonto, precioVigenteAdelantado } from '@/lib/precios'
 import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
@@ -49,6 +51,7 @@ interface AdelantadoPanelProps {
 
 export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
   const queryClient = useQueryClient()
+  const { perfil } = useAuth()
   const { data: precios = [] } = usePrecios()
   const { data: disciplinas = [] } = useDisciplinasActivas()
   const { data: combos = [] } = useCombosActivos()
@@ -166,33 +169,43 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
 
     setError(null)
 
-    const montosPorPeriodo = distribuirMonto(
-      periodosOrdenados.map((p) => p.precioCalculado),
-      montoPagado,
-    )
-
-    const p_periodos = periodosOrdenados.map((p, i) => ({
-      periodo: p.periodo,
-      disciplina_id: disciplinaId,
-      combo_id: comboId,
-      descuento_id: descuentoId || null,
-      precio_snapshot: p.precioCalculado,
-      monto_pagado: montosPorPeriodo[i],
-    }))
-
     const alumnoRegistrado = alumno
     const cantidadPeriodos = periodosOrdenados.length
+    let payloadIntentado: unknown
 
     try {
-      await registrarPagoAdelantado.mutateAsync({
+      const montosPorPeriodo = distribuirMonto(
+        periodosOrdenados.map((p) => p.precioCalculado),
+        montoPagado,
+      )
+
+      const p_periodos = periodosOrdenados.map((p, i) => ({
+        periodo: p.periodo,
+        disciplina_id: disciplinaId,
+        combo_id: comboId,
+        descuento_id: descuentoId || null,
+        precio_snapshot: p.precioCalculado,
+        monto_pagado: montosPorPeriodo[i],
+      }))
+
+      const payload = {
         p_alumno_id: alumno.id,
         p_periodos,
         p_metodo: metodo,
         p_importe_efectivo: importeEfectivo,
         p_importe_transferencia: importeTransferencia,
         p_fecha: fechaPago,
-      })
+      }
+      payloadIntentado = payload
+
+      await registrarPagoAdelantado.mutateAsync(payload)
     } catch (err) {
+      await logError({
+        contexto: 'pago_adelantado',
+        usuarioId: perfil?.id ?? null,
+        payloadIntentado,
+        error: err,
+      })
       setError(traducirError(err instanceof Error ? err.message : null))
       return
     }

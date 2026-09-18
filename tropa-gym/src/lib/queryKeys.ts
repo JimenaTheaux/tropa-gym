@@ -45,4 +45,6 @@ export const queryKeys = {
   dashboardAlertas: (periodo: string) => ['dashboard', 'alertas', periodo] as const,
   dashboardEstadosPorPeriodo: (periodo: string, cantidad: number) =>
     ['dashboard', 'estados-periodo', periodo, cantidad] as const,
+
+  logErrores: ['log-errores'] as const,
 }

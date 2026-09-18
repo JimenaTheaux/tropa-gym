@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago, TipoCargo } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
+import { logError } from '@/lib/logErrores'
+import { useAuth } from '@/contexts/AuthContext'
 import { buscarCargo, fetchResumenPeriodo } from '@/lib/cuenta'
 import { aplicarDescuento, aplicarTipoCuota, distribuirMonto, precioVigente } from '@/lib/precios'
 import { descuentosParaTipo } from '@/lib/catalogos'
@@ -49,6 +51,7 @@ interface FamiliarPanelProps {
 
 export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   const queryClient = useQueryClient()
+  const { perfil } = useAuth()
   const { data: precios = [] } = usePrecios()
   const { data: disciplinas = [] } = useDisciplinasActivas()
   const { data: combos = [] } = useCombosActivos()
@@ -220,41 +223,51 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
 
     setError(null)
 
-    const montosPorAlumno = distribuirMonto(
-      detalles.map((d) => d.precioCalculado),
-      montoPagado,
-    )
-
-    const p_detalles = await Promise.all(
-      detalles.map(async (d, i) => {
-        const cargo = await buscarCargo(d.alumno.id, d.periodo)
-        const montoAlumno = montosPorAlumno[i]
-        const ajustarPrecioAlumno = ajustarPrecio && montoAlumno < d.precioCalculado
-        return {
-          alumno_id: d.alumno.id,
-          cargo_id: cargo?.id ?? null,
-          periodo: d.periodo,
-          disciplina_id: d.disciplinaId,
-          combo_id: d.comboId,
-          descuento_id: descuentoId || null,
-          precio_snapshot: ajustarPrecioAlumno ? montoAlumno : d.precioCalculado,
-          monto_pagado: montoAlumno,
-          ajustar_precio: ajustarPrecioAlumno,
-        }
-      }),
-    )
-
     const cantidadDetalles = detalles.length
+    let payloadIntentado: unknown
 
     try {
-      await registrarPagoFamiliar.mutateAsync({
+      const montosPorAlumno = distribuirMonto(
+        detalles.map((d) => d.precioCalculado),
+        montoPagado,
+      )
+
+      const p_detalles = await Promise.all(
+        detalles.map(async (d, i) => {
+          const cargo = await buscarCargo(d.alumno.id, d.periodo)
+          const montoAlumno = montosPorAlumno[i]
+          const ajustarPrecioAlumno = ajustarPrecio && montoAlumno < d.precioCalculado
+          return {
+            alumno_id: d.alumno.id,
+            cargo_id: cargo?.id ?? null,
+            periodo: d.periodo,
+            disciplina_id: d.disciplinaId,
+            combo_id: d.comboId,
+            descuento_id: descuentoId || null,
+            precio_snapshot: ajustarPrecioAlumno ? montoAlumno : d.precioCalculado,
+            monto_pagado: montoAlumno,
+            ajustar_precio: ajustarPrecioAlumno,
+          }
+        }),
+      )
+
+      const payload = {
         p_detalles,
         p_metodo: metodo,
         p_importe_efectivo: importeEfectivo,
         p_importe_transferencia: importeTransferencia,
         p_fecha: fechaPago,
-      })
+      }
+      payloadIntentado = payload
+
+      await registrarPagoFamiliar.mutateAsync(payload)
     } catch (err) {
+      await logError({
+        contexto: 'pago_familiar',
+        usuarioId: perfil?.id ?? null,
+        payloadIntentado,
+        error: err,
+      })
       setError(traducirError(err instanceof Error ? err.message : null))
       return
     }

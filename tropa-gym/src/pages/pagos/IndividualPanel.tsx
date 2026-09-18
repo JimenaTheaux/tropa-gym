@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago, TipoCargo } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
+import { logError } from '@/lib/logErrores'
+import { useAuth } from '@/contexts/AuthContext'
 import { buscarCargo, fetchResumenPeriodo } from '@/lib/cuenta'
 import { aplicarDescuento, aplicarTipoCuota, precioVigente } from '@/lib/precios'
 import { descuentosParaTipo } from '@/lib/catalogos'
@@ -61,6 +63,7 @@ interface IndividualPanelProps {
 
 export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanelProps) {
   const queryClient = useQueryClient()
+  const { perfil } = useAuth()
   const { data: precios = [] } = usePrecios()
   const { data: disciplinas = [] } = useDisciplinasActivas()
   const { data: combos = [] } = useCombosActivos()
@@ -304,10 +307,31 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
     setError(null)
     const alumnoRegistrado = alumno
 
+    const payloadIntentado = {
+      editar: !!editar,
+      alumnoId: alumno.id,
+      periodo,
+      disciplinaId,
+      comboId,
+      descuentoId: descuentoId || null,
+      precioSnapshot: precioSnapshotFinal,
+      montoPagado,
+      metodo,
+      importeEfectivo,
+      importeTransferencia,
+      fecha: fechaPago,
+    }
+
     let resultado: { ajusteFallido: boolean }
     try {
       resultado = await registrarPago.mutateAsync()
     } catch (err) {
+      await logError({
+        contexto: 'pago_individual',
+        usuarioId: perfil?.id ?? null,
+        payloadIntentado,
+        error: err,
+      })
       setError(
         traducirError(
           err instanceof Error ? err.message : null,

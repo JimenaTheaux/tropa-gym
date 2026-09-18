@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { MetodoPago } from '@/types/db'
 import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
+import { logError } from '@/lib/logErrores'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchHistorialPagos, fetchResumenPeriodo, type HistorialPagoDetalle, type ResumenCargo } from '@/lib/cuenta'
 import { formatFecha, hoyIso } from '@/lib/utils'
@@ -203,9 +204,24 @@ export function HistorialPagos() {
 
     setErrorCompletar(null)
 
+    const payloadIntentado = {
+      completar,
+      montoCompletar,
+      metodoCompletar,
+      importeEfectivoCompletar,
+      importeTransferenciaCompletar,
+      fechaCompletar,
+    }
+
     try {
       await completarPago.mutateAsync(d)
     } catch (err) {
+      await logError({
+        contexto: 'pago_completar',
+        usuarioId: perfil?.id ?? null,
+        payloadIntentado,
+        error: err,
+      })
       setErrorCompletar(traducirError(err instanceof Error ? err.message : null, 'No se pudo registrar el pago.'))
       return
     }
