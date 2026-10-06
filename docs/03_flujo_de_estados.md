@@ -28,7 +28,7 @@ Asistencia registrada
 ```
 
 ### Dashboard: conteo por período, no por asistencia del mes
-El KPI "Alumnos activos" y el gráfico de evolución (`EstadoEvolucionChart`, barra apilada activos+inactivos) ya no cuentan asistencia dentro del mes — reconstruyen el **estado vigente de cada alumno al cierre de cada período** (o "hoy" si el período no cerró) a partir de `alumno_estado_historial` (`fetchEstadoAlumnosPorPeriodo`, doc 06). Un alumno sin ninguna fila de historial con `fecha_desde` anterior al corte todavía no existía en ese período y no cuenta ni como activo ni como inactivo. Esto evita el problema del esquema anterior, donde el conteo nunca se recalculaba y quedaba desalineado con la realidad.
+El KPI "Alumnos activos" ya no cuenta asistencia dentro del mes (para eso está la card "Alumnos con asistencia", doc 04) — reconstruye el **estado vigente de cada alumno al cierre de cada período** (o "hoy" si el período no cerró) a partir de `alumno_estado_historial` (`fetchEstadoAlumnosPorPeriodo`, doc 06). Un alumno sin ninguna fila de historial con `fecha_desde` anterior al corte todavía no existía en ese período y no cuenta ni como activo ni como inactivo. Esto evita el problema del esquema anterior, donde el conteo nunca se recalculaba y quedaba desalineado con la realidad.
 
 ## Estado del cargo
 El `estado` (pendiente/parcial/pagado) es una propiedad del **cargo** (la deuda del período), no del pago. Un pago es una transacción puntual; lo que puede estar "parcial" es la deuda que ese pago va cancelando.

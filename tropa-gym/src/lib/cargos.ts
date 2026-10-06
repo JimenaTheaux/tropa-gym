@@ -1,12 +1,15 @@
 import type { AsistenciaAlumno, Cargo, EstadoPago, MetodoPago, Pago, PagoAlumno } from '@/types/db'
 import { supabase } from '@/lib/supabase'
+import { fetchAllPages } from '@/lib/fetchAllPages'
 
 // Cargo continuo (migración 22): ya no hay preview/confirmación por lote —
 // cargos.* se lee en vivo, se actualiza solo con cada asistencia/pago
 // (triggers de base) y esta pantalla solo edita monto/validado puntuales.
 export async function fetchCargosPeriodo(periodo: string): Promise<Map<string, Cargo>> {
-  const { data } = await supabase.from('cargos').select('*').eq('periodo', periodo)
-  return new Map(((data ?? []) as Cargo[]).map((c) => [c.alumno_id, c]))
+  const { data } = await fetchAllPages<Cargo>((from, to) =>
+    supabase.from('cargos').select('*').eq('periodo', periodo).order('id').range(from, to),
+  )
+  return new Map(data.map((c) => [c.alumno_id, c]))
 }
 
 export async function fetchAsistenciasAlumnoPeriodo(alumnoId: string, periodo: string): Promise<AsistenciaAlumno[]> {

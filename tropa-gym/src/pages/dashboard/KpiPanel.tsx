@@ -13,7 +13,7 @@ import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { FormMonthInput } from '@/components/ui/FormField'
 import { TrendChart } from '@/components/ui/TrendChart'
-import { EstadoEvolucionChart } from '@/components/ui/EstadoEvolucionChart'
+import { AsistenciaEvolucionChart } from '@/components/ui/AsistenciaEvolucionChart'
 
 function money(v: number): string {
   return `$${Math.round(v).toLocaleString('es-AR')}`
@@ -101,8 +101,12 @@ export function KpiPanel() {
 
       {error && <p className="font-inter text-sm text-error">{error}</p>}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <CardKpi label="Alumnos activos" value={loading ? '…' : String(cards?.alumnosActivos ?? 0)} />
+        <CardKpi
+          label="Alumnos con asistencia"
+          value={loading ? '…' : String(cards?.alumnosConAsistencia ?? 0)}
+        />
         <CardKpi label="Ingresos" value={loading ? '…' : money(cards?.ingresos ?? 0)} destacado />
         <CardKpiIngresosMetodo
           efectivo={loading ? '…' : money(cards?.ingresosEfectivo ?? 0)}
@@ -120,13 +124,15 @@ export function KpiPanel() {
           formatValue={money}
           diverging
         />
-        <EstadoEvolucionChart
-          title="Alumnos activos vs. inactivos por período"
+        <AsistenciaEvolucionChart
+          title="Alumnos con / sin asistencia por período"
           data={trend.map((t) => ({
             periodo: t.periodo,
             label: periodoLabel(t.periodo),
-            activos: t.alumnosActivos,
-            inactivos: t.alumnosInactivos,
+            enCurso: t.enCurso,
+            conAsistencia: t.conAsistencia,
+            sinAsistencia: t.sinAsistencia,
+            baseActivos: t.baseActivos,
           }))}
         />
       </div>

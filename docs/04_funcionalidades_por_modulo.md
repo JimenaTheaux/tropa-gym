@@ -11,13 +11,16 @@ Submenú con 2 vistas: **KPI** y **Centro de Resumen Mensual**.
 ### Vista KPI
 - Filtro global por período (selector de fechas/mes).
 - Card: Alumnos activos. Cuenta el estado vigente **al cierre del período filtrado** (o "hoy" si el período no cerró), reconstruido desde `alumno_estado_historial` — no asistencia dentro del mes (ver doc 03).
+- Card: Alumnos con asistencia. Alumnos distintos con ≥1 fila en `asistencias_alumnos` con `fecha` dentro del período (un alumno que vino 20 veces cuenta 1), sin filtrar por estado. `count(distinct)` en la base vía `dashboard_alumnos_con_asistencia(desde, hasta)` (migración 28).
 - Card: $ Ingresos.
 - Card: $ Saldo a cobrar.
 - Card: $ Egresos.
 - Card: $ Ganancia neta.
+- Ingresos/Egresos/Ganancia (cards y gráfico) salen de la misma RPC `dashboard_finanzas_por_mes(desde, hasta)` (migración 29), agregada en la base — sin traer filas (corte de 1000 de PostgREST). `pagos.fecha` se lleva a día argentino con `fn_fecha_pago_local` (ver doc 06).
 - Gráfico de ganancia neta por período (`TrendChart`, línea).
-- Gráfico de evolución de alumnos activos/inactivos por período (`EstadoEvolucionChart`) — barra apilada (activos abajo, inactivos arriba) por período, con tooltip de desglose; mismo cálculo punto-en-el-tiempo que la card de arriba. Reemplazó a dos `TrendChart` separados (no se podían comparar entre sí).
-- Card: top de horarios con mayor ocupación (calculado desde asistencias_alumnos + turnos).
+- Rango de los dos gráficos: hasta el período filtrado (nunca después del mes actual), máximo 6 meses, arrancando en el primer mes con asistencias registradas (no se muestran meses previos al uso del sistema). El mes actual se marca "(en curso)" en el gráfico de asistencia.
+- Gráfico de alumnos con / sin asistencia por período (`AsistenciaEvolucionChart`, últimos 6 meses) — dos barras lado a lado por mes: **Con asistencia** (misma definición que la card, `primary`) y **Sin asistencia** (alumnos con `estado = 'activo'` **hoy** sin ninguna asistencia en ese mes, `outline`). Tooltip: ambos números + base (activos hoy). Una sola consulta agrupada por mes: `dashboard_asistencia_por_mes(desde, hasta)` (migración 28). No se apilan: "con" incluye alumnos hoy inactivos y "sin" sale del padrón activo de hoy, así que con + sin puede superar la base. Reemplazó al gráfico de activos/inactivos (`EstadoEvolucionChart`, eliminado).
+- Card: top de horarios con mayor ocupación (calculado desde asistencias_alumnos + turnos) — RPC `dashboard_top_horarios(desde, hasta, top)` (migración 29): asistencias y días distintos con clase por turno, excluye `turno_id` nulo, devuelve el top 5.
 
 ### Centro de Resumen Mensual
 Funciona como centro de alertas. Orden de secciones (migración 22: ya no hay "generar cargos" — todo es lectura/edición en vivo sobre `cargos`, ver doc 03):
@@ -31,6 +34,8 @@ Funciona como centro de alertas. Orden de secciones (migración 22: ya no hay "g
 - Alumnos próximos a inactivarse (cantidad).
 - Horas totales de profesores en el período.
 - Cargos sin monto definido (cantidad) — alumnos con asistencia en el período pero sin combo/precio resuelto (ver doc 03, "Cargo con monto sin definir").
+
+Cálculo en la base (migración 30, sin traer tablas al cliente — PostgREST corta en 1000 filas): Deudores = `dashboard_deudores()` (deuda **acumulada** de todos los períodos), "Alumnos con deuda" de la fila B = cantidad y Σ de esa misma lista, Próximos a inactivarse = `dashboard_proximos_inactivarse()`, Alumnos sin cargo = `dashboard_alumnos_sin_cargo(periodo)`. Deudores y la card "Saldo a cobrar" de la vista KPI (`dashboard_saldo_a_cobrar(periodo)`, **solo el período**) suman la misma base `dashboard_saldo_alumno_periodo`: max(0, cargo − pagos del mismo alumno+período) — un sobrepago de un período no compensa otro.
 
 **C. Panel Deudores** — tabla filtrable y editable (mismo patrón que la pantalla Cargos)
 - Buscador por nombre, filtro por estado (Pendiente/Parcial).

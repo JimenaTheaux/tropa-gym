@@ -108,7 +108,7 @@ Cargo continuo desde la migración 22 — ya no lo crea un botón "Generar cargo
 | importe_efectivo | numeric | si combinado |
 | importe_transferencia | numeric | si combinado |
 | total | numeric | monto real de la transacción (suma de `monto_pagado` de sus `pagos_alumnos`) |
-| fecha | timestamptz | Editable desde los 3 forms de registro (Individual/Familiar/Adelantado) y "Completar pago" — precarga con hoy, permite backdatear pagos atrasados (migración 19). El KPI/tendencia del dashboard filtran por esta columna, no por `created_at` |
+| fecha | timestamptz | Editable desde los 3 forms de registro (Individual/Familiar/Adelantado) y "Completar pago" — precarga con hoy, permite backdatear pagos atrasados (migración 19). El KPI/tendencia del dashboard filtran por esta columna, no por `created_at`. **Ojo zona horaria**: la fecha elegida en el form (`'YYYY-MM-DD'`) queda guardada como 00:00 UTC; un pago sin fecha (`now()`) guarda el instante real. `fn_fecha_pago_local(fecha)` (migración 29) devuelve el día argentino de ambos casos — usarla para agrupar/filtrar por día o mes, nunca `slice(0,7)` sobre el ISO ni `AT TIME ZONE` a secas |
 
 *(`pagos.estado` se eliminó — un pago es una transacción, no tiene "parcial/pagado" propio; ese estado ahora vive en `cargos.estado`. No tenía otro uso.)*
 

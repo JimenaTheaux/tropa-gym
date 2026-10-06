@@ -1,18 +1,14 @@
 import type {
   Alumno,
   AlumnoEstadoHistorial,
-  AsistenciaAlumno,
   AsistenciaProfesor,
   Cargo,
-  Egreso,
   EstadoAlumno,
   EstadoPago,
-  Pago,
-  PagoAlumno,
   Profesor,
-  Turno,
 } from '@/types/db'
 import { supabase } from '@/lib/supabase'
+import { fetchAllPages } from '@/lib/fetchAllPages'
 import { whatsappLink } from '@/lib/utils'
 import { calcularMinutosTrabajados } from '@/lib/horasProfesor'
 
@@ -78,6 +74,7 @@ export function whatsappUrl(telefono: string): string {
 
 export interface KpiCards {
   alumnosActivos: number
+  alumnosConAsistencia: number
   ingresos: number
   ingresosEfectivo: number
   ingresosTransferencia: number
@@ -88,9 +85,15 @@ export interface KpiCards {
 
 export interface TrendPoint {
   periodo: string
+  /** Mes actual, todavía no cerrado. */
+  enCurso: boolean
   gananciaNeta: number
-  alumnosActivos: number
-  alumnosInactivos: number
+  /** Alumnos distintos con >= 1 asistencia en el mes (cualquier estado). */
+  conAsistencia: number
+  /** Alumnos activos HOY sin ninguna asistencia en el mes. */
+  sinAsistencia: number
+  /** Alumnos activos HOY (padrón vigente) — base de "sin asistencia". */
+  baseActivos: number
 }
 
 export interface EstadoPeriodoPoint {
@@ -165,55 +168,71 @@ export interface HorarioOcupacion {
 /** Bajo este umbral de días con clase, el promedio se muestra igual pero marcado como poco representativo. */
 export const DIAS_MINIMOS_PROMEDIO_CONFIABLE = 3
 
+interface FinanzasMes {
+  ingresos: number
+  ingresosEfectivo: number
+  ingresosTransferencia: number
+  egresos: number
+}
+
+// Ingresos/egresos agregados por mes en la base (migración 29): pagos.fecha
+// se lleva a día argentino ahí (fn_fecha_pago_local), no con slice() sobre
+// el ISO en UTC, y no hay corte a 1000 filas.
+async function fetchFinanzasPorMes(desde: string, hasta: string): Promise<Map<string, FinanzasMes>> {
+  const { data, error } = await supabase.rpc('dashboard_finanzas_por_mes', { p_desde: desde, p_hasta: hasta })
+  if (error) throw new Error(error.message)
+  return new Map(
+    ((data ?? []) as {
+      periodo: string
+      ingresos: number
+      ingresos_efectivo: number
+      ingresos_transferencia: number
+      egresos: number
+    }[]).map((f) => [
+      f.periodo,
+      {
+        ingresos: Number(f.ingresos),
+        ingresosEfectivo: Number(f.ingresos_efectivo),
+        ingresosTransferencia: Number(f.ingresos_transferencia),
+        egresos: Number(f.egresos),
+      },
+    ]),
+  )
+}
+
+// Σ por alumno de max(0, cargos.monto − pagos del mismo período), en la base
+// (migración 30). Misma base de saldo que fetchDeudores
+// (dashboard_saldo_alumno_periodo) — no pueden diferir.
 async function saldoACobrarPorAlumno(periodo: string): Promise<number> {
-  const [cargosRes, pagosRes] = await Promise.all([
-    supabase.from('cargos').select('*').eq('periodo', periodo),
-    supabase.from('pagos_alumnos').select('*').eq('periodo', periodo),
-  ])
-  const cargos = (cargosRes.data ?? []) as Cargo[]
-  const pagos = (pagosRes.data ?? []) as PagoAlumno[]
-
-  const cargoPorAlumno = new Map<string, number>()
-  for (const c of cargos) {
-    cargoPorAlumno.set(c.alumno_id, (cargoPorAlumno.get(c.alumno_id) ?? 0) + Number(c.monto))
-  }
-  const pagadoPorAlumno = new Map<string, number>()
-  for (const p of pagos) {
-    pagadoPorAlumno.set(p.alumno_id, (pagadoPorAlumno.get(p.alumno_id) ?? 0) + Number(p.monto_pagado))
-  }
-
-  let total = 0
-  for (const [alumnoId, monto] of cargoPorAlumno) {
-    const saldo = monto - (pagadoPorAlumno.get(alumnoId) ?? 0)
-    if (saldo > 0) total += saldo
-  }
-  return total
+  const { data, error } = await supabase.rpc('dashboard_saldo_a_cobrar', { p_periodo: periodo })
+  if (error) throw new Error(error.message)
+  return Number(data ?? 0)
 }
 
 export async function fetchKpiCards(periodo: string): Promise<KpiCards> {
   const desde = inicioDeMes(periodo)
   const hasta = primerDiaSiguiente(periodo)
 
-  const [pagosRes, egresosRes, estados, saldoACobrar] = await Promise.all([
-    supabase
-      .from('pagos')
-      .select('total, importe_efectivo, importe_transferencia')
-      .gte('fecha', desde)
-      .lt('fecha', hasta),
-    supabase.from('egresos').select('monto').gte('fecha', desde).lt('fecha', hasta),
+  const [finanzasPorMes, estados, saldoACobrar, conAsistenciaRes] = await Promise.all([
+    // Misma RPC que el gráfico de ganancia neta (migración 29) — no pueden diferir.
+    fetchFinanzasPorMes(desde, hasta),
     fetchEstadoAlumnosPorPeriodo(periodo, 1),
     saldoACobrarPorAlumno(periodo),
+    // count(distinct alumno_id) en la base (migración 28), sin traer filas.
+    supabase.rpc('dashboard_alumnos_con_asistencia', { p_desde: desde, p_hasta: hasta }),
   ])
+  if (conAsistenciaRes.error) throw new Error(conAsistenciaRes.error.message)
 
-  const pagos = (pagosRes.data ?? []) as Pick<Pago, 'total' | 'importe_efectivo' | 'importe_transferencia'>[]
-  const ingresos = pagos.reduce((s, p) => s + Number(p.total), 0)
-  const ingresosEfectivo = pagos.reduce((s, p) => s + Number(p.importe_efectivo), 0)
-  const ingresosTransferencia = pagos.reduce((s, p) => s + Number(p.importe_transferencia), 0)
-  const egresos = ((egresosRes.data ?? []) as Pick<Egreso, 'monto'>[]).reduce((s, e) => s + Number(e.monto), 0)
+  const finanzas = finanzasPorMes.get(periodo)
+  const ingresos = finanzas?.ingresos ?? 0
+  const ingresosEfectivo = finanzas?.ingresosEfectivo ?? 0
+  const ingresosTransferencia = finanzas?.ingresosTransferencia ?? 0
+  const egresos = finanzas?.egresos ?? 0
   const alumnosActivos = estados[0]?.activos ?? 0
 
   return {
     alumnosActivos,
+    alumnosConAsistencia: Number(conAsistenciaRes.data ?? 0),
     ingresos,
     ingresosEfectivo,
     ingresosTransferencia,
@@ -223,68 +242,75 @@ export async function fetchKpiCards(periodo: string): Promise<KpiCards> {
   }
 }
 
+// Rango: hasta el período filtrado (nunca más allá del mes actual), máximo
+// `cantidad` meses hacia atrás, y sin los meses anteriores a la primera
+// asistencia registrada — antes de eso el sistema no se usaba y "0 con / N
+// sin asistencia" no significa nada. Recortar los meses iniciales con
+// con_asistencia = 0 equivale a arrancar en min(asistencias_alumnos.fecha).
 export async function fetchTrend(hastaPeriodo: string, cantidad = 6): Promise<TrendPoint[]> {
-  const periodos = listaPeriodos(hastaPeriodo, cantidad)
+  const actual = periodoActual()
+  const hasta = hastaPeriodo > actual ? actual : hastaPeriodo
+  const periodos = listaPeriodos(hasta, cantidad)
   const desde = inicioDeMes(periodos[0])
-  const hasta = primerDiaSiguiente(periodos[periodos.length - 1])
+  const fin = primerDiaSiguiente(periodos[periodos.length - 1])
 
-  const [pagosRes, egresosRes, estados] = await Promise.all([
-    supabase.from('pagos').select('total, fecha').gte('fecha', desde).lt('fecha', hasta),
-    supabase.from('egresos').select('monto, fecha').gte('fecha', desde).lt('fecha', hasta),
-    fetchEstadoAlumnosPorPeriodo(hastaPeriodo, cantidad),
+  const [finanzasPorMes, asistenciaRes] = await Promise.all([
+    fetchFinanzasPorMes(desde, fin),
+    // Una sola consulta agrupada por mes para todo el rango (migración 28).
+    supabase.rpc('dashboard_asistencia_por_mes', { p_desde: desde, p_hasta: fin }),
   ])
+  if (asistenciaRes.error) throw new Error(asistenciaRes.error.message)
 
-  const mesDe = (fecha: string) => fecha.slice(0, 7)
+  const asistenciaPorMes = new Map(
+    ((asistenciaRes.data ?? []) as {
+      periodo: string
+      con_asistencia: number
+      sin_asistencia: number
+      base_activos: number
+    }[]).map((a) => [a.periodo, a]),
+  )
 
-  const ingresosPorMes = new Map<string, number>()
-  for (const p of (pagosRes.data ?? []) as { total: number; fecha: string }[]) {
-    const m = mesDe(p.fecha)
-    ingresosPorMes.set(m, (ingresosPorMes.get(m) ?? 0) + Number(p.total))
-  }
-  const egresosPorMes = new Map<string, number>()
-  for (const e of (egresosRes.data ?? []) as { monto: number; fecha: string }[]) {
-    const m = mesDe(e.fecha)
-    egresosPorMes.set(m, (egresosPorMes.get(m) ?? 0) + Number(e.monto))
-  }
-  const estadosPorMes = new Map(estados.map((e) => [e.periodo, e]))
-
-  return periodos.map((periodo) => ({
-    periodo,
-    gananciaNeta: (ingresosPorMes.get(periodo) ?? 0) - (egresosPorMes.get(periodo) ?? 0),
-    alumnosActivos: estadosPorMes.get(periodo)?.activos ?? 0,
-    alumnosInactivos: estadosPorMes.get(periodo)?.inactivos ?? 0,
-  }))
+  const puntos = periodos.map((periodo) => {
+    const f = finanzasPorMes.get(periodo)
+    return {
+      periodo,
+      enCurso: periodo === actual,
+      gananciaNeta: (f?.ingresos ?? 0) - (f?.egresos ?? 0),
+      conAsistencia: asistenciaPorMes.get(periodo)?.con_asistencia ?? 0,
+      sinAsistencia: asistenciaPorMes.get(periodo)?.sin_asistencia ?? 0,
+      baseActivos: asistenciaPorMes.get(periodo)?.base_activos ?? 0,
+    }
+  })
+  const primeroConUso = puntos.findIndex((p) => p.conAsistencia > 0)
+  return primeroConUso === -1 ? [] : puntos.slice(primeroConUso)
 }
 
+// Agregado en la base (migración 29): conteo y días distintos por turno, top
+// ya recortado — horario libre (turno_id nulo) excluido ahí, como antes.
 export async function fetchTopHorarios(periodo: string, top = 5): Promise<HorarioOcupacion[]> {
-  const desde = inicioDeMes(periodo)
-  const hasta = primerDiaSiguiente(periodo)
+  const { data, error } = await supabase.rpc('dashboard_top_horarios', {
+    p_desde: inicioDeMes(periodo),
+    p_hasta: primerDiaSiguiente(periodo),
+    p_top: top,
+  })
+  if (error) throw new Error(error.message)
 
-  const [asistenciasRes, turnosRes] = await Promise.all([
-    supabase.from('asistencias_alumnos').select('turno_id, fecha').gte('fecha', desde).lt('fecha', hasta),
-    supabase.from('turnos').select('*'),
-  ])
-
-  const turnos = (turnosRes.data ?? []) as Turno[]
-  const conteo = new Map<string, number>()
-  const diasPorTurno = new Map<string, Set<string>>()
-  for (const a of (asistenciasRes.data ?? []) as Pick<AsistenciaAlumno, 'turno_id' | 'fecha'>[]) {
-    if (!a.turno_id) continue // horario libre (ej. Musculación) — no cuenta como ocupación de un turno fijo
-    conteo.set(a.turno_id, (conteo.get(a.turno_id) ?? 0) + 1)
-    if (!diasPorTurno.has(a.turno_id)) diasPorTurno.set(a.turno_id, new Set())
-    diasPorTurno.get(a.turno_id)!.add(a.fecha)
-  }
-
-  return [...conteo.entries()]
-    .map(([turnoId, cantidad]) => {
-      const t = turnos.find((tu) => tu.id === turnoId)
-      const nombre = t ? `${t.nombre} (${t.hora.slice(0, 5)})` : turnoId
-      const dias = diasPorTurno.get(turnoId)?.size ?? 0
-      const promedio = dias > 0 ? cantidad / dias : 0
-      return { turnoId, nombre, cantidad, dias, promedio }
-    })
-    .sort((a, b) => b.promedio - a.promedio)
-    .slice(0, top)
+  return (
+    (data ?? []) as {
+      turno_id: string
+      nombre: string | null
+      hora: string | null
+      cantidad: number
+      dias: number
+      promedio: number
+    }[]
+  ).map((h) => ({
+    turnoId: h.turno_id,
+    nombre: h.nombre ? `${h.nombre}${h.hora ? ` (${h.hora.slice(0, 5)})` : ''}` : h.turno_id,
+    cantidad: Number(h.cantidad),
+    dias: Number(h.dias),
+    promedio: Number(h.promedio),
+  }))
 }
 
 // ---- Centro de Resumen Mensual ----
@@ -327,92 +353,52 @@ export interface AlertasResumen {
   alumnosSinCargo: Alumno[]
 }
 
-function diasEntre(desde: string, hasta: Date): number {
-  const d1 = new Date(`${desde}T00:00:00`)
-  return Math.floor((hasta.getTime() - d1.getTime()) / 86_400_000)
-}
+// Deuda acumulada (todos los períodos, doc 03), calculada en la base
+// (migración 30): por alumno, Σ max(0, cargo − pagos del mismo período),
+// cargo/período más antiguo con saldo y días desde el fin de ese período.
+// Ya viene ordenada por días de vencimiento desc.
+async function fetchDeudores(alumnoPorId: Map<string, Alumno>): Promise<Deudor[]> {
+  const { data, error } = await supabase.rpc('dashboard_deudores')
+  if (error) throw new Error(error.message)
 
-async function fetchDeudores(alumnos: Alumno[]): Promise<Deudor[]> {
-  const [cargosRes, pagosRes] = await Promise.all([
-    supabase.from('cargos').select('*'),
-    supabase.from('pagos_alumnos').select('*'),
-  ])
-  const cargos = (cargosRes.data ?? []) as Cargo[]
-  const pagos = (pagosRes.data ?? []) as PagoAlumno[]
-
-  // saldo y período más antiguo con deuda, por alumno — RN: deuda es acumulada (doc 03)
-  const cargosPorAlumno = new Map<string, Cargo[]>()
-  for (const c of cargos) {
-    if (!cargosPorAlumno.has(c.alumno_id)) cargosPorAlumno.set(c.alumno_id, [])
-    cargosPorAlumno.get(c.alumno_id)!.push(c)
-  }
-  const pagadoPorAlumnoPeriodo = new Map<string, number>()
-  for (const p of pagos) {
-    const key = `${p.alumno_id}::${p.periodo}`
-    pagadoPorAlumnoPeriodo.set(key, (pagadoPorAlumnoPeriodo.get(key) ?? 0) + Number(p.monto_pagado))
-  }
-
-  const hoy = new Date()
   const deudores: Deudor[] = []
-
-  for (const [alumnoId, cargosAlumno] of cargosPorAlumno) {
-    let saldo = 0
-    let cargoMasAntiguoConDeuda: Cargo | null = null
-    for (const c of [...cargosAlumno].sort((a, b) => (a.periodo < b.periodo ? -1 : 1))) {
-      const pagado = pagadoPorAlumnoPeriodo.get(`${alumnoId}::${c.periodo}`) ?? 0
-      const saldoPeriodo = Number(c.monto) - pagado
-      if (saldoPeriodo > 0) {
-        saldo += saldoPeriodo
-        if (!cargoMasAntiguoConDeuda) cargoMasAntiguoConDeuda = c
-      }
-    }
-    if (saldo > 0 && cargoMasAntiguoConDeuda) {
-      const alumno = alumnos.find((a) => a.id === alumnoId)
-      if (!alumno) continue
-      deudores.push({
-        alumno,
-        cargoId: cargoMasAntiguoConDeuda.id,
-        periodo: cargoMasAntiguoConDeuda.periodo,
-        cargoMonto: Number(cargoMasAntiguoConDeuda.monto),
-        monto: saldo,
-        diasVencimiento: Math.max(0, diasEntre(finDeMes(cargoMasAntiguoConDeuda.periodo), hoy)),
-        estado: cargoMasAntiguoConDeuda.estado,
-      })
-    }
+  for (const d of (data ?? []) as {
+    alumno_id: string
+    cargo_id: string
+    periodo: string
+    cargo_monto: number
+    saldo: number
+    dias_vencimiento: number
+    estado: EstadoPago
+  }[]) {
+    const alumno = alumnoPorId.get(d.alumno_id)
+    if (!alumno) continue
+    deudores.push({
+      alumno,
+      cargoId: d.cargo_id,
+      periodo: d.periodo,
+      cargoMonto: Number(d.cargo_monto),
+      monto: Number(d.saldo),
+      diasVencimiento: Number(d.dias_vencimiento),
+      estado: d.estado,
+    })
   }
-
-  return deudores.sort((a, b) => b.diasVencimiento - a.diasVencimiento)
+  return deudores
 }
 
-async function fetchProximosInactivarse(alumnos: Alumno[]): Promise<ProximoInactivo[]> {
-  const activos = alumnos.filter((a) => a.estado === 'activo')
-  if (activos.length === 0) return []
+// RN-004: activos con la última asistencia (max(fecha) en la base, migración
+// 30) hace 15 a 24 días. Sin ninguna asistencia: no aparecen. Ya viene
+// ordenada por días sin asistir desc.
+async function fetchProximosInactivarse(alumnoPorId: Map<string, Alumno>): Promise<ProximoInactivo[]> {
+  const { data, error } = await supabase.rpc('dashboard_proximos_inactivarse')
+  if (error) throw new Error(error.message)
 
-  const { data } = await supabase
-    .from('asistencias_alumnos')
-    .select('alumno_id, fecha')
-    .in(
-      'alumno_id',
-      activos.map((a) => a.id),
-    )
-
-  const ultimaPorAlumno = new Map<string, string>()
-  for (const row of (data ?? []) as Pick<AsistenciaAlumno, 'alumno_id' | 'fecha'>[]) {
-    const actual = ultimaPorAlumno.get(row.alumno_id)
-    if (!actual || row.fecha > actual) ultimaPorAlumno.set(row.alumno_id, row.fecha)
-  }
-
-  const hoy = new Date()
   const resultado: ProximoInactivo[] = []
-  for (const alumno of activos) {
-    const ultima = ultimaPorAlumno.get(alumno.id)
-    if (!ultima) continue
-    const dias = diasEntre(ultima, hoy)
-    if (dias >= 15 && dias < 25) {
-      resultado.push({ alumno, diasSinAsistir: dias })
-    }
+  for (const p of (data ?? []) as { alumno_id: string; dias_sin_asistir: number }[]) {
+    const alumno = alumnoPorId.get(p.alumno_id)
+    if (alumno) resultado.push({ alumno, diasSinAsistir: Number(p.dias_sin_asistir) })
   }
-  return resultado.sort((a, b) => b.diasSinAsistir - a.diasSinAsistir)
+  return resultado
 }
 
 async function fetchHorasProfesor(periodo: string): Promise<HorasProfesorFila[]> {
@@ -476,25 +462,28 @@ async function fetchCargosSinDefinir(periodo: string, alumnos: Alumno[]): Promis
 // Alumnos activos sin ningún cargo en el período — con el trigger de cargos
 // continuos (migración 22) un cargo existe apenas hay una asistencia, así que
 // "sin cargo" equivale a "sin asistencia registrada este período todavía".
-async function fetchAlumnosSinCargo(periodo: string, alumnos: Alumno[]): Promise<Alumno[]> {
-  const activos = alumnos.filter((a) => a.estado === 'activo')
-  if (activos.length === 0) return []
-
-  const { data } = await supabase.from('cargos').select('alumno_id').eq('periodo', periodo)
-  const conCargo = new Set((data ?? []).map((c) => c.alumno_id as string))
-  return activos.filter((a) => !conCargo.has(a.id))
+// El filtro corre en la base (migración 30), sin mandar ids por la URL.
+async function fetchAlumnosSinCargo(periodo: string, alumnoPorId: Map<string, Alumno>): Promise<Alumno[]> {
+  const { data, error } = await supabase.rpc('dashboard_alumnos_sin_cargo', { p_periodo: periodo })
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as { alumno_id: string }[])
+    .map((r) => alumnoPorId.get(r.alumno_id))
+    .filter((a): a is Alumno => !!a)
 }
 
 export async function fetchAlertasResumen(periodo: string): Promise<AlertasResumen> {
-  const { data: alumnosData } = await supabase.from('alumnos').select('*')
-  const alumnos = (alumnosData ?? []) as Alumno[]
+  const { data: alumnos, error: alumnosError } = await fetchAllPages<Alumno>((from, to) =>
+    supabase.from('alumnos').select('*').order('id').range(from, to),
+  )
+  if (alumnosError) throw new Error(alumnosError)
+  const alumnoPorId = new Map(alumnos.map((a) => [a.id, a]))
 
   const [deudores, proximosInactivarse, horasProfesor, cargosSinDefinir, alumnosSinCargo] = await Promise.all([
-    fetchDeudores(alumnos),
-    fetchProximosInactivarse(alumnos),
+    fetchDeudores(alumnoPorId),
+    fetchProximosInactivarse(alumnoPorId),
     fetchHorasProfesor(periodo),
     fetchCargosSinDefinir(periodo, alumnos),
-    fetchAlumnosSinCargo(periodo, alumnos),
+    fetchAlumnosSinCargo(periodo, alumnoPorId),
   ])
 
   return { deudores, proximosInactivarse, horasProfesor, cargosSinDefinir, alumnosSinCargo }

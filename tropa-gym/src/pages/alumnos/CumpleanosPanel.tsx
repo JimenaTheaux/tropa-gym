@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { Alumno } from '@/types/db'
 import { supabase } from '@/lib/supabase'
+import { fetchAllPages } from '@/lib/fetchAllPages'
 import { whatsappLink } from '@/lib/utils'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { BadgeEstado } from '@/components/ui/BadgeEstado'
@@ -29,9 +30,11 @@ function parseCumple(alumno: Alumno): Cumple | null {
 }
 
 async function fetchAlumnosConCumpleanos(): Promise<Alumno[]> {
-  const { data, error } = await supabase.from('alumnos').select('*').not('fecha_nacimiento', 'is', null)
+  const { data, error } = await fetchAllPages<Alumno>((from, to) =>
+    supabase.from('alumnos').select('*').not('fecha_nacimiento', 'is', null).order('id').range(from, to),
+  )
   if (error) return []
-  return data as Alumno[]
+  return data
 }
 
 export function CumpleanosPanel() {

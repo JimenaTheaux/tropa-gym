@@ -1,10 +1,13 @@
 import type { Alumno, AlumnoEstadoHistorial, EstadoAlumno } from '@/types/db'
 import { supabase } from '@/lib/supabase'
+import { fetchAllPages } from '@/lib/fetchAllPages'
 
 export async function fetchAlumnos(): Promise<Alumno[]> {
-  const { data, error } = await supabase.from('alumnos').select('*').order('apellido')
+  const { data, error } = await fetchAllPages<Alumno>((from, to) =>
+    supabase.from('alumnos').select('*').order('apellido').order('id').range(from, to),
+  )
   if (error) return []
-  return data as Alumno[]
+  return data
 }
 
 export async function fetchHistorialEstado(alumnoId: string): Promise<AlumnoEstadoHistorial[]> {
