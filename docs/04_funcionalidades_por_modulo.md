@@ -27,7 +27,7 @@ Funciona como centro de alertas. Orden de secciones (migración 22: ya no hay "g
 
 **A. Cargos del período**
 - Selector de período. Sin botón de generación — los cargos ya existen solos, creados por cada asistencia.
-- Cards en vivo: **Cuotas completas**, **Medias cuotas**, **Cuotas pagadas** (cargos cuyo acumulado de pagos ya cubre el monto), **Sin validar** (cargos que el trigger automático todavía puede recalcular — ver doc 03, "Cargo validado"), **Facturado del período** (Σ `cargos.monto` del mes, pagados o no — no es deuda).
+- Cards en vivo: **Cuotas completas**, **Medias cuotas**, **Cuotas pagadas** (cargos cuyo acumulado de pagos ya cubre el monto; los exentos, $0 definido por acuerdo externo, quedan fuera de la fracción y se muestran aparte como "N exentas" — doc 03), **Sin validar** (cargos que el trigger automático todavía puede recalcular — ver doc 03, "Cargo validado"), **Facturado del período** (Σ `cargos.monto` del mes, pagados o no — no es deuda).
 
 **B. Fila de alertas** (KPIs chicos, estilo borde — doc 08)
 - Deuda del período (alumnos + monto) — solo el mes elegido, incluso si es el mes en curso y todavía no venció.

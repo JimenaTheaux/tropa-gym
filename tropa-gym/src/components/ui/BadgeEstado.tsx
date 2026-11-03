@@ -28,12 +28,16 @@ const ESTADO_CARGO_CONFIG: Record<EstadoPago, { color: string; icon: string; lab
   pendiente: { color: '#3d4b37', icon: 'schedule', label: 'Pendiente' },
 }
 
-export function BadgeEstadoCargo({ estado }: { estado: EstadoPago }) {
-  const cfg = ESTADO_CARGO_CONFIG[estado]
+// Exento no es un estado de la base (ver esCargoExento): neutro también, no
+// entró plata.
+const CARGO_EXENTO_CONFIG = { color: '#3d4b37', icon: 'money_off', label: 'Exento' }
+
+export function BadgeEstadoCargo({ estado, exento = false }: { estado: EstadoPago; exento?: boolean }) {
+  const cfg = exento ? CARGO_EXENTO_CONFIG : ESTADO_CARGO_CONFIG[estado]
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-inter text-xs font-medium text-on-surface-variant"
-      style={{ borderColor: cfg.color, color: estado === 'pagado' ? cfg.color : undefined }}
+      style={{ borderColor: cfg.color, color: estado === 'pagado' && !exento ? cfg.color : undefined }}
     >
       <span className="material-symbols-outlined !text-[14px]">{cfg.icon}</span>
       {cfg.label}

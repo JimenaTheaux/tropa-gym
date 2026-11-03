@@ -41,6 +41,8 @@ Se evalúa en este orden (`fn_recalcular_estado_cargo`, único lugar donde vive 
 4. **Parcial**: 0 < suma de `monto_pagado` < `cargos.monto`.
 5. **Pagado**: suma de `monto_pagado` >= `cargos.monto`.
 
+**Exento** no es un estado de la base: es cómo se muestra un cargo con `monto_definido = true` y `monto = 0` (`esCargoExento`). En la base queda `pagado` porque no hay deuda, pero no entró plata: la app muestra "Exento" y lo cuenta aparte en el Resumen Mensual. Vale solo para ese período.
+
 El recálculo es automático (trigger) y usa el **acumulado de todos los pagos** del cargo (`cargo_id`), no solo el último pago registrado. Se dispara en dos casos:
 1. Cada INSERT/UPDATE/DELETE en `pagos_alumnos` (se recalcula el cargo afectado).
 2. Cada UPDATE de `cargos.monto` o `cargos.monto_definido` (edición manual — ver doc 02, Admin/Profesor — o recálculo automático).

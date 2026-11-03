@@ -12,7 +12,7 @@ import {
   type Deudor,
   type ModoDeuda,
 } from '@/lib/dashboard'
-import { fetchCargosPeriodo } from '@/lib/cargos'
+import { esCargoExento, fetchCargosPeriodo } from '@/lib/cargos'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { useAlumnos } from '@/hooks/useAlumnos'
@@ -131,6 +131,7 @@ function AlertaFraccion({
   total,
   labelParte,
   labelTotal,
+  exentas = 0,
   info,
 }: {
   label: string
@@ -138,6 +139,7 @@ function AlertaFraccion({
   total: number
   labelParte: string
   labelTotal: string
+  exentas?: number
   info?: string
 }) {
   return (
@@ -154,6 +156,11 @@ function AlertaFraccion({
       <div className="flex flex-col leading-tight">
         <span className="font-inter text-[12px] font-semibold text-primary-fixed-dim">{labelParte}</span>
         <span className="font-inter text-[12px] font-semibold text-on-surface-variant">{labelTotal}</span>
+        {exentas > 0 && (
+          <span className="font-inter text-[12px] text-on-surface-variant">
+            {exentas} {exentas === 1 ? 'exenta' : 'exentas'}
+          </span>
+        )}
       </div>
     </div>
   )
@@ -230,10 +237,14 @@ export function ResumenMensualPanel() {
     setFichaAlumno(alumnos.find((a) => a.id === alumnoId) ?? null)
   }
 
-  const completas = cargosPeriodo.filter((c) => c.tipo === 'completa').length
-  const completasPagadas = cargosPeriodo.filter((c) => c.tipo === 'completa' && c.estado === 'pagado').length
-  const medias = cargosPeriodo.filter((c) => c.tipo === 'media').length
-  const mediasPagadas = cargosPeriodo.filter((c) => c.tipo === 'media' && c.estado === 'pagado').length
+  // Las exentas van aparte: no entró plata, la fracción es solo de lo que se cobra.
+  const cargosACobrar = cargosPeriodo.filter((c) => !esCargoExento(c.monto, c.monto_definido))
+  const completas = cargosACobrar.filter((c) => c.tipo === 'completa').length
+  const completasPagadas = cargosACobrar.filter((c) => c.tipo === 'completa' && c.estado === 'pagado').length
+  const completasExentas = cargosPeriodo.filter((c) => c.tipo === 'completa').length - completas
+  const medias = cargosACobrar.filter((c) => c.tipo === 'media').length
+  const mediasPagadas = cargosACobrar.filter((c) => c.tipo === 'media' && c.estado === 'pagado').length
+  const mediasExentas = cargosPeriodo.filter((c) => c.tipo === 'media').length - medias
   const montoTotal = cargosPeriodo.reduce((sum, c) => sum + Number(c.monto), 0)
 
   const deudores = deudoresQuery.data ?? []
@@ -294,7 +305,8 @@ export function ResumenMensualPanel() {
               total={completas}
               labelParte="pagadas"
               labelTotal="cuotas"
-              info="Alumnos cuya primera asistencia del período fue entre el día 1 y el 14 (precio completo del combo). El número verde es cuántos de esos cargos ya están pagados."
+              exentas={completasExentas}
+              info="Alumnos cuya primera asistencia del período fue entre el día 1 y el 14 (precio completo del combo). El número verde es cuántos de esos cargos ya están pagados. Los cargos exentos ($0 por acuerdo) no entran en la fracción."
             />
             <AlertaFraccion
               label="Medias cuotas"
@@ -302,7 +314,8 @@ export function ResumenMensualPanel() {
               total={medias}
               labelParte="pagadas"
               labelTotal="cuotas"
-              info="Alumnos cuya primera asistencia del período fue del día 15 en adelante (mitad del precio del combo). El número verde es cuántos de esos cargos ya están pagados."
+              exentas={mediasExentas}
+              info="Alumnos cuya primera asistencia del período fue del día 15 en adelante (mitad del precio del combo). El número verde es cuántos de esos cargos ya están pagados. Los cargos exentos ($0 por acuerdo) no entran en la fracción."
             />
             <AlertaChica
               label="Situaciones a definir"

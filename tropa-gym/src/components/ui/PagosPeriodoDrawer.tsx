@@ -23,6 +23,7 @@ interface PagosPeriodoDrawerProps {
   periodo?: string
   cargoMonto?: number
   cargoEstado?: EstadoPago
+  cargoExento?: boolean
   onClose: () => void
 }
 
@@ -39,6 +40,7 @@ export function PagosPeriodoDrawer({
   periodo,
   cargoMonto,
   cargoEstado,
+  cargoExento,
   onClose,
 }: PagosPeriodoDrawerProps) {
   const pagosQuery = useQuery({
@@ -68,7 +70,7 @@ export function PagosPeriodoDrawer({
                 Cargo {money(cargoMonto ?? 0)} · Pagado {money(totalPagado)}
               </p>
             </div>
-            {cargoEstado && <BadgeEstadoCargo estado={cargoEstado} />}
+            {cargoEstado && <BadgeEstadoCargo estado={cargoEstado} exento={cargoExento} />}
           </div>
         )}
 

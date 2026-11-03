@@ -4,7 +4,7 @@ import type { Alumno } from '@/types/db'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchHistorialAlumno, getEstadoCuenta } from '@/lib/cuenta'
 import { fetchHistorialEstado } from '@/lib/alumnos'
-import { fetchAsistenciasAlumnoPeriodo } from '@/lib/cargos'
+import { esCargoExento, fetchAsistenciasAlumnoPeriodo } from '@/lib/cargos'
 import { formatFecha } from '@/lib/utils'
 import { useCombos, useDisciplinas, useTurnos } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
@@ -217,7 +217,10 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
                               ? `$${Math.abs(p.saldo).toLocaleString('es-AR')} (a favor)`
                               : `$${p.saldo.toLocaleString('es-AR')}`}
                           </span>
-                          <BadgeEstadoCargo estado={p.estado} />
+                          <BadgeEstadoCargo
+                            estado={p.estado}
+                            exento={!!p.cargoId && esCargoExento(p.cargoMonto, p.cargoMontoDefinido)}
+                          />
                           {!p.cargoMontoDefinido && (
                             <span
                               title="El cargo se generó pero no se pudo resolver combo/precio — el monto todavía no está definido."

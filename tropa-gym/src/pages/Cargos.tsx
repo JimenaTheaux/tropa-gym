@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Cargo, EstadoPago, TipoCargo } from '@/types/db'
 import { traducirError } from '@/lib/errores'
-import { fetchCargosPeriodo, marcarCargoValidado, validarCargosPagadosDelPeriodo } from '@/lib/cargos'
+import { esCargoExento, fetchCargosPeriodo, marcarCargoValidado, validarCargosPagadosDelPeriodo } from '@/lib/cargos'
 import { useAlumnos } from '@/hooks/useAlumnos'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
@@ -32,6 +32,7 @@ const FILTRO_ESTADO_OPTIONS = [
   { value: 'pagado', label: 'Pagado' },
   { value: 'parcial', label: 'Parcial' },
   { value: 'pendiente', label: 'Pendiente' },
+  { value: 'exento', label: 'Exento' },
 ]
 
 const FILTRO_VALIDADO_OPTIONS = [
@@ -74,11 +75,12 @@ export function Cargos() {
     nombre: string
     cargoMonto: number
     cargoEstado: EstadoPago
+    cargoExento: boolean
   } | null>(null)
 
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<TipoCargo | ''>('')
-  const [filtroEstado, setFiltroEstado] = useState<EstadoPago | ''>('')
+  const [filtroEstado, setFiltroEstado] = useState<EstadoPago | 'exento' | ''>('')
   const [filtroValidado, setFiltroValidado] = useState<'validado' | 'sin_validar' | ''>('')
 
   const [confirmarValidarTodos, setConfirmarValidarTodos] = useState(false)
@@ -104,7 +106,10 @@ export function Cargos() {
     .map((c) => ({ cargo: c, alumno: alumnos.find((a) => a.id === c.alumno_id) }))
     .filter(({ cargo, alumno }) => {
       if (filtroTipo && cargo.tipo !== filtroTipo) return false
-      if (filtroEstado && cargo.estado !== filtroEstado) return false
+      if (filtroEstado) {
+        const estadoVisible = esCargoExento(cargo.monto, cargo.monto_definido) ? 'exento' : cargo.estado
+        if (estadoVisible !== filtroEstado) return false
+      }
       if (filtroValidado === 'validado' && !cargo.validado) return false
       if (filtroValidado === 'sin_validar' && cargo.validado) return false
       if (busquedaTerm) {
@@ -209,7 +214,7 @@ export function Cargos() {
                 label="Estado"
                 placeholder="Todos"
                 value={filtroEstado}
-                onChange={(e) => setFiltroEstado(e.target.value as EstadoPago | '')}
+                onChange={(e) => setFiltroEstado(e.target.value as EstadoPago | 'exento' | '')}
                 options={FILTRO_ESTADO_OPTIONS}
               />
             </div>
@@ -324,6 +329,7 @@ export function Cargos() {
                               nombre: alumno ? `${alumno.nombre} ${alumno.apellido}` : alumnoNombre(cargo.alumno_id),
                               cargoMonto: Number(cargo.monto),
                               cargoEstado: cargo.estado,
+                              cargoExento: esCargoExento(cargo.monto, cargo.monto_definido),
                             })
                           }
                           aria-label="Ver pagos"
@@ -335,7 +341,7 @@ export function Cargos() {
                       </div>
                     </td>
                     <td className="px-4 py-2">
-                      <BadgeEstadoCargo estado={cargo.estado} />
+                      <BadgeEstadoCargo estado={cargo.estado} exento={esCargoExento(cargo.monto, cargo.monto_definido)} />
                     </td>
                   </tr>
                 ))}
@@ -379,6 +385,7 @@ export function Cargos() {
         periodo={periodo}
         cargoMonto={verPagosDe?.cargoMonto ?? 0}
         cargoEstado={verPagosDe?.cargoEstado ?? 'pendiente'}
+        cargoExento={verPagosDe?.cargoExento}
         onClose={() => setVerPagosDe(null)}
       />
     </div>

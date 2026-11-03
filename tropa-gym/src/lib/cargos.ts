@@ -50,6 +50,14 @@ export function agruparAsistenciasPorSemana(asistencias: AsistenciaAlumno[]): Se
     .map(([semana, cantidad]) => ({ semana, cantidad }))
 }
 
+// Exento: $0 definido a propósito (acuerdo externo con el alumno, doc 03). En
+// la base es estado = 'pagado' porque no debe nada, pero no entró plata: se
+// muestra y se cuenta aparte. Un cargo "a definir" también está en $0, por eso
+// hace falta mirar monto_definido.
+export function esCargoExento(monto: number, montoDefinido: boolean): boolean {
+  return montoDefinido && Number(monto) === 0
+}
+
 export interface PagoCargoDetalle {
   id: string
   periodo: string
