@@ -72,10 +72,11 @@ export interface Profesor {
   nombre: string
   apellido: string
   perfil_id: string | null
+  activo: boolean
   created_at: string
 }
 
-export type ProfesorInsert = Omit<Profesor, 'id' | 'created_at'>
+export type ProfesorInsert = Omit<Profesor, 'id' | 'created_at' | 'activo'> & { activo?: boolean }
 export type ProfesorUpdate = Partial<ProfesorInsert>
 
 export interface Alumno {
@@ -166,6 +167,7 @@ export interface Cargo {
 
 export type MetodoPago = 'efectivo' | 'transferencia' | 'combinado'
 export type TipoPago = 'individual' | 'familiar' | 'adelantado'
+export type RecibioTipo = 'admin' | 'profesor'
 
 export interface Pago {
   id: string
@@ -176,6 +178,10 @@ export interface Pago {
   total: number
   fecha: string
   created_at: string
+  recibio_tipo: RecibioTipo | null
+  recibio_profesor_id: string | null
+  cargado_por: string | null
+  request_id: string | null
 }
 
 export interface PagoAlumno {
@@ -190,4 +196,245 @@ export interface PagoAlumno {
   precio_snapshot: number
   monto_pagado: number
   created_at: string
+}
+
+// Cierre de caja (migraciones 35 a 37). Las tablas solo se leen como admin; toda
+// escritura pasa por RPC.
+export type EstadoCierre = 'cerrado' | 'verificado' | 'reabierto'
+export type EventoCierre = 'reabierto' | 'modificado_post_cierre' | 'verificado'
+
+export interface ConfigCaja {
+  id: boolean
+  fecha_arranque: string | null
+  updated_at: string
+  updated_by: string | null
+}
+
+export interface CierreCaja {
+  id: string
+  profesor_id: string
+  asistencia_profesor_id: string | null
+  turno_inicio: string | null
+  turno_fin: string | null
+  efectivo_sistema: number
+  efectivo_declarado: number
+  diferencia: number
+  coincide: boolean
+  observacion: string | null
+  transferencias_sistema: number
+  cantidad_pagos: number
+  estado: EstadoCierre
+  modificado: boolean
+  verificacion_id: string | null
+  cerrado_en: string
+  created_by: string
+}
+
+export interface CierreCajaPago {
+  id: string
+  cierre_id: string
+  pago_id: string | null
+  pago_id_original: string
+  efectivo: number
+  transferencia: number
+  total: number
+  descripcion: string | null
+}
+
+export interface VerificacionCaja {
+  id: string
+  verificado_por: string
+  verificado_en: string
+  efectivo_esperado: number
+  efectivo_contado: number
+  diferencia: number
+  nota: string | null
+  transferencias_controladas: boolean
+  modificado: boolean
+}
+
+export interface VerificacionCajaPago {
+  id: string
+  verificacion_id: string
+  pago_id: string | null
+  pago_id_original: string
+  efectivo: number
+}
+
+export interface CierreCajaEvento {
+  id: string
+  cierre_id: string | null
+  verificacion_id: string | null
+  evento: EventoCierre
+  usuario: string | null
+  motivo: string | null
+  payload: Record<string, unknown>
+  ocurrido_en: string
+}
+
+// Parámetros nuevos de registrar_pago_individual/familiar/adelantado.
+export interface PagoReceptorParams {
+  p_recibio_tipo?: RecibioTipo | null
+  p_recibio_profesor_id?: string | null
+  p_request_id?: string | null
+}
+
+export interface CerrarCajaTurnoParams {
+  p_profesor_id: string
+  p_asistencia_id: string | null
+  p_pago_ids: string[]
+  p_coincide: boolean
+  p_efectivo_declarado: number | null
+  p_observacion: string | null
+}
+
+export interface VerificarCierresParams {
+  p_cierre_ids: string[]
+  p_efectivo_contado: number
+  p_nota: string | null
+  p_transferencias_controladas: boolean
+}
+
+export interface AsignarReceptorPagoParams {
+  p_pago_id: string
+  p_recibio_tipo: RecibioTipo
+  p_recibio_profesor_id: string | null
+}
+
+// Devoluciones de las RPC de caja.
+export interface PagoPendienteCierre {
+  id: string
+  created_at: string
+  fecha: string
+  tipo_pago: TipoPago
+  metodo_pago: MetodoPago
+  importe_efectivo: number
+  importe_transferencia: number
+  total: number
+  descripcion: string | null
+  fecha_distinta: boolean
+}
+
+export interface PagosPendientesCierre {
+  activo: boolean
+  pagos: PagoPendienteCierre[]
+  cantidad: number
+  total_efectivo: number
+  total_transferencia: number
+  huerfanos: number
+}
+
+export interface CierreResumen {
+  cierre_id: string
+  profesor_id: string
+  profesor: string
+  turno_inicio: string | null
+  turno_fin: string | null
+  cerrado_en: string
+  efectivo_sistema: number
+  efectivo_declarado: number
+  diferencia: number
+  transferencias_sistema: number
+  cantidad_pagos: number
+  observacion: string | null
+  modificado: boolean
+}
+
+export interface CajaResumenDia {
+  activo: boolean
+  fecha: string
+  cierres: (CierreResumen & { coincide: boolean; estado: EstadoCierre })[]
+  cobros_dueno: { cantidad: number; efectivo: number; transferencias: number }
+  totales: { efectivo: number; transferencias: number; total: number }
+  por_receptor: {
+    recibio_tipo: RecibioTipo | null
+    profesor_id: string | null
+    profesor: string | null
+    cantidad: number
+    efectivo: number
+    transferencias: number
+  }[]
+  sin_cierre: {
+    pago_id: string
+    created_at: string
+    recibio_tipo: RecibioTipo | null
+    profesor_id: string | null
+    profesor: string | null
+    metodo_pago: MetodoPago
+    importe_efectivo: number
+    importe_transferencia: number
+    total: number
+    descripcion: string | null
+  }[]
+  huerfanos: number
+}
+
+export interface CobroDuenoPendiente {
+  pago_id: string
+  created_at: string
+  efectivo: number
+  descripcion: string | null
+}
+
+export interface CierresParaVerificar {
+  activo: boolean
+  cierres: CierreResumen[]
+  cobros_dueno: { efectivo: number; pagos: CobroDuenoPendiente[] }
+  avisos: {
+    turnos_abiertos: {
+      asistencia_id: string
+      profesor_id: string
+      profesor: string
+      fecha: string
+      hora_entrada: string | null
+    }[]
+    profes_con_pagos_sin_cerrar: {
+      profesor_id: string
+      profesor: string
+      cantidad: number
+      efectivo: number
+      desde: string
+    }[]
+  }
+}
+
+export interface PreviewVerificacion {
+  cierres: {
+    cierre_id: string
+    profesor_id: string
+    profesor: string
+    cerrado_en: string
+    efectivo_sistema: number
+    efectivo_declarado: number
+    diferencia: number
+    modificado: boolean
+  }[]
+  suma_declarado: number
+  cobros_dueno: CobroDuenoPendiente[]
+  suma_cobros_dueno: number
+  efectivo_esperado: number
+  corte: string
+}
+
+export interface ResultadoVerificacion {
+  verificacion_id: string
+  efectivo_esperado: number
+  efectivo_contado: number
+  diferencia: number
+}
+
+export interface PagoSinCierre {
+  grupo: 'sin_receptor' | 'pendiente_cierre'
+  pago_id: string
+  created_at: string
+  fecha: string
+  tipo_pago: TipoPago
+  metodo_pago: MetodoPago
+  importe_efectivo: number
+  importe_transferencia: number
+  total: number
+  descripcion: string | null
+  profesor_id: string | null
+  profesor: string | null
+  antiguedad_dias: number
 }

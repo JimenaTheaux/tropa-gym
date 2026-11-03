@@ -79,10 +79,12 @@ Usado por el Dashboard (`fetchEstadoAlumnosPorPeriodo`) para reconstruir cuánto
 | hora | time | |
 
 ### profesores
-| id, nombre, apellido, perfil_id (FK perfiles) |
+| id, nombre, apellido, perfil_id (FK perfiles), activo (boolean, default true, migración 35) |
 
 ### asistencias_profesores
 | id, profesor_id FK, fecha, hora_entrada, hora_salida |
+
+Trigger de edición con `fn_asistencias_profesores_bloquear_edicion_profesor` (existe en la base viva, sin migración en `docs/`): con rol profesor rechaza cambios de `fecha`, `hora_entrada` y `profesor_id` ("No tenés permisos para editar este campo"). `hora_salida` no la restringe. Admin no tiene esa restricción.
 
 ### cargos
 Cargo continuo desde la migración 22 — ya no lo crea un botón "Generar cargos del período": lo crea/actualiza solo el trigger `trg_asistencia_actualiza_cargo` en cada asistencia nueva (ver doc 03, "Flujo de liquidación mensual" y RPCs abajo).
@@ -109,6 +111,10 @@ Cargo continuo desde la migración 22 — ya no lo crea un botón "Generar cargo
 | importe_transferencia | numeric | si combinado |
 | total | numeric | monto real de la transacción (suma de `monto_pagado` de sus `pagos_alumnos`) |
 | fecha | timestamptz | Editable desde los 3 forms de registro (Individual/Familiar/Adelantado) y "Completar pago" — precarga con hoy, permite backdatear pagos atrasados (migración 19). El KPI/tendencia del dashboard filtran por esta columna, no por `created_at`. **Ojo zona horaria**: la fecha elegida en el form (`'YYYY-MM-DD'`) queda guardada como 00:00 UTC; un pago sin fecha (`now()`) guarda el instante real. `fn_fecha_pago_local(fecha)` (migración 29) devuelve el día argentino de ambos casos — usarla para agrupar/filtrar por día o mes, nunca `slice(0,7)` sobre el ISO ni `AT TIME ZONE` a secas |
+| recibio_tipo | text | `'admin'` \| `'profesor'`, nullable (migración 35). Quién recibió la plata; nulo = sin receptor. CHECK: `'profesor'` exige `recibio_profesor_id`; `'admin'` y nulo lo prohíben. Reglas: doc 03 |
+| recibio_profesor_id | FK profesores | nullable, `ON DELETE RESTRICT`: un profesor con pagos recibidos no se puede borrar, se desactiva con `activo` |
+| cargado_por | uuid | default `auth.uid()`. Sesión que cargó el pago; con login compartido no identifica a la persona. Nulo en pagos anteriores a la migración 35 |
+| request_id | uuid | UNIQUE, nullable. Idempotencia: el mismo `request_id` devuelve el pago existente sin duplicar |
 
 *(`pagos.estado` se eliminó — un pago es una transacción, no tiene "parcial/pagado" propio; ese estado ahora vive en `cargos.estado`. No tenía otro uso.)*
 
@@ -167,6 +173,18 @@ Cargo continuo desde la migración 22 — ya no lo crea un botón "Generar cargo
 ### perfiles
 | id (FK auth.users), nombre, rol (rol_usuario) |
 
+### Cierre de caja (migraciones 35 a 37)
+Reglas: doc 03. RLS en todas: SELECT solo admin, sin escritura directa para ningún rol; toda escritura pasa por RPC `SECURITY DEFINER`. Los montos son snapshots.
+
+| Tabla | Campos |
+|---|---|
+| config_caja | Una sola fila (`id` boolean). `fecha_arranque` (timestamptz; nula = módulo apagado), `updated_at`, `updated_by` |
+| cierres_caja | `profesor_id` (FK RESTRICT), `asistencia_profesor_id` (FK SET NULL), `turno_inicio`, `turno_fin` (snapshots), `efectivo_sistema`, `efectivo_declarado`, `diferencia` (declarado − sistema), `coincide`, `observacion`, `transferencias_sistema` (informativo), `cantidad_pagos`, `estado` (`cerrado` \| `verificado` \| `reabierto`), `modificado`, `verificacion_id`, `cerrado_en`, `created_by`. CHECK: sin coincidir exige observación; `coincide` equivale a diferencia 0 |
+| cierres_caja_pagos | `cierre_id`, `pago_id` (UNIQUE, FK SET NULL), `pago_id_original`, snapshot de `efectivo`, `transferencia`, `total`, `descripcion`. `pago_id` queda nulo al eliminar el pago o reabrir el cierre; `pago_id_original` lo conserva |
+| verificaciones_caja | `verificado_por`, `verificado_en`, `efectivo_esperado`, `efectivo_contado`, `diferencia` (contado − esperado), `nota`, `transferencias_controladas`, `modificado` |
+| verificaciones_caja_pagos | Cobros en efectivo del dueño incluidos en el lote: `verificacion_id`, `pago_id` (UNIQUE, FK SET NULL), `pago_id_original`, snapshot de `efectivo` |
+| cierres_caja_eventos | `cierre_id` y `verificacion_id` (al menos uno; un cobro del dueño no tiene cierre), `evento` (`reabierto`, `modificado_post_cierre`, `verificado`), `usuario`, `motivo`, `payload` (jsonb), `ocurrido_en` |
+
 ## Campos que requieren snapshot (no referenciar valor vivo)
 - `cargos.monto`
 - `pagos_alumnos.precio_snapshot`
@@ -198,6 +216,18 @@ Cargo continuo desde la migración 22 — ya no lo crea un botón "Generar cargo
 - `pagos_huerfanos()` (migración 33, solo lectura, solo Admin): pagos sin ninguna fila en `pagos_alumnos`. Alimenta la alerta del panel Log de errores.
 - `adjuntar_pago_huerfano(pago, alumno, cargo, periodo, disciplina, combo, descuento, precio_snapshot, monto_pagado)` (migración 33, solo Admin, sin UI): agrega la línea que le falta a un huérfano. Sin cargo informado usa el del alumno+período. Avisa sin bloquear si el monto no coincide con el total y no cambia el plan actual de la ficha.
 - **Escritura en `pagos`/`pagos_alumnos`**: la migración 34 deja solo `SELECT` para admin/profesor (más el `SELECT` de kiosco en `pagos_alumnos`) y quita los permisos de INSERT/UPDATE/DELETE de tabla: toda escritura pasa por RPC. Hasta aplicarla, las policies `FOR ALL` siguen vigentes.
+- `registrar_pago_individual`, `registrar_pago_familiar` y `registrar_pago_adelantado` (migración 36) suman al final `p_recibio_tipo`, `p_recibio_profesor_id` y `p_request_id`, con default nulo. Familiar y adelantado validan importes con `fn_validar_importes_pago`.
+- `caja_modulo_activo()` (migración 37, Admin/Profesor): si `fecha_arranque` no es nula.
+- `set_fecha_arranque(fecha)` (migración 37, Admin): nula apaga el módulo.
+- `pagos_pendientes_cierre(profesor)` (migración 37, Admin/Profesor, jsonb): lo que recibió y no cerró, con `fecha_distinta`, totales y `huerfanos` (pagos sin líneas, no entran).
+- `cerrar_caja_turno(profesor, asistencia, pago_ids, coincide, efectivo_declarado, observacion)` (migración 37, Admin/Profesor): recalcula la lista, inserta cierre + vínculos y devuelve `cierre_id`.
+- `caja_resumen_dia(fecha)` (migración 37, Admin, jsonb): cierres, cobros del dueño, totales, desglose por receptor y pagos del día sin cierre.
+- `cierres_para_verificar()` (migración 37, Admin, jsonb): cierres en estado `cerrado`, cobros del dueño sin verificar y avisos.
+- `preview_verificacion(cierre_ids)` y `verificar_cierres(cierre_ids, efectivo_contado, nota, transferencias_controladas)` (migración 37, Admin, jsonb): desglose del esperado; registrar el lote.
+- `reabrir_cierre(cierre, motivo)` (migración 37, Admin): libera los pagos y registra el evento.
+- `pagos_sin_cierre()` (migración 37, Admin): filas `sin_receptor` y `pendiente_cierre`, con `antiguedad_dias`. Excluye los del dueño.
+- `asignar_receptor_pago(pago, recibio_tipo, recibio_profesor_id)` (migración 37, Admin): rechaza si el pago está en un cierre o verificación.
+- `trg_caja_bloquea_pago_cerrado` (migración 37): triggers `BEFORE UPDATE` (solo si cambia plata o fecha, con `WHEN`) y `BEFORE DELETE` en `pagos` y `pagos_alumnos`. No corre para cambios de `cargo_id` ni dentro de otro trigger. Reglas: doc 03.
 - `dashboard_deuda_resumen(periodo)` (migración 31, lectura, `SECURITY INVOKER`, solo `authenticated`): una fila por modo — `periodo` (= período), `anteriores` (< período), `total` (todos, "total a hoy") — con alumnos distintos y monto bruto. Se apoya en `dashboard_saldo_alumno_periodo` (migración 30).
 - `dashboard_deuda_anteriores_por_mes(periodo)` (migración 31, mismas condiciones): por cada mes anterior con saldo > 0: período, alumnos, monto. Desglose de la card "Deuda de meses anteriores".
 - `dashboard_deuda_alumnos(periodo, modo)` (migración 31, mismas condiciones): una fila por alumno con deuda en el modo: `deuda_bruta`, `meses_adeudados`, `periodo_mas_antiguo`, `dias_vencimiento` y `detalle` (jsonb por mes: `periodo`, `cargo_id`, `cargo_monto`, `pagado`, `saldo`, `cargo_estado`) son del modo; `a_favor` (Σ pagado − monto de los cargos con sobrepago, todos los períodos), `neto` (`max(0, deuda_bruta − a_favor)`), y `deuda_total`, `neto_total`, `detalle_total` (todos los períodos, para WhatsApp) no dependen de él. Un modo inválido lanza excepción. `dashboard_deudores()` queda viva, ya sin uso en el frontend actual.

@@ -109,3 +109,35 @@ Como el volumen de cargos que ya están pagados pero no llegaron a autovalidarse
 3. Monto pagado: pre-cargado con el precio calculado, editable (permite pago parcial o sobrepago).
 4. Elegir método (efectivo, transferencia, combinado) — la suma efectivo+transferencia debe igualar el **monto pagado**, no el precio calculado.
 5. Registrar pago → recalcula automáticamente el estado del cargo asociado (ver arriba).
+
+## Cierre de caja (migraciones 35 a 37)
+Por turno. Prioridad: efectivo. Las transferencias se muestran, no se cuentan ni se declaran. La caja se cuenta por **día de carga** (`created_at`) en hora argentina, no por `pagos.fecha`.
+
+Arranca en `config_caja.fecha_arranque`: los pagos anteriores quedan fuera de todo cierre. Con la fecha nula el módulo queda apagado: las lecturas devuelven vacío y las escrituras rechazan; los pagos se siguen registrando con su receptor.
+
+### Receptor del pago
+Cada pago tiene un receptor ("Recibió"): el dueño (`recibio_tipo = 'admin'`) o un profesor. Sin backfill: los pagos existentes quedan sin receptor.
+- **Admin**: sin profesor informado recibe el dueño; con profesor, ese profesor.
+- **Profesor**: el informado debe estar activo y con turno abierto (`hora_salida` nula, de hoy o ayer); login compartido, puede ser otro profesor. Sin informar (PWA vieja): el único profesor en turno; si no hay exactamente uno, sin receptor.
+- `editar_pago` y `completar_pago` no tocan el receptor: **un "Completar pago" queda sin receptor** hasta que el admin lo asigna.
+- Sin receptor → aparece en "Pagos sin cierre"; el admin lo asigna con `asignar_receptor_pago` mientras no esté en un cierre.
+
+### Estados del cierre
+```
+Pagos del profesor sin cerrar
+      ↓ cerrar_caja_turno (al registrar la salida)
+  [CERRADO] ──verificar_cierres (lote)──> [VERIFICADO]
+      │                                        │
+      └──────────reabrir_cierre (motivo)───────┘
+                       ↓
+                  [REABIERTO] (los pagos vuelven a pendientes y se cierran en un cierre nuevo)
+```
+- **Cierre**: incluye todo lo que el profesor recibió y no cerró, sin ventana horaria. Confirma que coincide o informa el monto real con observación obligatoria; diferencia = declarado − sistema. El servidor recalcula la lista: si cambió, rechaza ("La lista cambió, recargá").
+- **Verificación**: el admin tilda cierres de cualquier día e ingresa lo contado. Esperado = Σ declarado de los cierres + efectivo del dueño sin verificar con `created_at` ≤ el último `cerrado_en` elegido. Los cobros del dueño posteriores a ese corte quedan para el próximo lote.
+- **Reapertura**: libera los pagos (`pago_id` queda nulo y el snapshot persiste). Si estaba verificado, marca el lote `modificado` sin recalcular lo contado.
+
+### Pago ya cerrado o verificado
+Los montos del cierre son snapshots: no se recalculan. Un cambio de `monto_pagado`, `total`, importes o `fecha`, o un borrado:
+- **Profesor** → rechazado.
+- **Admin** → permitido; marca `modificado` en el cierre o la verificación y registra un evento `modificado_post_cierre`. `eliminar_pago` sigue funcionando.
+- La reconciliación de `cargo_id` por asistencia (también desde kiosco) y las ediciones que no tocan plata ni fecha no se bloquean ni marcan nada.

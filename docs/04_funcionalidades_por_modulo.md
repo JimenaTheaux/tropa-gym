@@ -95,6 +95,17 @@ Un solo submenú: **Historial de pagos** (lista, siempre visible) + botón sóli
 - Alta, edición y "Completar pago" son atómicos (RPC, migración 33): si algo falla no queda nada guardado. La fecha del pago se valida en el form y en el servidor: entre hoy − 2 años y mañana. Al editar, la fecha se envía solo si cambió.
 - Pagos sin detalle (huérfanos): Configuración → Log de errores muestra "Pagos sin detalle: N" con el listado, solo Admin y solo si N > 0.
 
+## Cierre de caja
+Base de datos lista (migraciones 35 a 37); las pantallas van en una fase aparte. Reglas: doc 03. RPC: doc 06.
+
+- **Registrar pago**: cada pago guarda quién lo recibió (dueño o profesor) y admite `request_id` para no duplicar un reintento. Familiar y Adelantado validan importes en el servidor, igual que Individual.
+- **Al registrar la salida (Admin/Profesor)**: lista de lo que recibió y no cerró, totales de efectivo y transferencias, aviso si la fecha del pago difiere del día de carga. Confirma que coincide o informa el monto real con observación obligatoria.
+- **Resumen del día (Admin)**: cierres, cobros del dueño, totales de efectivo y transferencias por receptor, pagos del día sin cierre.
+- **Verificación (Admin)**: cierres pendientes de cualquier día, cobros del dueño sin verificar y avisos (turnos abiertos, profesores con pagos sin cerrar). Muestra el desglose del esperado antes de confirmar lo contado. Puede tildar "transferencias controladas".
+- **Reabrir (Admin)**: con motivo obligatorio; los pagos vuelven a pendientes.
+- **Pagos sin cierre (Admin)**: sin receptor o de profesores pendientes de cierre, con antigüedad. Excluye los del dueño. Permite asignar el receptor.
+- **Fecha de arranque (Admin)**: configurable; nula apaga el módulo.
+
 ## Asistencia Alumnos
 1. Buscar por DNI o nombre.
 2. Mostrar estado de cuenta y plan actual del alumno (disciplina + combo).
