@@ -1,30 +1,52 @@
-import { useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Alumno, Cargo, EstadoPago, TipoCargo } from '@/types/db'
+import type { Alumno, Cargo, EstadoAlumno, EstadoPago, TipoCargo } from '@/types/db'
 import { traducirError } from '@/lib/errores'
 import {
   fetchAlertasResumen,
+  fetchDeudores,
   periodoActual,
+  periodoLabel,
   telefonoWhatsappValido,
-  whatsappUrl,
   type AlertasResumen,
+  type Deudor,
+  type ModoDeuda,
 } from '@/lib/dashboard'
 import { fetchCargosPeriodo } from '@/lib/cargos'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
+import { useAlumnos } from '@/hooks/useAlumnos'
 import { Button } from '@/components/ui/button'
 import { FormMonthInput, FormInput, FormSelect } from '@/components/ui/FormField'
 import { FichaAlumnoDrawer } from '@/components/ui/FichaAlumnoDrawer'
-import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
+import { BadgeEstado, BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 import { EditarMontoCargo } from '@/components/ui/EditarMontoCargo'
 import { AsistenciasPeriodoDrawer } from '@/components/ui/AsistenciasPeriodoDrawer'
 import { PagosPeriodoDrawer } from '@/components/ui/PagosPeriodoDrawer'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { WhatsAppDeudaDialog } from '@/components/ui/WhatsAppDeudaDialog'
 import { WhatsAppIcon } from '@/components/ui/WhatsAppIcon'
 
 const FILTRO_ESTADO_DEUDA_OPTIONS = [
   { value: 'pendiente', label: 'Pendiente' },
   { value: 'parcial', label: 'Parcial' },
 ]
+
+const FILTRO_ESTADO_ALUMNO_OPTIONS = [
+  { value: 'activo', label: 'Activos' },
+  { value: 'inactivo', label: 'Inactivos' },
+]
+
+const MODO_DEUDA_OPTIONS: { value: ModoDeuda; label: string }[] = [
+  { value: 'periodo', label: 'Este período' },
+  { value: 'anteriores', label: 'Anteriores' },
+  { value: 'total', label: 'Total a hoy' },
+]
+
+const DESGLOSE_ANTERIORES_MAX = 3
+
+const TH_CLASE =
+  'px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant'
 
 const FILTRO_TIPO_OPTIONS = [
   { value: 'completa', label: 'Cuota completa' },
@@ -69,11 +91,13 @@ function AlertaChica({
   value,
   info,
   tono = 'blanco',
+  detalle,
 }: {
   label: string
   value: ReactNode
   info?: string
   tono?: Tono
+  detalle?: ReactNode
 }) {
   return (
     <div className="group relative mx-auto flex w-full max-w-[190px] flex-col items-center gap-0.5 rounded-card border border-outline-variant bg-surface-container-high/50 px-3 py-3 text-center">
@@ -82,7 +106,19 @@ function AlertaChica({
         {info && <InfoIcon info={info} />}
       </div>
       <p className={`font-anton text-2xl leading-tight ${TONO_CLASE[tono]}`}>{value}</p>
+      {detalle}
     </div>
+  )
+}
+
+// Cantidad en blanco + monto en rojo: alumnos · $ de una card de deuda.
+function ValorDeuda({ alumnos, monto }: { alumnos: number; monto: number }) {
+  return (
+    <>
+      <span className="text-on-surface">{alumnos}</span>
+      <span className="text-on-surface-variant"> · </span>
+      <span className="text-error">{money(monto)}</span>
+    </>
   )
 }
 
@@ -137,8 +173,12 @@ export function ResumenMensualPanel() {
   // cuadro completo, a diferencia de la pantalla Cargos donde sí se acota).
   const [verPagosDe, setVerPagosDe] = useState<{ alumnoId: string; nombre: string } | null>(null)
 
+  const [modoDeuda, setModoDeuda] = useState<ModoDeuda>('periodo')
+  const [deudorAbiertoId, setDeudorAbiertoId] = useState<string | null>(null)
+  const [whatsappDe, setWhatsappDe] = useState<Deudor | null>(null)
   const [buscarDeudor, setBuscarDeudor] = useState('')
   const [filtroEstadoDeudor, setFiltroEstadoDeudor] = useState<EstadoPago | ''>('')
+  const [filtroEstadoAlumno, setFiltroEstadoAlumno] = useState<EstadoAlumno | ''>('')
   const [buscarSinDefinir, setBuscarSinDefinir] = useState('')
   const [filtroTipoSinDefinir, setFiltroTipoSinDefinir] = useState<TipoCargo | ''>('')
 
@@ -154,6 +194,12 @@ export function ResumenMensualPanel() {
     queryFn: () => fetchAlertasResumen(periodo),
     staleTime: STALE_OPERATIVO,
   })
+  const deudoresQuery = useQuery({
+    queryKey: queryKeys.dashboardDeudores(periodo, modoDeuda),
+    queryFn: () => fetchDeudores(periodo, modoDeuda),
+    staleTime: STALE_OPERATIVO,
+  })
+  const { data: alumnos = [] } = useAlumnos()
 
   const cargosLoading = cargosQuery.isFetching
   const cargosPeriodo = [...(cargosQuery.data ?? new Map<string, Cargo>()).values()]
@@ -167,8 +213,21 @@ export function ResumenMensualPanel() {
       )
     : null
 
+  const deudoresLoading = deudoresQuery.isFetching
+  const deudoresError = deudoresQuery.isError
+    ? traducirError(
+        deudoresQuery.error instanceof Error ? deudoresQuery.error.message : null,
+        'Error al cargar los deudores',
+      )
+    : null
+  const mirandoMesPasado = periodo < periodoActual()
+
   function cargarAlertas() {
-    return queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAlertas(periodo) })
+    return queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAlertasTodas })
+  }
+
+  function abrirFicha(alumnoId: string) {
+    setFichaAlumno(alumnos.find((a) => a.id === alumnoId) ?? null)
   }
 
   const completas = cargosPeriodo.filter((c) => c.tipo === 'completa').length
@@ -177,19 +236,21 @@ export function ResumenMensualPanel() {
   const mediasPagadas = cargosPeriodo.filter((c) => c.tipo === 'media' && c.estado === 'pagado').length
   const montoTotal = cargosPeriodo.reduce((sum, c) => sum + Number(c.monto), 0)
 
-  const deudores = alertas?.deudores ?? []
+  const deudores = deudoresQuery.data ?? []
+  const deudaAnteriorPorMes = alertas?.deudaAnteriorPorMes ?? []
   const proximosInactivarse = alertas?.proximosInactivarse ?? []
   const horasProfesor = alertas?.horasProfesor ?? []
   const cargosSinDefinir = alertas?.cargosSinDefinir ?? []
   const alumnosSinCargo = alertas?.alumnosSinCargo ?? []
-  const montoTotalDeuda = deudores.reduce((s, d) => s + d.monto, 0)
   const horasTotalesProfesores = horasProfesor.reduce((s, h) => s + h.horas, 0)
 
   const buscarDeudorTerm = buscarDeudor.trim().toLowerCase()
+  const hayFiltroDeudor = !!(filtroEstadoDeudor || filtroEstadoAlumno || buscarDeudorTerm)
   const deudoresFiltrados = deudores.filter((d) => {
-    if (filtroEstadoDeudor && d.estado !== filtroEstadoDeudor) return false
+    if (filtroEstadoDeudor && !d.detalle.some((m) => m.cargoEstado === filtroEstadoDeudor)) return false
+    if (filtroEstadoAlumno && d.estadoAlumno !== filtroEstadoAlumno) return false
     if (buscarDeudorTerm) {
-      const nombre = `${d.alumno.nombre} ${d.alumno.apellido}`.toLowerCase()
+      const nombre = `${d.nombre} ${d.apellido}`.toLowerCase()
       if (!nombre.includes(buscarDeudorTerm)) return false
     }
     return true
@@ -249,7 +310,7 @@ export function ResumenMensualPanel() {
               tono="ambar"
               info="Alumnos con asistencia en el período pero sin combo/precio resuelto — el cargo se generó igual, con el monto a completar manualmente."
             />
-            <AlertaChica label="Monto total del período" value={money(montoTotal)} tono="blanco" />
+            <AlertaChica label="Facturado del período" value={money(montoTotal)} tono="blanco" />
           </div>
         )}
       </div>
@@ -257,38 +318,72 @@ export function ResumenMensualPanel() {
       {alertasError && <p className="font-inter text-sm text-error">{alertasError}</p>}
 
       {/* B. Fila de alertas */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <AlertaChica
-          label="Alumnos con deuda"
+          label="Deuda del período"
+          info={
+            mirandoMesPasado
+              ? 'Pendiente a hoy de este mes, no al cierre: ya descuenta los pagos cargados después. No resta el saldo a favor.'
+              : 'Alumnos y monto pendientes de este mes, incluso si todavía no venció. No resta el saldo a favor.'
+          }
           value={
-            alertasLoading ? (
+            alertasError ? '—' : alertasLoading || !alertas ? '…' : <ValorDeuda {...alertas.deuda.periodo} />
+          }
+        />
+        <AlertaChica
+          label="Deuda de meses anteriores"
+          info="Alumnos y monto pendientes a hoy de los meses previos al elegido. No resta el saldo a favor."
+          value={
+            alertasError ? (
+              '—'
+            ) : alertasLoading || !alertas ? (
               '…'
+            ) : alertas.deuda.anteriores.alumnos === 0 ? (
+              <span className="font-inter text-sm text-on-surface-variant">Sin deuda anterior</span>
             ) : (
-              <>
-                <span className="text-on-surface">{deudores.length}</span>
-                <span className="text-on-surface-variant"> · </span>
-                <span className="text-error">{money(montoTotalDeuda)}</span>
-              </>
+              <ValorDeuda {...alertas.deuda.anteriores} />
+            )
+          }
+          detalle={
+            !alertasError &&
+            !alertasLoading &&
+            deudaAnteriorPorMes.length > 0 && (
+              <div className="mt-1 flex flex-col font-inter text-[11px] leading-snug text-on-surface-variant">
+                {deudaAnteriorPorMes.slice(0, DESGLOSE_ANTERIORES_MAX).map((m) => (
+                  <span key={m.periodo}>
+                    {periodoLabel(m.periodo)}: {m.alumnos} · {money(m.monto)}
+                  </span>
+                ))}
+                {deudaAnteriorPorMes.length > DESGLOSE_ANTERIORES_MAX && (
+                  <span>+{deudaAnteriorPorMes.length - DESGLOSE_ANTERIORES_MAX}</span>
+                )}
+              </div>
             )
           }
         />
         <AlertaChica
           label="Próximos a inactivarse"
-          value={alertasLoading ? '…' : proximosInactivarse.length}
+          value={alertasError ? '—' : alertasLoading ? '…' : proximosInactivarse.length}
           tono="ambar"
         />
         <AlertaChica
           label="Horas de profesores en el período"
-          value={alertasLoading ? '…' : `${horasTotalesProfesores} hs`}
+          value={alertasError ? '—' : alertasLoading ? '…' : `${horasTotalesProfesores} hs`}
           tono="blanco"
         />
       </div>
 
       {/* C. Panel Deudores — tabla filtrable/editable */}
       <div className="rounded-card border border-outline-variant bg-surface-container p-5">
-        <p className="mb-4 font-oswald text-[13px] font-bold uppercase tracking-[0.03em] text-on-surface">
-          Deudores
-        </p>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="font-oswald text-[13px] font-bold uppercase tracking-[0.03em] text-on-surface">Deudores</p>
+            {mirandoMesPasado && (
+              <span className="font-inter text-xs text-on-surface-variant">Pendiente a hoy</span>
+            )}
+          </div>
+          <SegmentedControl value={modoDeuda} onChange={setModoDeuda} options={MODO_DEUDA_OPTIONS} />
+        </div>
 
         <div className="mb-4 flex flex-wrap items-end gap-4">
           <div className="w-full sm:w-64">
@@ -310,41 +405,42 @@ export function ResumenMensualPanel() {
               options={FILTRO_ESTADO_DEUDA_OPTIONS}
             />
           </div>
+          <div className="w-full sm:w-48">
+            <FormSelect
+              id="deudores-filtro-alumno"
+              label="Alumno"
+              placeholder="Todos"
+              value={filtroEstadoAlumno}
+              onChange={(e) => setFiltroEstadoAlumno(e.target.value as EstadoAlumno | '')}
+              options={FILTRO_ESTADO_ALUMNO_OPTIONS}
+            />
+          </div>
         </div>
 
-        {alertasLoading && <p className="font-inter text-sm text-on-surface-variant">Cargando…</p>}
-        {!alertasLoading && deudores.length === 0 && (
+        {deudoresError && <p className="font-inter text-sm text-error">{deudoresError}</p>}
+        {!deudoresError && deudoresLoading && (
+          <p className="font-inter text-sm text-on-surface-variant">Cargando…</p>
+        )}
+        {!deudoresError && !deudoresLoading && deudores.length === 0 && (
           <p className="font-inter text-sm text-on-surface-variant">No hay alumnos con deuda.</p>
         )}
-        {!alertasLoading && deudores.length > 0 && (filtroEstadoDeudor || buscarDeudorTerm) && (
+        {!deudoresError && !deudoresLoading && deudores.length > 0 && hayFiltroDeudor && (
           <p className="mb-2 font-inter text-xs text-on-surface-variant">
             Mostrando {deudoresFiltrados.length} de {deudores.length}
           </p>
         )}
 
-        {!alertasLoading && deudores.length > 0 && (
+        {!deudoresError && !deudoresLoading && deudores.length > 0 && (
           <div className="overflow-x-auto rounded-lg border border-outline-variant">
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="bg-surface-container-high/50">
-                  <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
-                    Alumno
-                  </th>
-                  <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
-                    Período más antiguo con deuda
-                  </th>
-                  <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
-                    Monto del cargo
-                  </th>
-                  <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
-                    Deuda
-                  </th>
-                  <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
-                    Estado
-                  </th>
-                  <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
-                    Acciones
-                  </th>
+                  <th className={TH_CLASE}>Alumno</th>
+                  <th className={TH_CLASE}>Meses</th>
+                  <th className={TH_CLASE}>Deuda</th>
+                  <th className={TH_CLASE}>Neto</th>
+                  <th className={TH_CLASE}>Vencimiento</th>
+                  <th className={TH_CLASE}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -356,108 +452,179 @@ export function ResumenMensualPanel() {
                   </tr>
                 )}
                 {deudoresFiltrados.map((d) => {
-                  const telValido = telefonoWhatsappValido(d.alumno.telefono)
+                  const telValido = telefonoWhatsappValido(d.telefono)
+                  const nombreCompleto = `${d.nombre} ${d.apellido}`
+                  const abierto = deudorAbiertoId === d.alumnoId
                   return (
-                    <tr key={d.cargoId} className="border-t border-outline-variant">
-                      <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface">
-                        {d.alumno.nombre} {d.alumno.apellido}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface-variant">
-                        {d.periodo} · {d.diasVencimiento} día(s) de vencimiento
-                      </td>
-                      <td className="px-4 py-2 font-inter text-sm text-on-surface">
-                        {editandoDeudaCargoId === d.cargoId ? (
-                          <EditarMontoCargo
-                            cargoId={d.cargoId}
-                            montoActual={d.cargoMonto}
-                            label="Monto del cargo"
-                            onGuardado={() => {
-                              setEditandoDeudaCargoId(null)
-                              cargarAlertas()
-                            }}
-                            onCancelar={() => setEditandoDeudaCargoId(null)}
-                          />
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="whitespace-nowrap">{money(d.cargoMonto)}</span>
+                    <Fragment key={d.alumnoId}>
+                      <tr className="border-t border-outline-variant">
+                        <td className="px-4 py-2 font-inter text-sm text-on-surface">
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => setEditandoDeudaCargoId(d.cargoId)}
-                              aria-label={`Editar monto del cargo de ${d.alumno.nombre} ${d.alumno.apellido}`}
-                              className="text-on-surface-variant hover:text-primary"
+                              onClick={() => setDeudorAbiertoId(abierto ? null : d.alumnoId)}
+                              aria-expanded={abierto}
+                              aria-label={`${abierto ? 'Ocultar' : 'Ver'} detalle por mes de ${nombreCompleto}`}
+                              className="inline-flex items-center gap-1 whitespace-nowrap text-left hover:text-primary"
                             >
-                              <span className="material-symbols-outlined !text-[16px]">edit</span>
+                              <span className="material-symbols-outlined !text-[18px] text-on-surface-variant">
+                                {abierto ? 'expand_less' : 'expand_more'}
+                              </span>
+                              {nombreCompleto}
                             </button>
+                            {d.estadoAlumno === 'inactivo' && <BadgeEstado estado="inactivo" />}
                           </div>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2 font-oswald text-sm font-bold" style={{ color: '#ffb4ab' }}>
-                        {money(d.monto)}
-                      </td>
-                      <td className="px-4 py-2">
-                        <BadgeEstadoCargo estado={d.estado} />
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setVerAsistenciasDe({
-                                alumnoId: d.alumno.id,
-                                nombre: `${d.alumno.nombre} ${d.alumno.apellido}`,
-                                periodo: d.periodo,
-                              })
-                            }
-                            aria-label="Ver asistencias"
-                            title="Ver asistencias"
-                            className="inline-flex items-center text-on-surface-variant hover:text-primary"
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">event_available</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setVerPagosDe({
-                                alumnoId: d.alumno.id,
-                                nombre: `${d.alumno.nombre} ${d.alumno.apellido}`,
-                              })
-                            }
-                            aria-label="Ver historial de pagos"
-                            title="Ver historial de pagos"
-                            className="inline-flex items-center text-on-surface-variant hover:text-primary"
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">payments</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setFichaAlumno(d.alumno)}
-                            className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
-                          >
-                            <span className="material-symbols-outlined !text-[16px]">badge</span>
-                            Ficha de alumno
-                          </button>
-                          {telValido ? (
-                            <a
-                              href={whatsappUrl(d.alumno.telefono as string)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-label={`WhatsApp a ${d.alumno.nombre} ${d.alumno.apellido}`}
-                              title="WhatsApp"
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface-variant">
+                          {d.mesesAdeudados}
+                        </td>
+                        <td className="px-4 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className="whitespace-nowrap font-oswald text-sm font-bold"
+                              style={{ color: '#ffb4ab' }}
+                            >
+                              {money(d.deudaBruta)}
+                            </span>
+                            {d.aFavor > 0 && (
+                              <span
+                                className="whitespace-nowrap rounded-full border px-2.5 py-0.5 font-inter text-xs font-medium"
+                                style={{ borderColor: '#8fd87f', color: '#8fd87f' }}
+                              >
+                                a favor {money(d.aFavor)}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2 font-oswald text-sm font-bold text-on-surface">
+                          {money(d.neto)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface-variant">
+                          {d.diasVencimiento} día(s)
+                        </td>
+                        <td className="px-4 py-2">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setVerPagosDe({ alumnoId: d.alumnoId, nombre: nombreCompleto })}
+                              aria-label="Ver historial de pagos"
+                              title="Ver historial de pagos"
                               className="inline-flex items-center text-on-surface-variant hover:text-primary"
                             >
-                              <WhatsAppIcon className="h-[18px] w-[18px]" />
-                            </a>
-                          ) : (
-                            <span
-                              title="Teléfono no cargado o en formato inválido — no se puede abrir WhatsApp"
-                              className="inline-flex cursor-not-allowed items-center text-on-surface-variant opacity-40"
+                              <span className="material-symbols-outlined !text-[18px]">payments</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => abrirFicha(d.alumnoId)}
+                              className="inline-flex items-center gap-1 whitespace-nowrap font-inter text-xs font-medium text-on-surface-variant hover:text-primary"
                             >
-                              <WhatsAppIcon className="h-[18px] w-[18px]" />
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                              <span className="material-symbols-outlined !text-[16px]">badge</span>
+                              Ficha de alumno
+                            </button>
+                            {telValido ? (
+                              <button
+                                type="button"
+                                onClick={() => setWhatsappDe(d)}
+                                aria-label={`WhatsApp a ${nombreCompleto}`}
+                                title="WhatsApp"
+                                className="inline-flex items-center text-on-surface-variant hover:text-primary"
+                              >
+                                <WhatsAppIcon className="h-[18px] w-[18px]" />
+                              </button>
+                            ) : (
+                              <span
+                                title="Teléfono no cargado o en formato inválido — no se puede abrir WhatsApp"
+                                className="inline-flex cursor-not-allowed items-center text-on-surface-variant opacity-40"
+                              >
+                                <WhatsAppIcon className="h-[18px] w-[18px]" />
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {abierto && (
+                        <tr className="bg-surface-container-low">
+                          <td colSpan={6} className="px-4 py-3">
+                            <table className="w-full border-collapse text-left">
+                              <thead>
+                                <tr>
+                                  <th className={TH_CLASE}>Mes</th>
+                                  <th className={TH_CLASE}>Monto del cargo</th>
+                                  <th className={TH_CLASE}>Pagado</th>
+                                  <th className={TH_CLASE}>Saldo</th>
+                                  <th className={TH_CLASE}>Estado</th>
+                                  <th className={TH_CLASE}>Asistencias</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {d.detalle.map((m) => (
+                                  <tr key={m.cargoId} className="border-t border-outline-variant">
+                                    <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface">
+                                      {periodoLabel(m.periodo)}
+                                    </td>
+                                    <td className="px-4 py-2 font-inter text-sm text-on-surface">
+                                      {editandoDeudaCargoId === m.cargoId ? (
+                                        <EditarMontoCargo
+                                          cargoId={m.cargoId}
+                                          montoActual={m.cargoMonto}
+                                          label="Monto del cargo"
+                                          onGuardado={() => {
+                                            setEditandoDeudaCargoId(null)
+                                            cargarAlertas()
+                                          }}
+                                          onCancelar={() => setEditandoDeudaCargoId(null)}
+                                        />
+                                      ) : (
+                                        <div className="flex items-center gap-2">
+                                          <span className="whitespace-nowrap">{money(m.cargoMonto)}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => setEditandoDeudaCargoId(m.cargoId)}
+                                            aria-label={`Editar monto del cargo de ${nombreCompleto}, ${periodoLabel(m.periodo)}`}
+                                            className="text-on-surface-variant hover:text-primary"
+                                          >
+                                            <span className="material-symbols-outlined !text-[16px]">edit</span>
+                                          </button>
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="whitespace-nowrap px-4 py-2 font-inter text-sm text-on-surface-variant">
+                                      {money(m.pagado)}
+                                    </td>
+                                    <td
+                                      className="whitespace-nowrap px-4 py-2 font-oswald text-sm font-bold"
+                                      style={{ color: '#ffb4ab' }}
+                                    >
+                                      {money(m.saldo)}
+                                    </td>
+                                    <td className="px-4 py-2">
+                                      <BadgeEstadoCargo estado={m.cargoEstado} />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setVerAsistenciasDe({
+                                            alumnoId: d.alumnoId,
+                                            nombre: nombreCompleto,
+                                            periodo: m.periodo,
+                                          })
+                                        }
+                                        aria-label={`Ver asistencias de ${periodoLabel(m.periodo)}`}
+                                        title="Ver asistencias"
+                                        className="inline-flex items-center text-on-surface-variant hover:text-primary"
+                                      >
+                                        <span className="material-symbols-outlined !text-[18px]">event_available</span>
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   )
                 })}
               </tbody>
@@ -736,6 +903,8 @@ export function ResumenMensualPanel() {
         alumnoNombre={verPagosDe?.nombre ?? ''}
         onClose={() => setVerPagosDe(null)}
       />
+
+      {whatsappDe && <WhatsAppDeudaDialog deudor={whatsappDe} onClose={() => setWhatsappDe(null)} />}
     </div>
   )
 }

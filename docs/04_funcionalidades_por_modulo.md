@@ -13,7 +13,7 @@ Submenú con 2 vistas: **KPI** y **Centro de Resumen Mensual**.
 - Card: Alumnos activos. Cuenta el estado vigente **al cierre del período filtrado** (o "hoy" si el período no cerró), reconstruido desde `alumno_estado_historial` — no asistencia dentro del mes (ver doc 03).
 - Card: Alumnos con asistencia. Alumnos distintos con ≥1 fila en `asistencias_alumnos` con `fecha` dentro del período (un alumno que vino 20 veces cuenta 1), sin filtrar por estado. `count(distinct)` en la base vía `dashboard_alumnos_con_asistencia(desde, hasta)` (migración 28).
 - Card: $ Ingresos.
-- Card: $ Saldo a cobrar.
+- Card: $ Saldo a cobrar del período. Solo la deuda de ese mes (`dashboard_saldo_a_cobrar`), bruta.
 - Card: $ Egresos.
 - Card: $ Ganancia neta.
 - Ingresos/Egresos/Ganancia (cards y gráfico) salen de la misma RPC `dashboard_finanzas_por_mes(desde, hasta)` (migración 29), agregada en la base — sin traer filas (corte de 1000 de PostgREST). `pagos.fecha` se lleva a día argentino con `fn_fecha_pago_local` (ver doc 06).
@@ -27,24 +27,28 @@ Funciona como centro de alertas. Orden de secciones (migración 22: ya no hay "g
 
 **A. Cargos del período**
 - Selector de período. Sin botón de generación — los cargos ya existen solos, creados por cada asistencia.
-- Cards en vivo: **Cuotas completas**, **Medias cuotas**, **Cuotas pagadas** (cargos cuyo acumulado de pagos ya cubre el monto), **Sin validar** (cargos que el trigger automático todavía puede recalcular — ver doc 03, "Cargo validado"), **Monto total del período**.
+- Cards en vivo: **Cuotas completas**, **Medias cuotas**, **Cuotas pagadas** (cargos cuyo acumulado de pagos ya cubre el monto), **Sin validar** (cargos que el trigger automático todavía puede recalcular — ver doc 03, "Cargo validado"), **Facturado del período** (Σ `cargos.monto` del mes, pagados o no — no es deuda).
 
 **B. Fila de alertas** (KPIs chicos, estilo borde — doc 08)
-- Alumnos con deuda (cantidad + monto total).
+- Deuda del período (alumnos + monto) — solo el mes elegido, incluso si es el mes en curso y todavía no venció.
+- Deuda de meses anteriores (alumnos + monto) — con desglose por mes debajo (hasta 3, resto "+N"), o "Sin deuda anterior".
 - Alumnos próximos a inactivarse (cantidad).
 - Horas totales de profesores en el período.
 - Cargos sin monto definido (cantidad) — alumnos con asistencia en el período pero sin combo/precio resuelto (ver doc 03, "Cargo con monto sin definir").
 
-Cálculo en la base (migración 30, sin traer tablas al cliente — PostgREST corta en 1000 filas): Deudores = `dashboard_deudores()` (deuda **acumulada** de todos los períodos), "Alumnos con deuda" de la fila B = cantidad y Σ de esa misma lista, Próximos a inactivarse = `dashboard_proximos_inactivarse()`, Alumnos sin cargo = `dashboard_alumnos_sin_cargo(periodo)`. Deudores y la card "Saldo a cobrar" de la vista KPI (`dashboard_saldo_a_cobrar(periodo)`, **solo el período**) suman la misma base `dashboard_saldo_alumno_periodo`: max(0, cargo − pagos del mismo alumno+período) — un sobrepago de un período no compensa otro.
+Cálculo en la base (migraciones 30 y 31, sin traer tablas al cliente — PostgREST corta en 1000 filas): cards de deuda = `dashboard_deuda_resumen(periodo)` y `dashboard_deuda_anteriores_por_mes(periodo)`, Deudores = `dashboard_deuda_alumnos(periodo, modo)`, Próximos a inactivarse = `dashboard_proximos_inactivarse()`, Alumnos sin cargo = `dashboard_alumnos_sin_cargo(periodo)`. Todas las de deuda y la card "Saldo a cobrar del período" de la vista KPI suman la misma base `dashboard_saldo_alumno_periodo`: max(0, cargo − pagos del mismo alumno+período) — un sobrepago de un período no compensa otro (doc 03). Al mirar un mes pasado se ve lo pendiente **a hoy** en ese mes, no al cierre: un pago cargado después ya lo descuenta (rótulo "Pendiente a hoy").
 
 **C. Panel Deudores** — tabla filtrable y editable (mismo patrón que la pantalla Cargos)
-- Buscador por nombre, filtro por estado (Pendiente/Parcial).
-- Columnas: alumno, período más antiguo con deuda + días de vencimiento, **monto del cargo (editable inline)**, deuda, estado, acciones.
+- Segmented control **Este período / Anteriores / Total a hoy**. La suma de la lista coincide con la card del mismo modo.
+- Buscador por nombre, filtro por estado (Pendiente/Parcial: alumnos con algún mes en ese estado) y filtro de alumno (Activos/Inactivos). Los inactivos llevan badge "Inactivo".
+- Columnas: alumno, meses adeudados, deuda bruta + chip "a favor $X" si corresponde, neto (deuda − a favor, mínimo 0), días de vencimiento del mes más antiguo adeudado, acciones. Deuda, meses y días son de la pestaña activa; el "a favor" es siempre el total del alumno.
+- Fila desplegable con el detalle por mes: **monto del cargo (editable inline)**, pagado, saldo, estado, ver asistencias de ese mes.
 - Acción rápida: **contactar por WhatsApp**.
-  - Abre WhatsApp (web o mobile, según dispositivo) directo en el chat del alumno, usando su teléfono registrado.
+  - Abre un diálogo con mensaje precargado y editable (`armarMensajeDeuda` en `lib/utils.ts`); recién al confirmar abre el chat del alumno (web o mobile, según dispositivo).
+  - El mensaje usa siempre todos los meses adeudados y el neto total, sea cual sea la pestaña activa. Si el neto da $0, el diálogo avisa que hay que revisar los pagos antes de enviar.
   - Requiere que `alumnos.telefono` esté guardado en formato internacional sin símbolos (ver doc 06 — nota de formato).
-  - Link: `https://wa.me/{telefono_normalizado}` — sin mensaje predefinido, deja que el admin escriba.
-  - Acción secundaria: ver ficha del alumno.
+  - Link: `https://wa.me/{telefono_normalizado}?text={mensaje}`.
+  - Acciones secundarias: ver historial de pagos y ficha del alumno.
 
 **C.2 Panel Cargos sin monto definido** (solo visible si hay alguno) — tabla filtrable y editable
 - Buscador por nombre, filtro por tipo de cuota.

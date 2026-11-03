@@ -112,7 +112,7 @@ export function KpiPanel() {
           efectivo={loading ? '…' : money(cards?.ingresosEfectivo ?? 0)}
           transferencia={loading ? '…' : money(cards?.ingresosTransferencia ?? 0)}
         />
-        <CardKpi label="Saldo a cobrar" value={loading ? '…' : money(cards?.saldoACobrar ?? 0)} />
+        <CardKpi label="Saldo a cobrar del período" value={loading ? '…' : money(cards?.saldoACobrar ?? 0)} />
         <CardKpi label="Egresos" value={loading ? '…' : money(cards?.egresos ?? 0)} />
         <CardKpi label="Ganancia neta" value={loading ? '…' : money(cards?.gananciaNeta ?? 0)} destacado />
       </div>

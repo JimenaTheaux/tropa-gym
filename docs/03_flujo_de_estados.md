@@ -48,7 +48,9 @@ Cargo generado → [PENDIENTE]
 ```
 
 ### Sobrepago (saldo a favor)
-Si la suma de `monto_pagado` supera `cargos.monto`, el cargo igual queda **pagado** (no existe un estado "sobrepagado"). El excedente no se guarda en una tabla aparte: queda reflejado en el **Saldo de cuenta** general del alumno (`Saldo = Cargos − Pagos`, RN-023), que da negativo — es decir, saldo a favor. Ese saldo negativo se puede imputar a futuros períodos simplemente al calcular la cuenta corriente acumulada.
+Si la suma de `monto_pagado` supera `cargos.monto`, el cargo igual queda **pagado** (no existe un estado "sobrepagado"). El excedente no se guarda en una tabla aparte: queda reflejado en el **Saldo de cuenta** general del alumno (`Saldo = Cargos − Pagos`, RN-023), que da negativo — es decir, saldo a favor.
+
+**El saldo a favor no compensa automáticamente la deuda de otros meses** (migración 31): las cards y pestañas de deuda del Centro de Resumen Mensual son brutas por período. Se informa por alumno: el panel Deudores muestra "a favor" (Σ de lo pagado de más en cada cargo, de todos los períodos) y "neto a cobrar" (deuda − a favor, mínimo 0), y el mensaje de WhatsApp usa ese neto. La ficha del alumno y el check-in (`getEstadoCuenta`) siguen mostrando el saldo neto acumulado.
 
 ### Cargo con monto sin definir
 "¿Tiene que pagar, y qué tipo (completa/media)?" se resuelve solo con la asistencia (RN-017/018) y siempre es calculable. "¿Cuánto exactamente?" depende de combo+precio (RN-030), que a veces no se puede resolver (alumno sin plan asignado y sin pago previo en un período anterior). Antes, si fallaba lo segundo, se perdía silenciosamente lo primero — el alumno no aparecía en ningún lado.
@@ -87,7 +89,7 @@ Como el volumen de cargos que ya están pagados pero no llegaron a autovalidarse
 
 ### Pantallas
 - **Pantalla Cargos**: tabla en vivo, una fila por cargo del período — alumno, tipo, monto (editable inline + checkbox Validar), botón "Ver asistencias" (detalle + resumen por semana del mes) y "Ver pagos" (historial de pagos del alumno en ese período: fecha, monto, forma de pago, estado), estado (solo lectura). Buscador por nombre y filtros por tipo/estado. Alumnos activos sin ningún cargo en el período (todavía sin asistencia) se listan aparte.
-- **Centro de Resumen Mensual** (Dashboard): mismos datos, resumidos — cantidades de cuotas completas/medias/pagadas/sin validar y monto total del período, sin tabla fila por fila. Los paneles de Deudores y Cargos sin monto definido sí son tablas completas (buscador, filtro, monto editable inline) — ver doc 04.
+- **Centro de Resumen Mensual** (Dashboard): mismos datos, resumidos — cantidades de cuotas completas/medias/pagadas/sin validar y facturado del período, sin tabla fila por fila. Los paneles de Deudores y Cargos sin monto definido sí son tablas completas (buscador, filtro, monto editable inline) — ver doc 04.
 
 ## Flujo de asistencia (alumno)
 1. Buscar por DNI/nombre/apellido.

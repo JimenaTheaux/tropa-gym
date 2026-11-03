@@ -42,7 +42,11 @@ export const queryKeys = {
   dashboardKpi: (periodo: string) => ['dashboard', 'kpi', periodo] as const,
   dashboardTrend: (periodo: string, cantidad: number) => ['dashboard', 'trend', periodo, cantidad] as const,
   dashboardHorarios: (periodo: string) => ['dashboard', 'horarios', periodo] as const,
+  // Prefijo de todas las alertas: la deuda de un mes aparece también como
+  // "anteriores" y "total" de otros meses.
+  dashboardAlertasTodas: ['dashboard', 'alertas'] as const,
   dashboardAlertas: (periodo: string) => ['dashboard', 'alertas', periodo] as const,
+  dashboardDeudores: (periodo: string, modo: string) => ['dashboard', 'alertas', periodo, 'deudores', modo] as const,
   dashboardEstadosPorPeriodo: (periodo: string, cantidad: number) =>
     ['dashboard', 'estados-periodo', periodo, cantidad] as const,
 

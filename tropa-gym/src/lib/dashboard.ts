@@ -66,8 +66,8 @@ export function telefonoWhatsappValido(telefono: string | null | undefined): boo
   return digitos.length >= 8 && digitos.length <= 15
 }
 
-export function whatsappUrl(telefono: string): string {
-  return whatsappLink(telefono)
+export function whatsappUrl(telefono: string, mensaje?: string): string {
+  return whatsappLink(telefono, mensaje)
 }
 
 // ---- KPI ----
@@ -315,14 +315,49 @@ export async function fetchTopHorarios(periodo: string, top = 5): Promise<Horari
 
 // ---- Centro de Resumen Mensual ----
 
-export interface Deudor {
-  alumno: Alumno
-  cargoId: string
-  periodo: string
-  cargoMonto: number
+export type ModoDeuda = 'periodo' | 'anteriores' | 'total'
+
+export interface DeudaModo {
+  alumnos: number
   monto: number
+}
+
+export type DeudaResumen = Record<ModoDeuda, DeudaModo>
+
+export interface DeudaAnteriorMes {
+  periodo: string
+  alumnos: number
+  monto: number
+}
+
+export interface MesDeuda {
+  periodo: string
+  cargoId: string
+  cargoMonto: number
+  pagado: number
+  saldo: number
+  cargoEstado: EstadoPago
+}
+
+export interface Deudor {
+  alumnoId: string
+  nombre: string
+  apellido: string
+  telefono: string | null
+  estadoAlumno: EstadoAlumno
+  /** Del modo pedido. Bruta: el "a favor" no está restado. */
+  deudaBruta: number
+  /** Sobrepagos de todos los períodos del alumno, sea cual sea el modo. */
+  aFavor: number
+  neto: number
+  mesesAdeudados: number
+  periodoMasAntiguo: string
   diasVencimiento: number
-  estado: EstadoPago
+  detalle: MesDeuda[]
+  /** Todos los períodos, sea cual sea el modo — para el mensaje de WhatsApp. */
+  deudaTotal: number
+  netoTotal: number
+  detalleTotal: MesDeuda[]
 }
 
 export interface ProximoInactivo {
@@ -346,44 +381,101 @@ export interface CargoSinDefinir {
 }
 
 export interface AlertasResumen {
-  deudores: Deudor[]
+  deuda: DeudaResumen
+  deudaAnteriorPorMes: DeudaAnteriorMes[]
   proximosInactivarse: ProximoInactivo[]
   horasProfesor: HorasProfesorFila[]
   cargosSinDefinir: CargoSinDefinir[]
   alumnosSinCargo: Alumno[]
 }
 
-// Deuda acumulada (todos los períodos, doc 03), calculada en la base
-// (migración 30): por alumno, Σ max(0, cargo − pagos del mismo período),
-// cargo/período más antiguo con saldo y días desde el fin de ese período.
-// Ya viene ordenada por días de vencimiento desc.
-async function fetchDeudores(alumnoPorId: Map<string, Alumno>): Promise<Deudor[]> {
-  const { data, error } = await supabase.rpc('dashboard_deudores')
+interface MesDeudaRpc {
+  periodo: string
+  cargo_id: string
+  cargo_monto: number
+  pagado: number
+  saldo: number
+  cargo_estado: EstadoPago
+}
+
+function mapMesDeuda(m: MesDeudaRpc): MesDeuda {
+  return {
+    periodo: m.periodo,
+    cargoId: m.cargo_id,
+    cargoMonto: Number(m.cargo_monto),
+    pagado: Number(m.pagado),
+    saldo: Number(m.saldo),
+    cargoEstado: m.cargo_estado,
+  }
+}
+
+// Alumnos distintos y monto bruto por modo, en la base (migración 31): la
+// misma base de saldo que la lista de Deudores, no pueden diferir.
+async function fetchDeudaResumen(periodo: string): Promise<DeudaResumen> {
+  const { data, error } = await supabase.rpc('dashboard_deuda_resumen', { p_periodo: periodo })
+  if (error) throw new Error(error.message)
+  const porModo = new Map(((data ?? []) as { modo: ModoDeuda; alumnos: number; monto: number }[]).map((r) => [r.modo, r]))
+
+  // Sin los 3 modos no hay cards confiables: mejor error que ceros.
+  const modo = (m: ModoDeuda): DeudaModo => {
+    const r = porModo.get(m)
+    if (!r) throw new Error('No se pudo calcular la deuda del período.')
+    return { alumnos: Number(r.alumnos), monto: Number(r.monto) }
+  }
+  return { periodo: modo('periodo'), anteriores: modo('anteriores'), total: modo('total') }
+}
+
+async function fetchDeudaAnteriorPorMes(periodo: string): Promise<DeudaAnteriorMes[]> {
+  const { data, error } = await supabase.rpc('dashboard_deuda_anteriores_por_mes', { p_periodo: periodo })
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as { periodo: string; alumnos: number; monto: number }[]).map((m) => ({
+    periodo: m.periodo,
+    alumnos: Number(m.alumnos),
+    monto: Number(m.monto),
+  }))
+}
+
+// Lista de Deudores del modo (migración 31). Ya viene ordenada por días de
+// vencimiento desc.
+export async function fetchDeudores(periodo: string, modo: ModoDeuda): Promise<Deudor[]> {
+  const { data, error } = await supabase.rpc('dashboard_deuda_alumnos', { p_periodo: periodo, p_modo: modo })
   if (error) throw new Error(error.message)
 
-  const deudores: Deudor[] = []
-  for (const d of (data ?? []) as {
-    alumno_id: string
-    cargo_id: string
-    periodo: string
-    cargo_monto: number
-    saldo: number
-    dias_vencimiento: number
-    estado: EstadoPago
-  }[]) {
-    const alumno = alumnoPorId.get(d.alumno_id)
-    if (!alumno) continue
-    deudores.push({
-      alumno,
-      cargoId: d.cargo_id,
-      periodo: d.periodo,
-      cargoMonto: Number(d.cargo_monto),
-      monto: Number(d.saldo),
-      diasVencimiento: Number(d.dias_vencimiento),
-      estado: d.estado,
-    })
-  }
-  return deudores
+  return (
+    (data ?? []) as {
+      alumno_id: string
+      nombre: string
+      apellido: string
+      telefono: string | null
+      estado_alumno: EstadoAlumno
+      deuda_bruta: number
+      a_favor: number
+      neto: number
+      meses_adeudados: number
+      periodo_mas_antiguo: string
+      dias_vencimiento: number
+      detalle: MesDeudaRpc[]
+      deuda_total: number
+      neto_total: number
+      detalle_total: MesDeudaRpc[]
+    }[]
+  ).map((d) => ({
+    alumnoId: d.alumno_id,
+    nombre: d.nombre,
+    apellido: d.apellido,
+    telefono: d.telefono,
+    estadoAlumno: d.estado_alumno,
+    deudaBruta: Number(d.deuda_bruta),
+    aFavor: Number(d.a_favor),
+    neto: Number(d.neto),
+    mesesAdeudados: Number(d.meses_adeudados),
+    periodoMasAntiguo: d.periodo_mas_antiguo,
+    diasVencimiento: Number(d.dias_vencimiento),
+    detalle: d.detalle.map(mapMesDeuda),
+    deudaTotal: Number(d.deuda_total),
+    netoTotal: Number(d.neto_total),
+    detalleTotal: d.detalle_total.map(mapMesDeuda),
+  }))
 }
 
 // RN-004: activos con la última asistencia (max(fecha) en la base, migración
@@ -440,7 +532,7 @@ async function fetchHorasProfesor(periodo: string): Promise<HorasProfesorFila[]>
 }
 
 // Cargos generados sin poder resolver combo/precio (RN-030) — ver doc 03,
-// "Cargo con monto sin definir". No entran en fetchDeudores por saldo (su
+// "Cargo con monto sin definir". No entran en Deudores por saldo (su
 // monto es $0 hasta que se definan), así que necesitan su propia alerta.
 async function fetchCargosSinDefinir(periodo: string, alumnos: Alumno[]): Promise<CargoSinDefinir[]> {
   const { data } = await supabase
@@ -478,13 +570,15 @@ export async function fetchAlertasResumen(periodo: string): Promise<AlertasResum
   if (alumnosError) throw new Error(alumnosError)
   const alumnoPorId = new Map(alumnos.map((a) => [a.id, a]))
 
-  const [deudores, proximosInactivarse, horasProfesor, cargosSinDefinir, alumnosSinCargo] = await Promise.all([
-    fetchDeudores(alumnoPorId),
-    fetchProximosInactivarse(alumnoPorId),
-    fetchHorasProfesor(periodo),
-    fetchCargosSinDefinir(periodo, alumnos),
-    fetchAlumnosSinCargo(periodo, alumnoPorId),
-  ])
+  const [deuda, deudaAnteriorPorMes, proximosInactivarse, horasProfesor, cargosSinDefinir, alumnosSinCargo] =
+    await Promise.all([
+      fetchDeudaResumen(periodo),
+      fetchDeudaAnteriorPorMes(periodo),
+      fetchProximosInactivarse(alumnoPorId),
+      fetchHorasProfesor(periodo),
+      fetchCargosSinDefinir(periodo, alumnos),
+      fetchAlumnosSinCargo(periodo, alumnoPorId),
+    ])
 
-  return { deudores, proximosInactivarse, horasProfesor, cargosSinDefinir, alumnosSinCargo }
+  return { deuda, deudaAnteriorPorMes, proximosInactivarse, horasProfesor, cargosSinDefinir, alumnosSinCargo }
 }
