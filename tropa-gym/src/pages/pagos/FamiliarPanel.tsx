@@ -11,6 +11,7 @@ import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { hoyIso } from '@/lib/utils'
+import { validarFechaPago } from '@/lib/fecha'
 import { Button } from '@/components/ui/button'
 import { FormCurrencyInput, FormDateInput, FormMonthInput, FormSelect } from '@/components/ui/FormField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -87,7 +88,10 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
-  const saving = registrarPagoFamiliar.isPending
+  // Antes de la mutation se busca el cargo de cada alumno: isPending solo no
+  // cubre esa espera y el botón quedaría habilitado para un doble envío.
+  const [preparando, setPreparando] = useState(false)
+  const saving = preparando || registrarPagoFamiliar.isPending
 
   const subtotal = detalles.reduce((sum, d) => sum + d.precioCalculado, 0)
 
@@ -204,7 +208,12 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   }
 
   async function handleSubmit() {
-    if (detalles.length === 0 || montoPagado <= 0 || !fechaPago) return
+    if (saving || detalles.length === 0 || montoPagado <= 0 || !fechaPago) return
+    const errorFecha = validarFechaPago(fechaPago)
+    if (errorFecha) {
+      setError(errorFecha)
+      return
+    }
     if (detalles.some((d) => !d.disciplinaId || !d.comboId || !d.periodo)) {
       setError('Completá disciplina y combo para cada alumno.')
       return
@@ -226,6 +235,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
     const cantidadDetalles = detalles.length
     let payloadIntentado: unknown
 
+    setPreparando(true)
     try {
       const montosPorAlumno = distribuirMonto(
         detalles.map((d) => d.precioCalculado),
@@ -270,6 +280,8 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
       })
       setError(traducirError(err instanceof Error ? err.message : null))
       return
+    } finally {
+      setPreparando(false)
     }
 
     setSuccess(

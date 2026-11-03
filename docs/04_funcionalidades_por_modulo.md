@@ -92,6 +92,8 @@ Un solo submenú: **Historial de pagos** (lista, siempre visible) + botón sóli
 - Métodos: Efectivo, Transferencia, Combinado (registra importe de cada uno).
 - Pagos parciales: estado "Parcial" mientras saldo > 0.
 - Historial y estado de cuenta.
+- Alta, edición y "Completar pago" son atómicos (RPC, migración 33): si algo falla no queda nada guardado. La fecha del pago se valida en el form y en el servidor: entre hoy − 2 años y mañana. Al editar, la fecha se envía solo si cambió.
+- Pagos sin detalle (huérfanos): Configuración → Log de errores muestra "Pagos sin detalle: N" con el listado, solo Admin y solo si N > 0.
 
 ## Asistencia Alumnos
 1. Buscar por DNI o nombre.

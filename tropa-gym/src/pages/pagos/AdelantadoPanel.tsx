@@ -10,6 +10,7 @@ import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { hoyIso } from '@/lib/utils'
+import { validarFechaPago } from '@/lib/fecha'
 import { Button } from '@/components/ui/button'
 import { FormCurrencyInput, FormDateInput, FormSelect, FormCheckbox } from '@/components/ui/FormField'
 import { BadgeEstado } from '@/components/ui/BadgeEstado'
@@ -157,8 +158,13 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
   }
 
   async function handleSubmit() {
-    if (!alumno || !disciplinaId || !comboId || periodosOrdenados.length === 0 || montoPagado <= 0 || !fechaPago)
+    if (saving || !alumno || !disciplinaId || !comboId || periodosOrdenados.length === 0 || montoPagado <= 0 || !fechaPago)
       return
+    const errorFecha = validarFechaPago(fechaPago)
+    if (errorFecha) {
+      setError(errorFecha)
+      return
+    }
     if (
       metodo === 'combinado' &&
       Math.round((importeEfectivo + importeTransferencia) * 100) !== Math.round(montoPagado * 100)

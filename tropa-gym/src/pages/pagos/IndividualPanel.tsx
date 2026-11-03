@@ -11,6 +11,7 @@ import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { hoyIso } from '@/lib/utils'
+import { validarFechaPago } from '@/lib/fecha'
 import { Button } from '@/components/ui/button'
 import { FormCurrencyInput, FormDateInput, FormMonthInput, FormSelect } from '@/components/ui/FormField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -96,6 +97,7 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
   // más esta — no solo esta línea (si no, "combinado" validaría mal y el
   // total del comprobante quedaría pisado con el monto de una sola línea).
   const [otrasLineasTotal, setOtrasLineasTotal] = useState(0)
+  const [otrasLineasCargadas, setOtrasLineasCargadas] = useState(!editar)
   useEffect(() => {
     if (!editar) return
     let cancelado = false
@@ -107,6 +109,7 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
       .then(({ data }) => {
         if (cancelado) return
         setOtrasLineasTotal((data ?? []).reduce((s, r) => s + Number(r.monto_pagado), 0))
+        setOtrasLineasCargadas(true)
       })
     return () => {
       cancelado = true
@@ -153,91 +156,36 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
   const registrarPago = useMutation({
     mutationFn: async () => {
       if (!alumno) throw new Error('Falta seleccionar un alumno.')
-      const cargo = await buscarCargo(alumno.id, periodo)
 
-      if (editar) {
-        const { error: detalleError } = await supabase
-          .from('pagos_alumnos')
-          .update({
-            cargo_id: cargo?.id ?? null,
-            periodo,
-            disciplina_id: disciplinaId,
-            combo_id: comboId,
-            descuento_id: descuentoId || null,
-            precio_snapshot: precioSnapshotFinal,
-            monto_pagado: montoPagado,
+      const comunes = {
+        p_periodo: periodo,
+        p_disciplina_id: disciplinaId,
+        p_combo_id: comboId,
+        p_descuento_id: descuentoId || null,
+        p_precio_snapshot: precioSnapshotFinal,
+        p_monto_pagado: montoPagado,
+        p_metodo: metodo,
+        p_importe_efectivo: importeEfectivo,
+        p_importe_transferencia: importeTransferencia,
+        p_ajustar_precio: ajustarPrecio,
+      }
+
+      // Al editar, la fecha va solo si cambió: pagos.fecha puede tener hora
+      // real, y reenviarla como día la pisaría con 00:00 UTC.
+      const { data, error } = editar
+        ? await supabase.rpc('editar_pago', {
+            ...comunes,
+            p_pago_alumno_id: editar.pagoAlumnoId,
+            ...(fechaPago !== editar.fecha ? { p_fecha: fechaPago } : {}),
           })
-          .eq('id', editar.pagoAlumnoId)
-
-        if (detalleError) throw new Error(detalleError.message)
-
-        let ajusteFallido = false
-        if (ajustarPrecio && cargo) {
-          const { error: cargoError } = await supabase
-            .from('cargos')
-            .update({ monto: montoPagado })
-            .eq('id', cargo.id)
-          if (cargoError) ajusteFallido = true
-        }
-
-        const { error: pagoError } = await supabase
-          .from('pagos')
-          .update({
-            metodo_pago: metodo,
-            importe_efectivo: importeEfectivo,
-            importe_transferencia: importeTransferencia,
-            total: totalRecibo,
-            fecha: fechaPago,
+        : await supabase.rpc('registrar_pago_individual', {
+            ...comunes,
+            p_alumno_id: alumno.id,
+            p_fecha: fechaPago,
           })
-          .eq('id', editar.pagoId)
-        if (pagoError) throw new Error(pagoError.message)
 
-        return { ajusteFallido }
-      }
-
-      const { data: pago, error: pagoError } = await supabase
-        .from('pagos')
-        .insert({
-          tipo_pago: 'individual',
-          metodo_pago: metodo,
-          importe_efectivo: importeEfectivo,
-          importe_transferencia: importeTransferencia,
-          total: montoPagado,
-          fecha: fechaPago,
-        })
-        .select()
-        .single()
-
-      if (pagoError || !pago) throw new Error(pagoError?.message ?? 'No se pudo registrar el pago.')
-
-      const { error: detalleError } = await supabase.from('pagos_alumnos').insert({
-        pago_id: pago.id,
-        alumno_id: alumno.id,
-        cargo_id: cargo?.id ?? null,
-        periodo,
-        disciplina_id: disciplinaId,
-        combo_id: comboId,
-        descuento_id: descuentoId || null,
-        precio_snapshot: precioSnapshotFinal,
-        monto_pagado: montoPagado,
-      })
-
-      if (detalleError) {
-        await supabase.from('pagos').delete().eq('id', pago.id)
-        throw new Error(detalleError.message)
-      }
-
-      // Se ajusta el cargo DESPUÉS de insertar el pago (no antes): si esto
-      // falla, el pago ya quedó registrado y el cargo se puede corregir a
-      // mano desde la ficha del alumno — mejor eso que un cargo con el
-      // precio cambiado sin ningún pago que lo explique.
-      let ajusteFallido = false
-      if (ajustarPrecio && cargo) {
-        const { error: cargoError } = await supabase.from('cargos').update({ monto: montoPagado }).eq('id', cargo.id)
-        if (cargoError) ajusteFallido = true
-      }
-
-      return { ajusteFallido }
+      if (error) throw new Error(error.message)
+      if (!data) throw new Error('El servidor no confirmó el pago.')
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.historialPagos })
@@ -291,7 +239,13 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
   }
 
   async function handleSubmit() {
+    if (saving || !otrasLineasCargadas) return
     if (!alumno || !disciplinaId || !comboId || !periodo || montoPagado <= 0 || !fechaPago) return
+    const errorFecha = fechaPago !== editar?.fecha ? validarFechaPago(fechaPago) : null
+    if (errorFecha) {
+      setError(errorFecha)
+      return
+    }
     if (esAmbiguo && tipoPagoParcialidad === '') {
       setError('Indicá si fue un pago parcial o el monto completo (precio especial).')
       return
@@ -322,9 +276,8 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
       fecha: fechaPago,
     }
 
-    let resultado: { ajusteFallido: boolean }
     try {
-      resultado = await registrarPago.mutateAsync()
+      await registrarPago.mutateAsync()
     } catch (err) {
       await logError({
         contexto: 'pago_individual',
@@ -343,9 +296,7 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
 
     const accion = editar ? 'actualizado' : 'registrado'
     setSuccess(
-      resultado.ajusteFallido
-        ? `Pago de $${montoPagado.toLocaleString('es-AR')} ${accion} para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido}, pero no se pudo ajustar el precio del cargo — corregilo desde la ficha del alumno.`
-        : `Pago de $${montoPagado.toLocaleString('es-AR')} ${accion} para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido} — período ${periodo}.`,
+      `Pago de $${montoPagado.toLocaleString('es-AR')} ${accion} para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido} — período ${periodo}.`,
     )
     resetForm()
     onSuccess?.()
@@ -512,6 +463,7 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
               variant="solido"
               disabled={
                 saving ||
+                !otrasLineasCargadas ||
                 !disciplinaId ||
                 !comboId ||
                 montoPagado <= 0 ||

@@ -7,6 +7,7 @@ import { logError } from '@/lib/logErrores'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchHistorialPagos, fetchResumenPeriodo, type HistorialPagoDetalle, type ResumenCargo } from '@/lib/cuenta'
 import { formatFecha, hoyIso } from '@/lib/utils'
+import { fechaPagoLocal, validarFechaPago } from '@/lib/fecha'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
@@ -98,37 +99,23 @@ export function HistorialPagos() {
 
   const completarPago = useMutation({
     mutationFn: async (d: HistorialPagoDetalle) => {
-      const { data: pago, error: pagoError } = await supabase
-        .from('pagos')
-        .insert({
-          tipo_pago: 'individual',
-          metodo_pago: metodoCompletar,
-          importe_efectivo: importeEfectivoCompletar,
-          importe_transferencia: importeTransferenciaCompletar,
-          total: montoCompletar,
-          fecha: fechaCompletar,
-        })
-        .select()
-        .single()
-
-      if (pagoError || !pago) throw new Error(pagoError?.message ?? 'No se pudo registrar el pago.')
-
-      const { error: detalleError } = await supabase.from('pagos_alumnos').insert({
-        pago_id: pago.id,
-        alumno_id: d.alumnoId,
-        cargo_id: completar!.cargoId,
-        periodo: completar!.periodo,
-        disciplina_id: d.disciplinaId,
-        combo_id: d.comboId,
-        descuento_id: d.descuentoId,
-        precio_snapshot: resumenCargo?.monto ?? d.precioSnapshot,
-        monto_pagado: montoCompletar,
+      const { data, error } = await supabase.rpc('completar_pago', {
+        p_alumno_id: d.alumnoId,
+        p_cargo_id: completar!.cargoId,
+        p_periodo: completar!.periodo,
+        p_disciplina_id: d.disciplinaId,
+        p_combo_id: d.comboId,
+        p_descuento_id: d.descuentoId,
+        p_precio_snapshot: resumenCargo?.monto ?? d.precioSnapshot,
+        p_monto_pagado: montoCompletar,
+        p_metodo: metodoCompletar,
+        p_importe_efectivo: importeEfectivoCompletar,
+        p_importe_transferencia: importeTransferenciaCompletar,
+        p_fecha: fechaCompletar,
       })
 
-      if (detalleError) {
-        await supabase.from('pagos').delete().eq('id', pago.id)
-        throw new Error(detalleError.message)
-      }
+      if (error) throw new Error(error.message)
+      if (!data) throw new Error('El servidor no confirmó el pago.')
     },
     onSuccess: () => invalidarPagos(queryClient),
   })
@@ -193,7 +180,12 @@ export function HistorialPagos() {
   }
 
   async function confirmarCompletar(d: HistorialPagoDetalle) {
-    if (!completar || montoCompletar <= 0 || !fechaCompletar) return
+    if (guardandoCompletar || !completar || montoCompletar <= 0 || !fechaCompletar) return
+    const errorFecha = validarFechaPago(fechaCompletar)
+    if (errorFecha) {
+      setErrorCompletar(errorFecha)
+      return
+    }
     if (
       metodoCompletar === 'combinado' &&
       Math.round((importeEfectivoCompletar + importeTransferenciaCompletar) * 100) !== Math.round(montoCompletar * 100)
@@ -302,7 +294,7 @@ export function HistorialPagos() {
                 <Fragment key={d.id}>
                   <tr className="border-t border-outline-variant align-top">
                     <td className="whitespace-nowrap px-4 py-3 font-inter text-sm text-on-surface-variant">
-                      {formatFecha(d.fecha.slice(0, 10))}
+                      {formatFecha(fechaPagoLocal(d.fecha))}
                     </td>
                     <td className="px-4 py-3 font-inter text-sm text-on-surface">
                       {d.alumnoNombre}
@@ -492,7 +484,7 @@ export function HistorialPagos() {
               precioSnapshot: editando.precioSnapshot,
               montoPagado: editando.montoPagado,
               metodoPago: editando.metodoPago,
-              fecha: editando.fecha.slice(0, 10),
+              fecha: fechaPagoLocal(editando.fecha),
             }}
             onSuccess={() => setEditando(null)}
             onCancel={() => setEditando(null)}

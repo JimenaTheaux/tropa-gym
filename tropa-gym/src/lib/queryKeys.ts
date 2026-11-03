@@ -51,4 +51,5 @@ export const queryKeys = {
     ['dashboard', 'estados-periodo', periodo, cantidad] as const,
 
   logErrores: ['log-errores'] as const,
+  pagosHuerfanos: ['log-errores', 'pagos-huerfanos'] as const,
 }
