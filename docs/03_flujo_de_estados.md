@@ -33,13 +33,17 @@ El KPI "Alumnos activos" ya no cuenta asistencia dentro del mes (para eso está 
 ## Estado del cargo
 El `estado` (pendiente/parcial/pagado) es una propiedad del **cargo** (la deuda del período), no del pago. Un pago es una transacción puntual; lo que puede estar "parcial" es la deuda que ese pago va cancelando.
 
-- **Pendiente**: suma de `monto_pagado` de todos los pagos ligados al cargo = 0.
-- **Parcial**: 0 < suma de `monto_pagado` < `cargos.monto`.
-- **Pagado**: suma de `monto_pagado` >= `cargos.monto`.
+Se evalúa en este orden (`fn_recalcular_estado_cargo`, único lugar donde vive la regla):
+
+1. **Pendiente**: `monto_definido = false`, sea cual sea lo pagado. Todavía no se sabe cuánto debe.
+2. **Pagado**: `monto_definido = true` y `cargos.monto = 0`. Ajuste manual por acuerdo externo con el alumno: no hay nada que cobrar.
+3. **Pendiente**: suma de `monto_pagado` de todos los pagos ligados al cargo = 0.
+4. **Parcial**: 0 < suma de `monto_pagado` < `cargos.monto`.
+5. **Pagado**: suma de `monto_pagado` >= `cargos.monto`.
 
 El recálculo es automático (trigger) y usa el **acumulado de todos los pagos** del cargo (`cargo_id`), no solo el último pago registrado. Se dispara en dos casos:
 1. Cada INSERT/UPDATE/DELETE en `pagos_alumnos` (se recalcula el cargo afectado).
-2. Cada UPDATE de `cargos.monto` (edición manual — ver doc 02, Admin/Profesor).
+2. Cada UPDATE de `cargos.monto` o `cargos.monto_definido` (edición manual — ver doc 02, Admin/Profesor — o recálculo automático).
 
 ```
 Cargo generado → [PENDIENTE]
@@ -48,7 +52,7 @@ Cargo generado → [PENDIENTE]
 ```
 
 ### Sobrepago (saldo a favor)
-Si la suma de `monto_pagado` supera `cargos.monto`, el cargo igual queda **pagado** (no existe un estado "sobrepagado"). El excedente no se guarda en una tabla aparte: queda reflejado en el **Saldo de cuenta** general del alumno (`Saldo = Cargos − Pagos`, RN-023), que da negativo — es decir, saldo a favor.
+Si la suma de `monto_pagado` supera `cargos.monto`, el cargo igual queda **pagado** (no existe un estado "sobrepagado"), también si el monto es $0 definido. El excedente no se guarda en una tabla aparte: queda reflejado en el **Saldo de cuenta** general del alumno (`Saldo = Cargos − Pagos`, RN-023), que da negativo — es decir, saldo a favor.
 
 **El saldo a favor no compensa automáticamente la deuda de otros meses** (migración 31): las cards y pestañas de deuda del Centro de Resumen Mensual son brutas por período. Se informa por alumno: el panel Deudores muestra "a favor" (Σ de lo pagado de más en cada cargo, de todos los períodos) y "neto a cobrar" (deuda − a favor, mínimo 0), y el mensaje de WhatsApp usa ese neto. La ficha del alumno y el check-in (`getEstadoCuenta`) siguen mostrando el saldo neto acumulado.
 
@@ -57,7 +61,7 @@ Si la suma de `monto_pagado` supera `cargos.monto`, el cargo igual queda **pagad
 
 Ahora `fn_recalcular_cargo_automatico` (migración 22, ex `generar_cargos_periodo`) separa las dos cosas: si hay asistencia, el cargo **siempre** se genera/actualiza (con el `tipo` correcto); si no resuelve precio, queda con `monto = 0` y `monto_definido = false` — un placeholder visible, no un cargo perdido. Admin/Profesor lo completa a mano (misma edición de `cargos.monto` de excepción, doc 02), lo que marca `monto_definido = true` y **`validado = true`** (ver "Cargo continuo y validación" más abajo), y dispara el recálculo de `estado` normal.
 
-Mientras `monto_definido = false`, si llega un pago contra ese cargo, el `estado` puede mostrar momentáneamente `pagado` (cualquier pago supera el umbral de $0) — se autocorrige solo apenas se define el monto real. Es un efecto transitorio esperado, no un error.
+Mientras `monto_definido = false`, si llega un pago contra ese cargo, el `estado` sigue en `pendiente` (migración 32) y se recalcula apenas se define el monto real. Un cargo sin definir que quedó en `pagado` antes de esa migración se corrige en su próximo recálculo.
 
 Estos cargos aparecen marcados con "A definir" directamente en la fila del alumno en la pantalla Cargos (editable ahí mismo, sin ir a otra pantalla), como alerta en el Centro de Resumen Mensual, y como badge rojo "Monto sin definir" en el estado de cuenta de la ficha del alumno — para que nunca se confunda con un cargo de $0 legítimo — hasta que se les define el monto.
 
