@@ -1,3 +1,4 @@
+import { useValidezCampos } from '@/hooks/useValidezCampos'
 import { useMemo, useState, type FormEvent } from 'react'
 import { traducirError } from '@/lib/errores'
 import type { Alumno, AlumnoInsert } from '@/types/db'
@@ -45,6 +46,7 @@ interface ListadoAlumnosProps {
 }
 
 export function ListadoAlumnos({ busqueda = '' }: ListadoAlumnosProps) {
+  const validez = useValidezCampos()
   const { data: alumnos = [], isLoading: loading } = useAlumnos()
   const { data: disciplinasActivas = [] } = useDisciplinasActivas()
   const { data: combosActivos = [] } = useCombosActivos()
@@ -196,7 +198,7 @@ export function ListadoAlumnos({ busqueda = '' }: ListadoAlumnosProps) {
             <Button type="button" variant="ghost" onClick={() => setDrawerOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" form="form-alumno" variant="solido" disabled={saving}>
+            <Button type="submit" form="form-alumno" variant="solido" disabled={saving || validez.hayInvalidos}>
               {saving ? 'Guardando…' : 'Guardar'}
             </Button>
           </>
@@ -204,6 +206,7 @@ export function ListadoAlumnos({ busqueda = '' }: ListadoAlumnosProps) {
       >
         <form id="form-alumno" className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <AlumnoFormFields
+            validez={validez}
             idPrefix="alumno"
             form={form}
             onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}

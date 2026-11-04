@@ -1,3 +1,4 @@
+import { useValidezCampos } from '@/hooks/useValidezCampos'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -30,6 +31,7 @@ const ESTADO_CONFIG: Record<EstadoAlumno, { color: string; icon: string; label: 
 // inactivo (ver migración 11/12). El resto de los roles ve el badge de solo
 // lectura, sin acción.
 export function EstadoToggleButton({ alumno, compact }: EstadoToggleButtonProps) {
+  const validez = useValidezCampos()
   const { perfil } = useAuth()
   const puedeCambiar = perfil?.rol === 'admin' || perfil?.rol === 'profesor'
   const [modalOpen, setModalOpen] = useState(false)
@@ -123,7 +125,7 @@ export function EstadoToggleButton({ alumno, compact }: EstadoToggleButtonProps)
               </p>
 
               <div className="mt-4 flex flex-col gap-3">
-                <FormDateInput id={`estado-fecha-${alumno.id}`} label="Desde" min="2000-01-01" value={fecha} onChange={setFecha} />
+                <FormDateInput id={`estado-fecha-${alumno.id}`} label="Desde" min="2000-01-01" value={fecha} onChange={setFecha} validez={validez} />
                 {nuevoEstado === 'inactivo' && (
                   <FormInput
                     id={`estado-motivo-${alumno.id}`}
@@ -140,7 +142,7 @@ export function EstadoToggleButton({ alumno, compact }: EstadoToggleButtonProps)
                 <Button type="button" variant="ghost" onClick={() => setModalOpen(false)} disabled={guardando}>
                   Cancelar
                 </Button>
-                <Button type="button" variant="solido" onClick={confirmar} disabled={guardando || !fecha}>
+                <Button type="button" variant="solido" onClick={confirmar} disabled={guardando || !fecha || validez.hayInvalidos}>
                   {guardando ? 'Guardando…' : 'Confirmar'}
                 </Button>
               </div>

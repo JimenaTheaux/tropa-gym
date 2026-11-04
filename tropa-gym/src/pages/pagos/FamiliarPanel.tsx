@@ -1,3 +1,4 @@
+import { useValidezCampos } from '@/hooks/useValidezCampos'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago, TipoCargo } from '@/types/db'
@@ -54,6 +55,7 @@ interface FamiliarPanelProps {
 }
 
 export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
+  const validez = useValidezCampos()
   const queryClient = useQueryClient()
   const { perfil } = useAuth()
   const { data: precios = [] } = usePrecios()
@@ -438,6 +440,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             label="Fecha de pago"
             required
             max={addDays(hoyAR(), 1)}
+            validez={validez}
             value={fechaPago}
             onChange={setFechaPago}
           />
@@ -486,7 +489,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
               type="button"
               variant="solido"
               disabled={
-                saving || montoPagado <= 0 || !fechaPago || (esAmbiguo && tipoPagoParcialidad === '') || !recibio.valido
+                saving || montoPagado <= 0 || !fechaPago || (esAmbiguo && tipoPagoParcialidad === '') || !recibio.valido || validez.hayInvalidos
               }
               onClick={handleSubmit}
             >

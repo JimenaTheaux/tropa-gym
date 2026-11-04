@@ -1,3 +1,4 @@
+import { useValidezCampos } from '@/hooks/useValidezCampos'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
@@ -81,6 +82,7 @@ function maskFechaFiltro(raw: string): string {
 }
 
 export function AsistenciaProfesores() {
+  const validez = useValidezCampos()
   const { perfil } = useAuth()
   const isAdmin = perfil?.rol === 'admin'
   const queryClient = useQueryClient()
@@ -547,7 +549,7 @@ export function AsistenciaProfesores() {
                 <Button type="button" variant="ghost" onClick={() => setDrawerOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" form="form-asistencia-profesor" variant="solido" disabled={saving}>
+                <Button type="submit" form="form-asistencia-profesor" variant="solido" disabled={saving || validez.hayInvalidos}>
                   {saving ? 'Guardando…' : 'Guardar'}
                 </Button>
               </>
@@ -568,6 +570,7 @@ export function AsistenciaProfesores() {
                 label="Fecha"
                 required
                 min="2000-01-01"
+                validez={validez}
                 value={editForm.fecha}
                 onChange={(fecha) => setEditForm({ ...editForm, fecha })}
               />
@@ -576,12 +579,14 @@ export function AsistenciaProfesores() {
                   id="asistencia-profesor-hora-entrada"
                   label="Hora entrada"
                   required
+                  validez={validez}
                   value={editForm.hora_entrada}
                   onChange={(hora_entrada) => setEditForm({ ...editForm, hora_entrada })}
                 />
                 <TimeField
                   id="asistencia-profesor-hora-salida"
                   label="Hora salida"
+                  validez={validez}
                   value={editForm.hora_salida}
                   onChange={(hora_salida) => setEditForm({ ...editForm, hora_salida })}
                 />

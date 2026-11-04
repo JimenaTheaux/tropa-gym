@@ -1,3 +1,4 @@
+import { useValidezCampos } from '@/hooks/useValidezCampos'
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Alumno } from '@/types/db'
@@ -28,6 +29,8 @@ function fechaDisplay(iso: string): string {
 }
 
 export function Asistencia() {
+  const validezRegistro = useValidezCampos()
+  const validezEdicion = useValidezCampos()
   const queryClient = useQueryClient()
   const { data: turnos = [] } = useTurnosActivos()
   const { data: disciplinas = [] } = useDisciplinas()
@@ -285,7 +288,7 @@ export function Asistencia() {
             )}
 
             {disciplinaId && esHorarioLibre && (
-              <TimeField id="asistencia-hora-libre" label="Hora" required value={horaLibre} onChange={setHoraLibre} />
+              <TimeField id="asistencia-hora-libre" label="Hora" required value={horaLibre} onChange={setHoraLibre} validez={validezRegistro} />
             )}
 
             {error && <p className="font-inter text-sm text-error">{error}</p>}
@@ -297,7 +300,7 @@ export function Asistencia() {
               <Button
                 type="button"
                 variant="solido"
-                disabled={!disciplinaId || (!esHorarioLibre && !turnoId) || (esHorarioLibre && !horaLibre) || saving}
+                disabled={!disciplinaId || (!esHorarioLibre && !turnoId) || (esHorarioLibre && !horaLibre) || saving || validezRegistro.hayInvalidos}
                 onClick={confirmarAsistencia}
               >
                 {saving ? 'Registrando…' : 'Confirmar asistencia'}
@@ -401,7 +404,7 @@ export function Asistencia() {
             <Button type="button" variant="ghost" onClick={() => setEditando(null)} disabled={editSaving}>
               Cancelar
             </Button>
-            <Button type="button" variant="solido" onClick={guardarEdicion} disabled={editSaving}>
+            <Button type="button" variant="solido" onClick={guardarEdicion} disabled={editSaving || validezEdicion.hayInvalidos}>
               {editSaving ? 'Guardando…' : 'Guardar'}
             </Button>
           </>
@@ -435,10 +438,10 @@ export function Asistencia() {
             )}
 
             {editEsHorarioLibre && (
-              <TimeField id="editar-hora-libre" label="Hora" value={editHoraLibre} onChange={setEditHoraLibre} />
+              <TimeField id="editar-hora-libre" label="Hora" value={editHoraLibre} onChange={setEditHoraLibre} validez={validezEdicion} />
             )}
 
-            <FormDateInput id="editar-fecha" label="Fecha" required min="2000-01-01" value={editFecha} onChange={setEditFecha} />
+            <FormDateInput id="editar-fecha" label="Fecha" required min="2000-01-01" value={editFecha} onChange={setEditFecha} validez={validezEdicion} />
 
             {editError && <p className="font-inter text-sm text-error">{editError}</p>}
           </div>

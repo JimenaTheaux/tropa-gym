@@ -1,3 +1,4 @@
+import { useValidezCampos } from '@/hooks/useValidezCampos'
 import { Fragment, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { MetodoPago } from '@/types/db'
@@ -53,6 +54,7 @@ function invalidarPagos(queryClient: ReturnType<typeof useQueryClient>) {
 const PAGE_SIZE = 15
 
 export function HistorialPagos() {
+  const validez = useValidezCampos()
   const { perfil } = useAuth()
   const puedeEditar = perfil?.rol === 'admin' || perfil?.rol === 'profesor'
   const isAdmin = perfil?.rol === 'admin'
@@ -449,6 +451,7 @@ export function HistorialPagos() {
                                 label="Fecha de pago"
                                 required
                                 max={addDays(hoyAR(), 1)}
+                                validez={validez}
                                 value={fechaCompletar}
                                 onChange={setFechaCompletar}
                               />
@@ -488,7 +491,7 @@ export function HistorialPagos() {
                                   type="button"
                                   variant="solido"
                                   disabled={
-                                    guardandoCompletar || montoCompletar <= 0 || !fechaCompletar || !recibioCompletar.valido
+                                    guardandoCompletar || montoCompletar <= 0 || !fechaCompletar || !recibioCompletar.valido || validez.hayInvalidos
                                   }
                                   onClick={() => confirmarCompletar(d)}
                                 >

@@ -1,3 +1,4 @@
+import { useValidezCampos } from '@/hooks/useValidezCampos'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago } from '@/types/db'
@@ -54,6 +55,7 @@ interface AdelantadoPanelProps {
 }
 
 export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
+  const validez = useValidezCampos()
   const queryClient = useQueryClient()
   const { perfil } = useAuth()
   const { data: precios = [] } = usePrecios()
@@ -380,6 +382,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
                 label="Fecha de pago"
                 required
                 max={addDays(hoyAR(), 1)}
+                validez={validez}
                 value={fechaPago}
                 onChange={setFechaPago}
               />
@@ -410,7 +413,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
                 <Button
                   type="button"
                   variant="solido"
-                  disabled={saving || !disciplinaId || montoPagado <= 0 || !fechaPago || !recibio.valido}
+                  disabled={saving || !disciplinaId || montoPagado <= 0 || !fechaPago || !recibio.valido || validez.hayInvalidos}
                   onClick={handleSubmit}
                 >
                   {saving ? 'Registrando…' : 'Registrar pago adelantado'}

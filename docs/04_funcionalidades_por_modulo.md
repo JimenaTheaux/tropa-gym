@@ -156,14 +156,15 @@ Pantalla en vivo sobre `cargos` (solo Admin — doc 02; migración 22 reemplaza 
 - Turnos: nombre, hora única, activar/desactivar (ya no tienen hora de inicio/fin).
 
 ## Campos de fecha y hora
-Todos los campos de fecha usan `DateField` (doc 08): se tipea `dd/mm/aaaa`, y solo sale hacia el formulario una fecha completa, válida y en rango. Si queda incompleta o inválida se muestra el error y el formulario conserva el valor anterior.
+Todos los campos de fecha usan `DateField` (doc 08): se tipea `dd/mm/aaaa`, y solo sale hacia el formulario una fecha completa, válida y en rango. Si queda incompleta o inválida se muestra el error y el botón de guardar queda deshabilitado en pagos, asistencias, egresos, estado del alumno, precios y alumnos. Una fecha ya guardada que no se tocó no frena el guardado, aunque hoy quede fuera de rango.
 
 Rango por pantalla:
 - **Por defecto**: de hoy − 2 años a hoy, igual que el servidor.
 - **Fecha de pago**: hasta mañana, como `fn_validar_fecha_pago`.
 - **Precios "Vigente desde"**: admite futuro, desde 2000.
 - **Fecha de nacimiento**: desde 1900, hasta hoy.
-- **Asistencia, Asist. Profesores, Egresos, estado del alumno y caja**: desde 2000, hasta hoy.
+- **Egresos**: admite futuro, desde 2000.
+- **Asistencia, Asist. Profesores, estado del alumno y caja**: desde 2000, hasta hoy.
 
 Las horas usan `TimeField` (`HH:mm`, 24 hs), salvo el check-in de alumnos, que conserva sus selectores. Los períodos siguen con `FormMonthInput`, que se elige y no se tipea.
 

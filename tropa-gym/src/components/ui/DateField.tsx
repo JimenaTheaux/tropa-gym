@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
 import { useInputMascara } from '@/hooks/useInputMascara'
+import { useReportarValidez, type ValidezCampos } from '@/hooks/useValidezCampos'
 import { addDays, formatDMY, hoyAR, parseDMY } from '@/lib/fecha'
 import { MASCARA_FECHA } from '@/lib/mascara'
 import { cn } from '@/lib/utils'
@@ -28,6 +29,7 @@ interface DateFieldProps {
   disabled?: boolean
   error?: string
   atajos?: boolean
+  validez?: ValidezCampos
 }
 
 interface CalendarioProps {
@@ -148,6 +150,7 @@ export function DateField({
   disabled,
   error,
   atajos = true,
+  validez,
 }: DateFieldProps) {
   const externo = value || null
   const [borrador, setBorrador] = useState(externo ? formatDMY(externo) : '')
@@ -193,6 +196,14 @@ export function DateField({
     if (limiteMin && iso < limiteMin) return `No puede ser anterior a ${formatDMY(limiteMin)}`
     return null
   }
+
+  // Una fecha que ya venía guardada y no se tocó no frena el formulario, aunque hoy
+  // quede fuera de rango: editar otro dato de un pago viejo tiene que poder guardarse.
+  const fechaEscrita = parseDMY(borrador, true)
+  const esValido = borrador
+    ? !!fechaEscrita && (fechaEscrita === externo || !errorDeRango(fechaEscrita))
+    : !required
+  useReportarValidez(validez, id, esValido)
 
   // Solo sale una fecha completa, válida y en rango. `final` = se terminó de editar.
   function evaluar(texto: string, final: boolean): string | null {

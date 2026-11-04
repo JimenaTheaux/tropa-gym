@@ -147,6 +147,7 @@ Mismo criterio de color que los botones Primario/Ghost — no es una variante nu
 - `DateField`: máscara `dd/mm/aaaa`, ícono `calendar_month` y calendario propio (semana desde el lunes, días fuera de rango deshabilitados, atajos "Hoy" y "Ayer"). Error en `error`: borde + texto debajo. `FormDateInput` es el mismo campo para formularios que guardan `''` si está vacío.
 - `DateRangeField`: desde/hasta en un solo grupo con borde; cada extremo limita al otro.
 - `TimeField`: máscara `HH:mm`, 24 hs.
+- `useValidezCampos`: el formulario se lo pasa a sus campos con `validez` y deshabilita Guardar con `hayInvalidos`.
 - Edición: cada parte se edita por separado y una parte llena se pisa, así tocar el día no corre el año. Pegar acepta `dd/mm/aaaa`, `d/m/aa` y `aaaa-mm-dd`. Flechas ↑/↓ suman o restan un día.
 
 ## Componentes de caja (mismas reglas: borde + ícono + texto, sin fondos sólidos)

@@ -1,3 +1,4 @@
+import { useValidezCampos } from '@/hooks/useValidezCampos'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, MetodoPago, TipoCargo } from '@/types/db'
@@ -65,6 +66,7 @@ interface IndividualPanelProps {
 }
 
 export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanelProps) {
+  const validez = useValidezCampos()
   const queryClient = useQueryClient()
   const { perfil } = useAuth()
   const { data: precios = [] } = usePrecios()
@@ -429,6 +431,7 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
             label="Fecha de pago"
             required
             max={addDays(hoyAR(), 1)}
+            validez={validez}
             value={fechaPago}
             onChange={setFechaPago}
           />
@@ -490,7 +493,8 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
                 montoPagado <= 0 ||
                 !fechaPago ||
                 (esAmbiguo && tipoPagoParcialidad === '') ||
-                (!editar && !recibio.valido)
+                (!editar && !recibio.valido) ||
+                validez.hayInvalidos
               }
               onClick={handleSubmit}
             >

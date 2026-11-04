@@ -1,3 +1,4 @@
+import { useValidezCampos } from '@/hooks/useValidezCampos'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Alumno, AlumnoInsert } from '@/types/db'
@@ -33,6 +34,7 @@ interface NuevoAlumnoDrawerProps {
 // Alta rápida de alumno desde el buscador (Pagos, Asistencia): mismos campos
 // que la página Alumnos, pero sin salir de la pantalla donde se lo necesita.
 export function NuevoAlumnoDrawer({ open, query, onClose, onCreated }: NuevoAlumnoDrawerProps) {
+  const validez = useValidezCampos()
   const { data: disciplinas = [] } = useDisciplinasActivas()
   const { data: combos = [] } = useCombosActivos()
   const [form, setForm] = useState<AlumnoInsert>(() => formInicial(query))
@@ -87,7 +89,7 @@ export function NuevoAlumnoDrawer({ open, query, onClose, onCreated }: NuevoAlum
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" form="form-nuevo-alumno-inline" variant="solido" disabled={saving}>
+          <Button type="submit" form="form-nuevo-alumno-inline" variant="solido" disabled={saving || validez.hayInvalidos}>
             {saving ? 'Guardando…' : 'Guardar y seleccionar'}
           </Button>
         </>
@@ -95,6 +97,7 @@ export function NuevoAlumnoDrawer({ open, query, onClose, onCreated }: NuevoAlum
     >
       <form id="form-nuevo-alumno-inline" className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <AlumnoFormFields
+          validez={validez}
           idPrefix="nuevo-alumno-inline"
           form={form}
           onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}

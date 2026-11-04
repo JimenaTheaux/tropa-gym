@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useInputMascara } from '@/hooks/useInputMascara'
+import { useReportarValidez, type ValidezCampos } from '@/hooks/useValidezCampos'
 import { MASCARA_HORA } from '@/lib/mascara'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +12,7 @@ interface TimeFieldProps {
   required?: boolean
   disabled?: boolean
   error?: string
+  validez?: ValidezCampos
 }
 
 // "HH:mm" en 24 hs, o null si no es una hora que exista. Con `flexible`, también 9:30.
@@ -22,7 +24,7 @@ function parseHora(texto: string, flexible = false): string | null {
   return `${String(h).padStart(2, '0')}:${partes[2]}`
 }
 
-export function TimeField({ id, label, value, onChange, required, disabled, error }: TimeFieldProps) {
+export function TimeField({ id, label, value, onChange, required, disabled, error, validez }: TimeFieldProps) {
   const [borrador, setBorrador] = useState(value)
   const [errorPropio, setErrorPropio] = useState<string | null>(null)
   const ultimoEmitido = useRef(value)
@@ -33,6 +35,8 @@ export function TimeField({ id, label, value, onChange, required, disabled, erro
     setBorrador(value)
     setErrorPropio(null)
   }, [value])
+
+  useReportarValidez(validez, id, borrador ? !!parseHora(borrador, true) : !required)
 
   function emitir(nuevo: string) {
     if (nuevo === ultimoEmitido.current) return

@@ -1,3 +1,4 @@
+import { useValidezCampos } from '@/hooks/useValidezCampos'
 import { useState, type FormEvent } from 'react'
 import { traducirError } from '@/lib/errores'
 import { formatFecha } from '@/lib/utils'
@@ -14,6 +15,7 @@ import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 const emptyForm: PrecioInsert = { combo_id: '', vigente_desde: '', monto: 0 }
 
 export function PreciosPanel() {
+  const validez = useValidezCampos()
   const { data: precios = [], isLoading: loading } = usePrecios()
   const { data: combos = [] } = useCombos()
   const { crear, actualizar, eliminar } = useCatalogoMutations<PrecioInsert>('precios', queryKeys.precios)
@@ -114,7 +116,7 @@ export function PreciosPanel() {
             <Button type="button" variant="ghost" onClick={() => setDrawerOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" form="form-precio" variant="solido" disabled={saving}>
+            <Button type="submit" form="form-precio" variant="solido" disabled={saving || validez.hayInvalidos}>
               {saving ? 'Guardando…' : 'Guardar'}
             </Button>
           </>
@@ -137,6 +139,7 @@ export function PreciosPanel() {
               required
               allowFuture
               min="2000-01-01"
+              validez={validez}
               value={form.vigente_desde}
               onChange={(vigente_desde) => setForm({ ...form, vigente_desde })}
             />

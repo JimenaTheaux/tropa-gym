@@ -1,3 +1,4 @@
+import { useValidezCampos } from '@/hooks/useValidezCampos'
 import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
@@ -29,6 +30,7 @@ async function fetchEgresos(periodo: string): Promise<Egreso[]> {
 }
 
 export function Egresos() {
+  const validez = useValidezCampos()
   const [periodo, setPeriodo] = useState(periodoActual())
   const { data: egresos = [], isLoading: loading } = useQuery({
     queryKey: queryKeys.egresos(periodo),
@@ -144,7 +146,7 @@ export function Egresos() {
             <Button type="button" variant="ghost" onClick={() => setDrawerOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" form="form-egreso" variant="solido" disabled={saving}>
+            <Button type="submit" form="form-egreso" variant="solido" disabled={saving || validez.hayInvalidos}>
               {saving ? 'Guardando…' : 'Guardar'}
             </Button>
           </>
@@ -172,7 +174,9 @@ export function Egresos() {
               id="egreso-fecha"
               label="Fecha"
               required
+              allowFuture
               min="2000-01-01"
+              validez={validez}
               value={form.fecha}
               onChange={(fecha) => setForm({ ...form, fecha })}
             />

@@ -1,4 +1,5 @@
 import type { AlumnoInsert, Combo, Disciplina } from '@/types/db'
+import type { ValidezCampos } from '@/hooks/useValidezCampos'
 import { FormDateInput, FormInput, FormSelect } from '@/components/ui/FormField'
 
 interface AlumnoFormFieldsProps {
@@ -7,11 +8,12 @@ interface AlumnoFormFieldsProps {
   onChange: (patch: Partial<AlumnoInsert>) => void
   disciplinas: Disciplina[]
   combos: Combo[]
+  validez?: ValidezCampos
 }
 
 // Campos del alumno (alta/edición), compartidos entre la página Alumnos y el
 // alta rápida desde el buscador de Pagos — mismo formulario, dos puntos de entrada.
-export function AlumnoFormFields({ idPrefix, form, onChange, disciplinas, combos }: AlumnoFormFieldsProps) {
+export function AlumnoFormFields({ idPrefix, form, onChange, disciplinas, combos, validez }: AlumnoFormFieldsProps) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <FormInput
@@ -46,6 +48,7 @@ export function AlumnoFormFields({ idPrefix, form, onChange, disciplinas, combos
           id={`${idPrefix}-fecha-nacimiento`}
           label="Fecha de nacimiento (opcional)"
           min="1900-01-01"
+          validez={validez}
           atajos={false}
           value={form.fecha_nacimiento ?? ''}
           onChange={(fecha_nacimiento) => onChange({ fecha_nacimiento })}
