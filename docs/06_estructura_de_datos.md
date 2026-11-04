@@ -86,6 +86,8 @@ Usado por el Dashboard (`fetchEstadoAlumnosPorPeriodo`) para reconstruir cuánto
 
 Trigger de edición con `fn_asistencias_profesores_bloquear_edicion_profesor` (existe en la base viva, sin migración en `docs/`): con rol profesor rechaza cambios de `fecha`, `hora_entrada` y `profesor_id` ("No tenés permisos para editar este campo"). `hora_salida` no la restringe. Admin no tiene esa restricción.
 
+Policy viva `asistencias_profesores_profesor_update_abiertas`: admin/profesor actualizan solo turnos con `hora_salida` nula, y su `with_check` valida solo el rol, así que se puede grabar la salida. Difiere de la migración 17, que no define `with_check`.
+
 ### cargos
 Cargo continuo desde la migración 22 — ya no lo crea un botón "Generar cargos del período": lo crea/actualiza solo el trigger `trg_asistencia_actualiza_cargo` en cada asistencia nueva (ver doc 03, "Flujo de liquidación mensual" y RPCs abajo).
 
@@ -217,6 +219,8 @@ Reglas: doc 03. RLS en todas: SELECT solo admin, sin escritura directa para ning
 - `adjuntar_pago_huerfano(pago, alumno, cargo, periodo, disciplina, combo, descuento, precio_snapshot, monto_pagado)` (migración 33, solo Admin, sin UI): agrega la línea que le falta a un huérfano. Sin cargo informado usa el del alumno+período. Avisa sin bloquear si el monto no coincide con el total y no cambia el plan actual de la ficha.
 - **Escritura en `pagos`/`pagos_alumnos`**: la migración 34 deja solo `SELECT` para admin/profesor (más el `SELECT` de kiosco en `pagos_alumnos`) y quita los permisos de INSERT/UPDATE/DELETE de tabla: toda escritura pasa por RPC. Hasta aplicarla, las policies `FOR ALL` siguen vigentes.
 - `registrar_pago_individual`, `registrar_pago_familiar` y `registrar_pago_adelantado` (migración 36) suman al final `p_recibio_tipo`, `p_recibio_profesor_id` y `p_request_id`, con default nulo. Familiar y adelantado validan importes con `fn_validar_importes_pago`.
+- `completar_pago` (migración 38) suma los mismos tres parámetros y reglas. La migración 38 también deja de exigir turno abierto cuando un profesor informa a otro activo: la pantalla lo ofrece si no hay nadie en turno.
+- `pagos_en_cierre(pago_ids)` (migración 38, Admin/Profesor): cuáles de esos pagos están en un cierre o verificación vigente. Alimenta el chip "En cierre" del Historial; devuelve `uuid[]`.
 - `caja_modulo_activo()` (migración 37, Admin/Profesor): si `fecha_arranque` no es nula.
 - `set_fecha_arranque(fecha)` (migración 37, Admin): nula apaga el módulo.
 - `pagos_pendientes_cierre(profesor)` (migración 37, Admin/Profesor, jsonb): lo que recibió y no cerró, con `fecha_distinta`, totales y `huerfanos` (pagos sin líneas, no entran).

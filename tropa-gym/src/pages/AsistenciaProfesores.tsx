@@ -1,7 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { traducirError } from '@/lib/errores'
+import { logError } from '@/lib/logErrores'
+import { fetchPendientesCierre } from '@/lib/caja'
+import { queryKeys } from '@/lib/queryKeys'
+import { CierreCajaDrawer, type CierreCajaObjetivo } from '@/components/ui/CierreCajaDrawer'
 import { useAuth } from '@/contexts/AuthContext'
 import type { AsistenciaProfesor } from '@/types/db'
 import { useProfesores } from '@/hooks/useCatalogos'
@@ -14,6 +18,8 @@ import { formatFecha } from '@/lib/utils'
 import { fechaLocalISO } from '@/lib/fecha'
 import { calcularMinutosTrabajados, formatHoras } from '@/lib/horasProfesor'
 
+// Propaga el error: si la lectura falla no se puede mostrar "sin turno abierto",
+// porque habilitaría registrar una entrada duplicada.
 async function fetchAbiertos(ids: string[]): Promise<Record<string, AsistenciaProfesor>> {
   if (ids.length === 0) return {}
   const { data, error } = await supabase
@@ -21,7 +27,7 @@ async function fetchAbiertos(ids: string[]): Promise<Record<string, AsistenciaPr
     .select('*')
     .in('profesor_id', ids)
     .is('hora_salida', null)
-  if (error) return {}
+  if (error) throw new Error(error.message)
   const map: Record<string, AsistenciaProfesor> = {}
   for (const r of data as AsistenciaProfesor[]) map[r.profesor_id] = r
   return map
@@ -39,6 +45,11 @@ async function fetchHistorial(ids: string[], periodo: string): Promise<Asistenci
     .order('hora_entrada', { ascending: false })
   if (error) return []
   return data as AsistenciaProfesor[]
+}
+
+async function fetchCantidadesPendientes(ids: string[]): Promise<Record<string, number>> {
+  const resultados = await Promise.all(ids.map((id) => fetchPendientesCierre(id)))
+  return Object.fromEntries(ids.map((id, i) => [id, resultados[i].cantidad]))
 }
 
 function periodoActual(): string {
@@ -101,7 +112,31 @@ export function AsistenciaProfesores() {
     staleTime: STALE_OPERATIVO,
   })
 
+  const pendientesQuery = useQuery({
+    queryKey: queryKeys.cajaPendientesPorProfesor(idsKey),
+    queryFn: () => fetchCantidadesPendientes(profesores.map((p) => p.id)),
+    enabled: profesores.length > 0,
+    staleTime: STALE_OPERATIVO,
+  })
+
+  const [cierre, setCierre] = useState<CierreCajaObjetivo | null>(null)
+  const [mensajeCierre, setMensajeCierre] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!abiertosQuery.isError) return
+    logError({
+      contexto: 'asistencia_profesores_abiertos',
+      usuarioId: perfil?.id ?? null,
+      payloadIntentado: null,
+      error: abiertosQuery.error,
+    })
+  }, [abiertosQuery.isError, abiertosQuery.error, perfil?.id])
+
   const abiertos = abiertosQuery.data ?? {}
+  const pendientes = pendientesQuery.data ?? {}
+  const turnosSinDatos = abiertosQuery.isLoading || abiertosQuery.isError
+  // Un profe desactivado sigue a la vista mientras tenga algo por cerrar.
+  const profesoresVisibles = profesores.filter((p) => p.activo || abiertos[p.id] || pendientes[p.id] > 0)
   const historial = historialQuery.data ?? []
   const loading = loadingProfesores || abiertosQuery.isFetching || historialQuery.isFetching
 
@@ -145,6 +180,30 @@ export function AsistenciaProfesores() {
     return queryClient.invalidateQueries({ queryKey: ['asistencias-profesores'] })
   }
 
+  // La salida ya está guardada cuando se llama: un fallo acá solo posterga el
+  // cierre, que se retoma con "Cerrar caja" en la card.
+  async function abrirCierreTrasSalida(registro: AsistenciaProfesor) {
+    queryClient.invalidateQueries({ queryKey: queryKeys.caja })
+    try {
+      const { cantidad } = await fetchPendientesCierre(registro.profesor_id)
+      if (cantidad > 0) {
+        setCierre({
+          profesorId: registro.profesor_id,
+          nombre: profesorNombre(registro.profesor_id),
+          asistenciaId: registro.id,
+        })
+      }
+    } catch (err) {
+      await logError({
+        contexto: 'cierre_caja',
+        usuarioId: perfil?.id ?? null,
+        payloadIntentado: { profesorId: registro.profesor_id, asistenciaId: registro.id },
+        error: err,
+      })
+      setError('La salida quedó guardada, pero no se pudo consultar la caja. Cerrala con "Cerrar caja" cuando vuelva la conexión.')
+    }
+  }
+
   async function registrarEntrada(profesorId: string) {
     setActionLoading(profesorId)
     setError(null)
@@ -174,7 +233,9 @@ export function AsistenciaProfesores() {
       setError(traducirError(error.message))
       return
     }
+    setMensajeCierre(null)
     await refrescar()
+    await abrirCierreTrasSalida(registro)
   }
 
   function profesorNombre(id: string) {
@@ -238,6 +299,32 @@ export function AsistenciaProfesores() {
 
       {error && !drawerOpen && <p className="font-inter text-sm text-error">{error}</p>}
 
+      {mensajeCierre && (
+        <p className="rounded-lg border border-primary bg-surface-container-high px-4 py-3 font-inter text-sm text-primary">
+          {mensajeCierre}
+        </p>
+      )}
+
+      {abiertosQuery.isError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-error/50 bg-error/10 px-4 py-3">
+          <p className="font-inter text-sm text-error">
+            No se pudo consultar quién está en turno. Entrada y salida quedan bloqueadas hasta recuperar el dato.
+          </p>
+          <Button type="button" variant="ghost" onClick={() => abiertosQuery.refetch()}>
+            Reintentar
+          </Button>
+        </div>
+      )}
+
+      {pendientesQuery.isError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-error/50 bg-error/10 px-4 py-3">
+          <p className="font-inter text-sm text-error">No se pudo consultar los pagos pendientes de cierre.</p>
+          <Button type="button" variant="ghost" onClick={() => pendientesQuery.refetch()}>
+            Reintentar
+          </Button>
+        </div>
+      )}
+
       {!loading && profesores.length === 0 && (
         <p className="font-inter text-sm text-on-surface-variant">
           {isAdmin
@@ -248,7 +335,7 @@ export function AsistenciaProfesores() {
 
       {profesores.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {profesores.map((p) => {
+          {profesoresVisibles.map((p) => {
             const abierto = abiertos[p.id]
             const enTurno = !!abierto
             return (
@@ -271,7 +358,7 @@ export function AsistenciaProfesores() {
                     <span className="material-symbols-outlined !text-[14px]">
                       {enTurno ? 'schedule' : 'schedule_send'}
                     </span>
-                    {enTurno ? 'En turno' : 'Sin turno abierto'}
+                    {turnosSinDatos ? 'Sin datos' : enTurno ? 'En turno' : 'Sin turno abierto'}
                   </span>
                 </div>
 
@@ -284,7 +371,7 @@ export function AsistenciaProfesores() {
                 <Button
                   type="button"
                   variant="primario"
-                  disabled={actionLoading === p.id}
+                  disabled={actionLoading === p.id || turnosSinDatos}
                   onClick={() => (enTurno ? registrarSalida(abierto) : registrarEntrada(p.id))}
                 >
                   {actionLoading === p.id
@@ -293,6 +380,23 @@ export function AsistenciaProfesores() {
                       ? 'Registrar salida'
                       : 'Registrar entrada'}
                 </Button>
+
+                {pendientes[p.id] > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() =>
+                      setCierre({
+                        profesorId: p.id,
+                        nombre: `${p.nombre} ${p.apellido}`,
+                        asistenciaId: abierto?.id ?? null,
+                      })
+                    }
+                  >
+                    <span className="material-symbols-outlined !text-[16px]">point_of_sale</span>
+                    Cerrar caja ({pendientes[p.id]})
+                  </Button>
+                )}
               </div>
             )
           })}
@@ -417,6 +521,18 @@ export function AsistenciaProfesores() {
             </table>
           </div>
         </div>
+      )}
+
+      {cierre && (
+        <CierreCajaDrawer
+          key={cierre.profesorId}
+          objetivo={cierre}
+          onClose={() => setCierre(null)}
+          onCerrado={(mensaje) => {
+            setCierre(null)
+            setMensajeCierre(mensaje)
+          }}
+        />
       )}
 
       {isAdmin && (

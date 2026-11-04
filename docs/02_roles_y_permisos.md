@@ -10,6 +10,7 @@
 ## Profesor
 - Acceso operativo (Alumnos, Asistencia, Pagos).
 - Sin acceso a: Dashboard, Configuración, Egresos.
+- Indica quién recibió cada pago ("Recibió") y cierra la caja de su turno al registrar la salida. No ve las vistas de Cierres de caja, y no puede modificar ni borrar un pago que ya está en un cierre (ver doc 03).
 - Registra su propia asistencia (entrada/salida). Con el login compartido de la compu del gimnasio, la tabla/historial de Asistencia Profesores muestra **todos** los registros (no filtrados por sesión) con columna de nombre de profesor — el marcado en sí ya identifica al profesor por card sin depender de la sesión (ver doc 04). RLS de `asistencias_profesores` (migración 16): SELECT/INSERT/UPDATE por rol (admin/profesor), ya no por fila propia.
 - Puede editar `cargos.monto` como excepción (ej. corrección manual de una deuda) — mismo permiso que Admin, ya que ambos roles reciben pagos. La edición dispara el recálculo automático del `estado` del cargo (ver doc 03).
 - Puede forzar a mano el estado Activo/Inactivo de un alumno (`marcar_estado_manual`, migración 11/12) — mismo permiso que Admin. El RPC rechaza a cualquier rol que no sea admin/profesor (`get_user_role() NOT IN ('admin','profesor')`). Kiosco solo puede ver el estado (SELECT sobre `alumno_estado_historial`), no cambiarlo.
@@ -30,6 +31,7 @@
 | Asistencia Alumnos | ✅ | ✅ | ✅ |
 | Asistencia Profesores | ✅ | ✅ (login compartido, ver nota abajo) | ❌ |
 | Cargos | ✅ | ❌ | ❌ |
+| Cierres de caja | ✅ | ❌ (solo el cierre de su turno, en Asistencia Profesores) | ❌ |
 | Egresos | ✅ | ❌ | ❌ |
 | Configuración | ✅ | ❌ | ❌ |
 

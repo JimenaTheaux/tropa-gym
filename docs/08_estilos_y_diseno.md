@@ -143,6 +143,15 @@ Mismo criterio de color que los botones Primario/Ghost — no es una variante nu
 - Borde 1px + ícono + texto en el color de estado (ver tabla de colores de estado arriba).
 - Nunca fondo sólido de color (se probó y quedaba "muy colorinche").
 
+## Componentes de caja (mismas reglas: borde + ícono + texto, sin fondos sólidos)
+- `ChipCaja`: chip con tono `neutro`, `ok` (`primary`), `suave` (`secondary`) o `alerta` (`error`). `ChipEstadoCierre` aplica el estado del cierre: cerrado = neutro, verificado = `primary`, reabierto = `secondary`. También "Recibió", "En cierre", "Modificado" y "Fecha distinta".
+- `RecibioField`: campo "Recibió" sobre `SegmentedControl`; con más de 6 opciones pasa a `FormSelect`.
+- `CierreCajaDrawer`: `Drawer` tamaño `lg`. "Efectivo a entregar" en Anton 26px. El único botón Sólido es la confirmación: "Confirmo: tengo $X en efectivo", o "Cerrar con diferencia" si se eligió "No coincide".
+- `ObservacionTexto`: observación visible en la fila, hasta 2 líneas con "ver más". No usar tooltip.
+- `ReabrirCierreDialog`: diálogo con textarea de motivo obligatorio, para lo que `ConfirmDialog` no cubre (solo admite texto).
+- `ConfirmDialog` suma `loadingLabel` y `neutro`: con `neutro` el botón de confirmar es Sólido en vez de color de error, para acciones que no destruyen datos.
+- Fila con diferencia: borde izquierdo `error` y monto en `error`, sin fondo sólido.
+
 ## Bordes y radios
 - Cards (`glass-card`): `border-radius: 16px`, borde 1px `outline-variant`, fondo `surface-container`.
 - Radios generales Tailwind: default 4px, `lg` 8px, `xl` 12px, `full` 9999px.

@@ -6,6 +6,7 @@ import { ProfesoresPanel } from './ProfesoresPanel'
 import { DisciplinasPanel } from './DisciplinasPanel'
 import { CombosPanel } from './CombosPanel'
 import { LogErroresPanel } from './LogErroresPanel'
+import { CajaPanel } from './CajaPanel'
 import { useAuth } from '@/contexts/AuthContext'
 
 const tabs = [
@@ -17,9 +18,12 @@ const tabs = [
   { key: 'profesores', label: 'Profesores' },
 ] as const
 
-const tabAdmin = { key: 'logs', label: 'Log de errores' } as const
+const tabsAdmin = [
+  { key: 'caja', label: 'Caja' },
+  { key: 'logs', label: 'Log de errores' },
+] as const
 
-type TabKey = (typeof tabs)[number]['key'] | typeof tabAdmin.key
+type TabKey = (typeof tabs)[number]['key'] | (typeof tabsAdmin)[number]['key']
 
 export function ConfiguracionPage() {
   const { perfil } = useAuth()
@@ -33,7 +37,7 @@ export function ConfiguracionPage() {
       </h1>
 
       <div className="mb-6 flex gap-2 overflow-x-auto border-b border-outline-variant">
-        {[...tabs, ...(isAdmin ? [tabAdmin] : [])].map((tab) => (
+        {[...tabs, ...(isAdmin ? tabsAdmin : [])].map((tab) => (
           <button
             key={tab.key}
             type="button"
@@ -55,6 +59,7 @@ export function ConfiguracionPage() {
       {active === 'precios' && <PreciosPanel />}
       {active === 'descuentos' && <DescuentosPanel />}
       {active === 'profesores' && <ProfesoresPanel />}
+      {active === 'caja' && isAdmin && <CajaPanel />}
       {active === 'logs' && isAdmin && <LogErroresPanel />}
     </div>
   )

@@ -21,6 +21,7 @@ const AsistenciaProfesores = lazy(() =>
 )
 const Cargos = lazy(() => import('@/pages/Cargos').then((m) => ({ default: m.Cargos })))
 const Egresos = lazy(() => import('@/pages/Egresos').then((m) => ({ default: m.Egresos })))
+const CierresCajaPage = lazy(() => import('@/pages/caja/CierresCajaPage').then((m) => ({ default: m.CierresCajaPage })))
 const ConfiguracionPage = lazy(() =>
   import('@/pages/configuracion/ConfiguracionPage').then((m) => ({ default: m.ConfiguracionPage })),
 )
@@ -32,6 +33,7 @@ const customPages: Partial<Record<string, ComponentType>> = {
   '/asistencia-profesores': AsistenciaProfesores,
   '/pagos': PagosPage,
   '/cargos': Cargos,
+  '/cierres-caja': CierresCajaPage,
   '/egresos': Egresos,
   '/configuracion': ConfiguracionPage,
 }

@@ -50,6 +50,23 @@ export const queryKeys = {
   dashboardEstadosPorPeriodo: (periodo: string, cantidad: number) =>
     ['dashboard', 'estados-periodo', periodo, cantidad] as const,
 
+  // Bajo el prefijo de asistencias de profesores: registrar entrada o salida
+  // refresca quién está en turno en el campo "Recibió".
+  receptoresPago: ['asistencias-profesores', 'receptores'] as const,
+
+  caja: ['caja'] as const,
+  cajaActiva: ['caja', 'activa'] as const,
+  cajaConfig: ['caja', 'config'] as const,
+  cajaPendientes: (profesorId: string) => ['caja', 'pendientes', profesorId] as const,
+  cajaPendientesPorProfesor: (ids: string) => ['caja', 'pendientes-por-profesor', ids] as const,
+  cajaResumenDia: (fecha: string) => ['caja', 'resumen-dia', fecha] as const,
+  cajaPagosDeCierre: (cierreId: string) => ['caja', 'pagos-de-cierre', cierreId] as const,
+  cajaParaVerificar: ['caja', 'para-verificar'] as const,
+  cajaPreview: (ids: string) => ['caja', 'preview', ids] as const,
+  cajaSinCierre: ['caja', 'sin-cierre'] as const,
+  cajaPagosEnCierre: (ids: string) => ['caja', 'pagos-en-cierre', ids] as const,
+  cajaConteoMenu: ['caja', 'conteo-menu'] as const,
+
   logErrores: ['log-errores'] as const,
   pagosHuerfanos: ['log-errores', 'pagos-huerfanos'] as const,
 }

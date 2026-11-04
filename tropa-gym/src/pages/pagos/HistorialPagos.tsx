@@ -10,7 +10,12 @@ import { formatFecha, hoyIso } from '@/lib/utils'
 import { fechaPagoLocal, validarFechaPago } from '@/lib/fecha'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
+import { fetchPagosEnCierre } from '@/lib/caja'
+import { useProfesores } from '@/hooks/useCatalogos'
+import { useRecibio, useRequestId } from '@/hooks/useRecibio'
 import { Button } from '@/components/ui/button'
+import { ChipCaja } from '@/components/ui/ChipCaja'
+import { RecibioField } from '@/components/ui/RecibioField'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Drawer } from '@/components/ui/Drawer'
 import { FormCurrencyInput, FormDateInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
@@ -42,6 +47,7 @@ function invalidarPagos(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ['cuenta'] })
   queryClient.invalidateQueries({ queryKey: ['cargos'] })
   queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  queryClient.invalidateQueries({ queryKey: queryKeys.caja })
 }
 
 const PAGE_SIZE = 15
@@ -66,6 +72,23 @@ export function HistorialPagos() {
   const total = data?.total ?? 0
   const totalPaginas = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
+  const { data: profesores = [] } = useProfesores()
+
+  function nombreReceptor(d: HistorialPagoDetalle): string | null {
+    if (d.recibioTipo === 'admin') return 'Dueño'
+    if (d.recibioTipo !== 'profesor') return null
+    const p = profesores.find((pr) => pr.id === d.recibioProfesorId)
+    return p ? `${p.nombre} ${p.apellido}` : 'Profesor'
+  }
+
+  const pagoIdsPagina = [...new Set(historial.map((d) => d.pagoId))].sort()
+  const { data: enCierre = [] } = useQuery({
+    queryKey: queryKeys.cajaPagosEnCierre(pagoIdsPagina.join(',')),
+    queryFn: () => fetchPagosEnCierre(pagoIdsPagina),
+    enabled: pagoIdsPagina.length > 0,
+    staleTime: STALE_OPERATIVO,
+  })
+
   function cambiarNombreFiltro(v: string) {
     setNombreFiltro(v)
     setPage(0)
@@ -89,6 +112,8 @@ export function HistorialPagos() {
   const [importeEfectivoCompletar, setImporteEfectivoCompletar] = useState(0)
   const [importeTransferenciaCompletar, setImporteTransferenciaCompletar] = useState(0)
   const [errorCompletar, setErrorCompletar] = useState<string | null>(null)
+  const recibioCompletar = useRecibio(!!completar)
+  const requestIdCompletar = useRequestId()
 
   const { data: resumenCargo = null, isFetching: cargandoSaldo } = useQuery({
     queryKey: queryKeys.resumenPeriodoAlumno(completar?.alumnoId ?? '', completar?.periodo ?? ''),
@@ -99,7 +124,7 @@ export function HistorialPagos() {
 
   const completarPago = useMutation({
     mutationFn: async (d: HistorialPagoDetalle) => {
-      const { data, error } = await supabase.rpc('completar_pago', {
+      const pago = {
         p_alumno_id: d.alumnoId,
         p_cargo_id: completar!.cargoId,
         p_periodo: completar!.periodo,
@@ -112,6 +137,11 @@ export function HistorialPagos() {
         p_importe_efectivo: importeEfectivoCompletar,
         p_importe_transferencia: importeTransferenciaCompletar,
         p_fecha: fechaCompletar,
+        ...recibioCompletar.params,
+      }
+      const { data, error } = await supabase.rpc('completar_pago', {
+        ...pago,
+        p_request_id: requestIdCompletar.paraIntento(JSON.stringify(pago)),
       })
 
       if (error) throw new Error(error.message)
@@ -193,6 +223,10 @@ export function HistorialPagos() {
       setErrorCompletar('La suma de efectivo y transferencia debe ser igual al monto pagado.')
       return
     }
+    if (!recibioCompletar.valido) {
+      setErrorCompletar('Elegí quién recibió el pago.')
+      return
+    }
 
     setErrorCompletar(null)
 
@@ -203,6 +237,7 @@ export function HistorialPagos() {
       importeEfectivoCompletar,
       importeTransferenciaCompletar,
       fechaCompletar,
+      ...recibioCompletar.params,
     }
 
     try {
@@ -218,6 +253,7 @@ export function HistorialPagos() {
       return
     }
 
+    requestIdCompletar.renovar()
     setCompletar(null)
   }
 
@@ -282,6 +318,9 @@ export function HistorialPagos() {
                   Monto
                 </th>
                 <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
+                  Recibió
+                </th>
+                <th className="px-4 py-3 font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
                   Estado
                 </th>
                 <th className="px-4 py-3 text-right font-oswald text-[11px] font-medium uppercase tracking-[0.05em] text-on-surface-variant">
@@ -290,7 +329,10 @@ export function HistorialPagos() {
               </tr>
             </thead>
             <tbody>
-              {historial.map((d) => (
+              {historial.map((d) => {
+                const estaEnCierre = enCierre.includes(d.pagoId)
+                const receptor = nombreReceptor(d)
+                return (
                 <Fragment key={d.id}>
                   <tr className="border-t border-outline-variant align-top">
                     <td className="whitespace-nowrap px-4 py-3 font-inter text-sm text-on-surface-variant">
@@ -310,7 +352,22 @@ export function HistorialPagos() {
                       ${d.montoPagado.toLocaleString('es-AR')}
                     </td>
                     <td className="px-4 py-3">
-                      <BadgeEstadoCargo estado={d.estado} />
+                      {receptor ? (
+                        <ChipCaja label={receptor} />
+                      ) : (
+                        <span className="font-inter text-sm text-on-surface-variant">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col items-start gap-1.5">
+                        <BadgeEstadoCargo estado={d.estado} />
+                        {estaEnCierre && <ChipCaja label="En cierre" icon="lock" />}
+                        {estaEnCierre && !isAdmin && (
+                          <span className="font-inter text-xs text-on-surface-variant">
+                            Solo el administrador puede modificarlo.
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-3">
@@ -323,8 +380,10 @@ export function HistorialPagos() {
                           <button
                             type="button"
                             onClick={() => setEditando(d)}
+                            disabled={estaEnCierre && !isAdmin}
                             aria-label="Editar pago"
-                            className="text-on-surface-variant hover:text-primary"
+                            title={estaEnCierre && !isAdmin ? 'Este pago está en un cierre de caja' : undefined}
+                            className="text-on-surface-variant hover:text-primary disabled:opacity-30 disabled:hover:text-on-surface-variant"
                           >
                             <span className="material-symbols-outlined !text-[18px]">edit</span>
                           </button>
@@ -348,7 +407,7 @@ export function HistorialPagos() {
 
                   {completar?.id === d.id && (
                     <tr className="border-t border-outline-variant bg-surface-container-low">
-                      <td colSpan={7} className="px-4 py-3">
+                      <td colSpan={8} className="px-4 py-3">
                         <div className="flex flex-col gap-3">
                           {cargandoSaldo || !resumenCargo ? (
                             <p className="font-inter text-sm text-on-surface-variant">Calculando saldo pendiente…</p>
@@ -393,6 +452,8 @@ export function HistorialPagos() {
                                 onChange={setFechaCompletar}
                               />
 
+                              <RecibioField recibio={recibioCompletar} idPrefix={`completar-${d.id}`} />
+
                               {montoCompletar > 0 &&
                                 (() => {
                                   const p = proyeccion(resumenCargo, montoCompletar)
@@ -425,7 +486,9 @@ export function HistorialPagos() {
                                 <Button
                                   type="button"
                                   variant="solido"
-                                  disabled={guardandoCompletar || montoCompletar <= 0 || !fechaCompletar}
+                                  disabled={
+                                    guardandoCompletar || montoCompletar <= 0 || !fechaCompletar || !recibioCompletar.valido
+                                  }
                                   onClick={() => confirmarCompletar(d)}
                                 >
                                   {guardandoCompletar ? 'Registrando…' : 'Registrar pago'}
@@ -438,7 +501,8 @@ export function HistorialPagos() {
                     </tr>
                   )}
                 </Fragment>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -471,6 +535,11 @@ export function HistorialPagos() {
       )}
 
       <Drawer open={!!editando} title="Editar pago" onClose={() => setEditando(null)} size="lg">
+        {editando && enCierre.includes(editando.pagoId) && (
+          <p className="mb-4 rounded-lg border border-error/50 bg-error/10 px-3 py-2 font-inter text-xs text-error">
+            Este pago está en un cierre; quedará marcado como modificado.
+          </p>
+        )}
         {editando && editando.alumno && (
           <IndividualPanel
             editar={{
@@ -500,7 +569,8 @@ export function HistorialPagos() {
             ? `¿Eliminar el pago de "${eliminando.alumnoNombre}" (${eliminando.periodo}, $${eliminando.montoPagado.toLocaleString('es-AR')})? Esta acción no se puede deshacer.` +
               (eliminando.tipoPago !== 'individual'
                 ? ' Este pago es parte de un comprobante familiar/adelantado: se eliminarán todas sus líneas juntas.'
-                : '')
+                : '') +
+              (enCierre.includes(eliminando.pagoId) ? ' Este pago está en un cierre; quedará marcado como modificado.' : '')
             : ''
         }
         loading={eliminarPago.isPending}

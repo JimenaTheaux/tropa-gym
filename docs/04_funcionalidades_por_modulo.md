@@ -96,15 +96,24 @@ Un solo submenú: **Historial de pagos** (lista, siempre visible) + botón sóli
 - Pagos sin detalle (huérfanos): Configuración → Log de errores muestra "Pagos sin detalle: N" con el listado, solo Admin y solo si N > 0.
 
 ## Cierre de caja
-Base de datos lista (migraciones 35 a 37); las pantallas van en una fase aparte. Reglas: doc 03. RPC: doc 06.
+Migraciones 35 a 38. Reglas y estados: doc 03. RPC: doc 06. Con el módulo apagado los pagos guardan igual su receptor y las pantallas de caja quedan vacías.
 
-- **Registrar pago**: cada pago guarda quién lo recibió (dueño o profesor) y admite `request_id` para no duplicar un reintento. Familiar y Adelantado validan importes en el servidor, igual que Individual.
-- **Al registrar la salida (Admin/Profesor)**: lista de lo que recibió y no cerró, totales de efectivo y transferencias, aviso si la fecha del pago difiere del día de carga. Confirma que coincide o informa el monto real con observación obligatoria.
-- **Resumen del día (Admin)**: cierres, cobros del dueño, totales de efectivo y transferencias por receptor, pagos del día sin cierre.
-- **Verificación (Admin)**: cierres pendientes de cualquier día, cobros del dueño sin verificar y avisos (turnos abiertos, profesores con pagos sin cerrar). Muestra el desglose del esperado antes de confirmar lo contado. Puede tildar "transferencias controladas".
-- **Reabrir (Admin)**: con motivo obligatorio; los pagos vuelven a pendientes.
-- **Pagos sin cierre (Admin)**: sin receptor o de profesores pendientes de cierre, con antigüedad. Excluye los del dueño. Permite asignar el receptor.
-- **Fecha de arranque (Admin)**: configurable; nula apaga el módulo.
+- **Campo "Recibió"** en Individual, Familiar, Adelantado y Completar pago (`RecibioField`):
+  - Sesión admin: "Dueño" por defecto, o un profesor con turno abierto. Siempre arranca en "Dueño".
+  - Sesión profesor: chips con los profes en turno (`hora_salida` nula, de hoy o ayer). Si hay uno viene elegido; si hay varios es obligatorio elegir, y se recuerda la última elección mientras siga ese turno. Si no hay ninguno, lista de profes activos con el aviso "Sin turno abierto".
+  - Si no se puede leer quién está en turno: mensaje de error con "Reintentar", no se puede guardar y queda en `log_errores`. Nunca se interpreta como "nadie en turno".
+  - Cada intento de guardado lleva un `request_id`: un reintento de los mismos datos no duplica el pago.
+  - Editar un pago no cambia el receptor.
+- **Historial de pagos**: columna "Recibió" (los pagos sin receptor muestran "—"). Chip "En cierre" en los pagos cerrados: con sesión de profesor, editar queda deshabilitado con el motivo; admin ve el aviso "quedará marcado como modificado" antes de editar o eliminar.
+- **Cierre del profe** (`CierreCajaDrawer`, en Asistencia Profesores): se abre al registrar la salida si hay pagos pendientes; sin pagos no abre nada. La salida se guarda siempre, aunque el cierre falle o se cancele, y el botón "Cerrar caja (N)" de la card permite retomarlo.
+  - Lista agrupada por día de carga, con chip "Fecha distinta". "Efectivo a entregar" destacado; transferencias informativas.
+  - "Confirmo: tengo $X en efectivo" cierra sin tipear nada. "No coincide": monto real (formato es-AR), diferencia en vivo y observación obligatoria.
+  - Si la lista cambió, se recarga y se avisa. El cierre solo se confirma con la respuesta del servidor; un error se muestra en el Drawer y queda en `log_errores` (contexto `cierre_caja`).
+- **Cierres de caja** (menú, solo Admin), con badge de cierres para verificar + pagos sin receptor:
+  - **Día**: una fila por cierre con horario, cantidad de pagos, efectivo sistema/declarado/diferencia, transferencias, estado y chip "Modificado". La observación se ve siempre en la fila (hasta 2 líneas con "ver más"). Filas con diferencia destacadas, filtro "Solo con diferencia", fila desplegable con los pagos y "Reabrir" con motivo obligatorio. Abajo: lo cobrado por el dueño y el resumen del día por receptor, con diferencias y pagos sin cierre.
+  - **Para verificar**: cierres en estado `cerrado` con filtro por rango de fechas y "Seleccionar todos"; avisos de turnos abiertos y profes con pagos sin cerrar. Barra fija: Σ declarado + efectivo del dueño sin verificar = esperado, efectivo contado, diferencia en vivo, nota (obligatoria si hay diferencia), "Transferencias controladas" y las observaciones de los cierres tildados.
+  - **Sin cierre**: pagos sin receptor con "Asignar receptor"; pagos pendientes de cierre por profesor, con antigüedad.
+- **Configuración → Caja** (solo Admin): "Apagada" o "Activa desde dd/mm/aaaa hh:mm", con "Activar desde ahora" y "Apagar", ambos con confirmación.
 
 ## Asistencia Alumnos
 1. Buscar por DNI o nombre.
@@ -143,7 +152,7 @@ Pantalla en vivo sobre `cargos` (solo Admin — doc 02; migración 22 reemplaza 
 - Disciplinas: nombre, activar/desactivar. No afecta el precio.
 - Combos: nombre, frecuencia semanal de asistencia (2 días, 3 días, 5 días…), activar/desactivar. Es lo único que define el precio.
 - Precios: asociados a combo, período. Cambios no afectan pagos históricos (RN-030).
-- Profesores: alta/gestión.
+- Profesores: alta/gestión, activar/desactivar. Un profesor con cobros o turnos no se puede borrar, solo desactivar. Desactivado no aparece en "Recibió" ni en las cards de Asistencia Profesores, salvo que tenga un turno abierto o pagos por cerrar.
 - Turnos: nombre, hora única, activar/desactivar (ya no tienen hora de inicio/fin).
 
 ## Roles y Permisos

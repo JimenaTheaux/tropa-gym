@@ -128,6 +128,8 @@ export interface HistorialPagoDetalle {
   montoPagado: number
   precioSnapshot: number
   estado: EstadoPago
+  recibioTipo: Pago['recibio_tipo']
+  recibioProfesorId: string | null
 }
 
 export interface HistorialPagosFiltro {
@@ -250,6 +252,8 @@ export async function fetchHistorialPagos(filtro: HistorialPagosFiltro = {}): Pr
         montoPagado,
         precioSnapshot,
         estado,
+        recibioTipo: pago?.recibio_tipo ?? null,
+        recibioProfesorId: pago?.recibio_profesor_id ?? null,
       }
     })
     .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))

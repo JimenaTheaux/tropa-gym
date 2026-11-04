@@ -6,10 +6,11 @@ import { useCatalogoMutations } from '@/hooks/useCatalogoMutations'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { FormInput, FormSelect } from '@/components/ui/FormField'
+import { FormCheckbox, FormInput, FormSelect } from '@/components/ui/FormField'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
+import { BadgeActivo } from '@/components/ui/BadgeEstado'
 
-const emptyForm: ProfesorInsert = { nombre: '', apellido: '', perfil_id: null }
+const emptyForm: ProfesorInsert = { nombre: '', apellido: '', perfil_id: null, activo: true }
 
 function toPayload(form: ProfesorInsert): ProfesorInsert {
   return { ...form, perfil_id: form.perfil_id || null }
@@ -41,6 +42,7 @@ export function ProfesoresPanel() {
       nombre: profesor.nombre,
       apellido: profesor.apellido,
       perfil_id: profesor.perfil_id,
+      activo: profesor.activo,
     })
     setError(null)
     setDrawerOpen(true)
@@ -66,7 +68,12 @@ export function ProfesoresPanel() {
     try {
       await eliminar.mutateAsync(deleting.id)
     } catch (err) {
-      setError(traducirError(err instanceof Error ? err.message : null))
+      const mensaje = err instanceof Error ? err.message : null
+      setError(
+        mensaje && /foreign key/i.test(mensaje)
+          ? `${deleting.nombre} ${deleting.apellido} tiene cobros o turnos registrados: no se puede borrar, desactivalo.`
+          : traducirError(mensaje),
+      )
       setDeleting(null)
       return
     }
@@ -80,6 +87,7 @@ export function ProfesoresPanel() {
       header: 'Usuario asociado',
       cell: (p) => perfiles.find((pe) => pe.id === p.perfil_id)?.nombre ?? '—',
     },
+    { header: 'Estado', cell: (p) => <BadgeActivo activo={p.activo} /> },
   ]
 
   return (
@@ -146,6 +154,12 @@ export function ProfesoresPanel() {
             value={form.perfil_id ?? ''}
             onChange={(e) => setForm({ ...form, perfil_id: e.target.value || null })}
             options={perfiles.map((p) => ({ value: p.id, label: p.nombre }))}
+          />
+          <FormCheckbox
+            id="profesor-activo"
+            label="Profesor activo"
+            checked={form.activo ?? true}
+            onChange={(e) => setForm({ ...form, activo: e.target.checked })}
           />
           {error && <p className="font-inter text-sm text-error">{error}</p>}
         </form>

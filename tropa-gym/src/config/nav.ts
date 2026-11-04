@@ -25,6 +25,7 @@ export const navItems: NavItem[] = [
     roles: ['admin', 'profesor'],
   },
   { label: 'Cargos', path: '/cargos', icon: 'request_quote', roles: ['admin'] },
+  { label: 'Cierres de caja', path: '/cierres-caja', icon: 'point_of_sale', roles: ['admin'] },
   { label: 'Egresos', path: '/egresos', icon: 'receipt_long', roles: ['admin'] },
   { label: 'Configuración', path: '/configuracion', icon: 'settings', roles: ['admin'] },
 ]

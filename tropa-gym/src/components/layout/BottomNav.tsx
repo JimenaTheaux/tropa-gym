@@ -1,9 +1,11 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { navItems } from '@/config/nav'
+import { useConteoCierresCaja } from '@/hooks/useConteoCierresCaja'
 
 export function BottomNav() {
   const { perfil } = useAuth()
+  const conteoCaja = useConteoCierresCaja()
   const items = navItems.filter((item) => perfil && item.roles.includes(perfil.rol))
 
   return (
@@ -18,7 +20,14 @@ export function BottomNav() {
             }`
           }
         >
-          <span className="material-symbols-outlined !text-[22px]">{item.icon}</span>
+          <span className="relative">
+            <span className="material-symbols-outlined !text-[22px]">{item.icon}</span>
+            {item.path === '/cierres-caja' && conteoCaja > 0 && (
+              <span className="absolute -right-3 -top-1 rounded-full border border-error bg-surface-container-lowest px-1 font-inter text-[10px] font-medium text-error">
+                {conteoCaja}
+              </span>
+            )}
+          </span>
           <span className="truncate px-1">{item.label}</span>
         </NavLink>
       ))}

@@ -8,6 +8,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { aplicarDescuento, distribuirMonto, precioVigenteAdelantado } from '@/lib/precios'
 import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
+import { useRecibio, useRequestId } from '@/hooks/useRecibio'
+import type { PagoReceptorParams } from '@/types/db'
 import { queryKeys } from '@/lib/queryKeys'
 import { hoyIso } from '@/lib/utils'
 import { validarFechaPago } from '@/lib/fecha'
@@ -16,6 +18,7 @@ import { FormCurrencyInput, FormDateInput, FormSelect, FormCheckbox } from '@/co
 import { BadgeEstado } from '@/components/ui/BadgeEstado'
 import { AlumnoBuscador } from '@/components/ui/AlumnoBuscador'
 import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
+import { RecibioField } from '@/components/ui/RecibioField'
 
 const CANTIDAD_PERIODOS_SELECTOR = 12
 
@@ -58,6 +61,8 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
   const { data: combos = [] } = useCombosActivos()
   const { data: descuentosTodos = [] } = useDescuentos()
   const descuentos = useMemo(() => descuentosParaTipo(descuentosTodos, 'adelantado'), [descuentosTodos])
+  const recibio = useRecibio()
+  const requestId = useRequestId()
 
   const [alumno, setAlumno] = useState<Alumno | null>(null)
   const [disciplinaId, setDisciplinaId] = useState('')
@@ -73,7 +78,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
   const [success, setSuccess] = useState<string | null>(null)
 
   const registrarPagoAdelantado = useMutation({
-    mutationFn: async (payload: {
+    mutationFn: async (payload: PagoReceptorParams & {
       p_alumno_id: string
       p_periodos: Record<string, unknown>[]
       p_metodo: MetodoPago
@@ -89,6 +94,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
       queryClient.invalidateQueries({ queryKey: ['cuenta'] })
       queryClient.invalidateQueries({ queryKey: ['cargos'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.caja })
     },
   })
   const saving = registrarPagoAdelantado.isPending
@@ -172,6 +178,10 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
       setError('La suma de efectivo y transferencia debe ser igual al monto pagado.')
       return
     }
+    if (!recibio.valido) {
+      setError('Elegí quién recibió el pago.')
+      return
+    }
 
     setError(null)
 
@@ -201,10 +211,14 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
         p_importe_efectivo: importeEfectivo,
         p_importe_transferencia: importeTransferencia,
         p_fecha: fechaPago,
+        ...recibio.params,
       }
       payloadIntentado = payload
 
-      await registrarPagoAdelantado.mutateAsync(payload)
+      await registrarPagoAdelantado.mutateAsync({
+        ...payload,
+        p_request_id: requestId.paraIntento(JSON.stringify(payload)),
+      })
     } catch (err) {
       await logError({
         contexto: 'pago_adelantado',
@@ -216,6 +230,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
       return
     }
 
+    requestId.renovar()
     setSuccess(
       `Pago adelantado de $${montoPagado.toLocaleString('es-AR')} registrado para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido} (${cantidadPeriodos} período(s)).`,
     )
@@ -368,6 +383,8 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
                 onChange={setFechaPago}
               />
 
+              <RecibioField recibio={recibio} idPrefix="adelantado" />
+
               {montoPagado > 0 && montoPagado !== subtotal && (
                 <p className="font-inter text-xs text-on-surface-variant">
                   {montoPagado < subtotal
@@ -392,7 +409,7 @@ export function AdelantadoPanel({ onSuccess, onCancel }: AdelantadoPanelProps) {
                 <Button
                   type="button"
                   variant="solido"
-                  disabled={saving || !disciplinaId || montoPagado <= 0 || !fechaPago}
+                  disabled={saving || !disciplinaId || montoPagado <= 0 || !fechaPago || !recibio.valido}
                   onClick={handleSubmit}
                 >
                   {saving ? 'Registrando…' : 'Registrar pago adelantado'}

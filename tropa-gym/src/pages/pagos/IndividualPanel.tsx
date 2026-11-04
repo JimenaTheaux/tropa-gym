@@ -9,6 +9,7 @@ import { buscarCargo, fetchResumenPeriodo } from '@/lib/cuenta'
 import { aplicarDescuento, aplicarTipoCuota, precioVigente } from '@/lib/precios'
 import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
+import { useRecibio, useRequestId } from '@/hooks/useRecibio'
 import { queryKeys } from '@/lib/queryKeys'
 import { hoyIso } from '@/lib/utils'
 import { validarFechaPago } from '@/lib/fecha'
@@ -18,6 +19,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { BadgeEstado } from '@/components/ui/BadgeEstado'
 import { AlumnoBuscador } from '@/components/ui/AlumnoBuscador'
 import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
+import { RecibioField } from '@/components/ui/RecibioField'
 
 const TIPOS_CUOTA: { value: TipoCargo; label: string }[] = [
   { value: 'completa', label: 'Cuota completa' },
@@ -70,6 +72,9 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
   const { data: combos = [] } = useCombosActivos()
   const { data: descuentosTodos = [] } = useDescuentos()
   const descuentos = useMemo(() => descuentosParaTipo(descuentosTodos, 'individual'), [descuentosTodos])
+  // Editar no cambia el receptor: el campo solo está al registrar.
+  const recibio = useRecibio(!editar)
+  const requestId = useRequestId()
 
   const [alumno, setAlumno] = useState<Alumno | null>(editar?.alumno ?? null)
   const [periodo, setPeriodo] = useState(editar?.periodo ?? periodoActual())
@@ -170,6 +175,13 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
         p_ajustar_precio: ajustarPrecio,
       }
 
+      const nuevoPago = {
+        ...comunes,
+        p_alumno_id: alumno.id,
+        p_fecha: fechaPago,
+        ...recibio.params,
+      }
+
       // Al editar, la fecha va solo si cambió: pagos.fecha puede tener hora
       // real, y reenviarla como día la pisaría con 00:00 UTC.
       const { data, error } = editar
@@ -179,9 +191,8 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
             ...(fechaPago !== editar.fecha ? { p_fecha: fechaPago } : {}),
           })
         : await supabase.rpc('registrar_pago_individual', {
-            ...comunes,
-            p_alumno_id: alumno.id,
-            p_fecha: fechaPago,
+            ...nuevoPago,
+            p_request_id: requestId.paraIntento(JSON.stringify(nuevoPago)),
           })
 
       if (error) throw new Error(error.message)
@@ -192,6 +203,7 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
       queryClient.invalidateQueries({ queryKey: ['cuenta'] })
       queryClient.invalidateQueries({ queryKey: ['cargos'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.caja })
     },
   })
   const saving = registrarPago.isPending
@@ -257,6 +269,10 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
       setError('La suma de efectivo y transferencia debe ser igual al total del comprobante.')
       return
     }
+    if (!editar && !recibio.valido) {
+      setError('Elegí quién recibió el pago.')
+      return
+    }
 
     setError(null)
     const alumnoRegistrado = alumno
@@ -274,6 +290,7 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
       importeEfectivo,
       importeTransferencia,
       fecha: fechaPago,
+      ...recibio.params,
     }
 
     try {
@@ -294,6 +311,7 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
       return
     }
 
+    requestId.renovar()
     const accion = editar ? 'actualizado' : 'registrado'
     setSuccess(
       `Pago de $${montoPagado.toLocaleString('es-AR')} ${accion} para ${alumnoRegistrado.nombre} ${alumnoRegistrado.apellido} — período ${periodo}.`,
@@ -414,6 +432,8 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
             onChange={setFechaPago}
           />
 
+          {!editar && <RecibioField recibio={recibio} idPrefix="individual" />}
+
           {editar && otrasLineasTotal > 0 && (
             <p className="font-inter text-xs text-on-surface-variant">
               Esta línea es parte de un comprobante con otros alumnos o períodos (${otrasLineasTotal.toLocaleString('es-AR')} más). El método de pago que elijas acá aplica a todo el comprobante.
@@ -468,7 +488,8 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
                 !comboId ||
                 montoPagado <= 0 ||
                 !fechaPago ||
-                (esAmbiguo && tipoPagoParcialidad === '')
+                (esAmbiguo && tipoPagoParcialidad === '') ||
+                (!editar && !recibio.valido)
               }
               onClick={handleSubmit}
             >

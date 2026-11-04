@@ -118,8 +118,8 @@ Arranca en `config_caja.fecha_arranque`: los pagos anteriores quedan fuera de to
 ### Receptor del pago
 Cada pago tiene un receptor ("Recibió"): el dueño (`recibio_tipo = 'admin'`) o un profesor. Sin backfill: los pagos existentes quedan sin receptor.
 - **Admin**: sin profesor informado recibe el dueño; con profesor, ese profesor.
-- **Profesor**: el informado debe estar activo y con turno abierto (`hora_salida` nula, de hoy o ayer); login compartido, puede ser otro profesor. Sin informar (PWA vieja): el único profesor en turno; si no hay exactamente uno, sin receptor.
-- `editar_pago` y `completar_pago` no tocan el receptor: **un "Completar pago" queda sin receptor** hasta que el admin lo asigna.
+- **Profesor**: el informado debe existir y estar activo; login compartido, puede ser otro profesor (migración 38). Sin informar (PWA vieja): el único profesor con turno abierto (`hora_salida` nula, de hoy o ayer); si no hay exactamente uno, sin receptor.
+- "Completar pago" crea un pago nuevo y sigue las mismas reglas (migración 38). `editar_pago` no toca el receptor.
 - Sin receptor → aparece en "Pagos sin cierre"; el admin lo asigna con `asignar_receptor_pago` mientras no esté en un cierre.
 
 ### Estados del cierre

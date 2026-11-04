@@ -9,6 +9,8 @@ import { buscarCargo, fetchResumenPeriodo } from '@/lib/cuenta'
 import { aplicarDescuento, aplicarTipoCuota, distribuirMonto, precioVigente } from '@/lib/precios'
 import { descuentosParaTipo } from '@/lib/catalogos'
 import { useCombosActivos, useDescuentos, useDisciplinasActivas, usePrecios } from '@/hooks/useCatalogos'
+import { useRecibio, useRequestId } from '@/hooks/useRecibio'
+import type { PagoReceptorParams } from '@/types/db'
 import { queryKeys } from '@/lib/queryKeys'
 import { hoyIso } from '@/lib/utils'
 import { validarFechaPago } from '@/lib/fecha'
@@ -17,6 +19,7 @@ import { FormCurrencyInput, FormDateInput, FormMonthInput, FormSelect } from '@/
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { AlumnoBuscador } from '@/components/ui/AlumnoBuscador'
 import { MetodoPagoField } from '@/components/ui/MetodoPagoField'
+import { RecibioField } from '@/components/ui/RecibioField'
 
 const TIPOS_CUOTA: { value: TipoCargo; label: string }[] = [
   { value: 'completa', label: 'Cuota completa' },
@@ -58,6 +61,8 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   const { data: combos = [] } = useCombosActivos()
   const { data: descuentosTodos = [] } = useDescuentos()
   const descuentos = useMemo(() => descuentosParaTipo(descuentosTodos, 'familiar'), [descuentosTodos])
+  const recibio = useRecibio()
+  const requestId = useRequestId()
 
   const [detalles, setDetalles] = useState<DetalleFamiliar[]>([])
   const [descuentoId, setDescuentoId] = useState('')
@@ -71,7 +76,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
   const [success, setSuccess] = useState<string | null>(null)
 
   const registrarPagoFamiliar = useMutation({
-    mutationFn: async (payload: {
+    mutationFn: async (payload: PagoReceptorParams & {
       p_detalles: Record<string, unknown>[]
       p_metodo: MetodoPago
       p_importe_efectivo: number
@@ -86,6 +91,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
       queryClient.invalidateQueries({ queryKey: ['cuenta'] })
       queryClient.invalidateQueries({ queryKey: ['cargos'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.caja })
     },
   })
   // Antes de la mutation se busca el cargo de cada alumno: isPending solo no
@@ -229,6 +235,10 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
       setError('La suma de efectivo y transferencia debe ser igual al monto pagado.')
       return
     }
+    if (!recibio.valido) {
+      setError('Elegí quién recibió el pago.')
+      return
+    }
 
     setError(null)
 
@@ -267,10 +277,14 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
         p_importe_efectivo: importeEfectivo,
         p_importe_transferencia: importeTransferencia,
         p_fecha: fechaPago,
+        ...recibio.params,
       }
       payloadIntentado = payload
 
-      await registrarPagoFamiliar.mutateAsync(payload)
+      await registrarPagoFamiliar.mutateAsync({
+        ...payload,
+        p_request_id: requestId.paraIntento(JSON.stringify(payload)),
+      })
     } catch (err) {
       await logError({
         contexto: 'pago_familiar',
@@ -284,6 +298,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
       setPreparando(false)
     }
 
+    requestId.renovar()
     setSuccess(
       `Pago familiar de $${montoPagado.toLocaleString('es-AR')} registrado para ${cantidadDetalles} alumno(s).`,
     )
@@ -426,6 +441,8 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             onChange={setFechaPago}
           />
 
+          <RecibioField recibio={recibio} idPrefix="familiar" />
+
           {esAmbiguo && (
             <div className="flex flex-col gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3">
               <SegmentedControl
@@ -467,7 +484,9 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             <Button
               type="button"
               variant="solido"
-              disabled={saving || montoPagado <= 0 || !fechaPago || (esAmbiguo && tipoPagoParcialidad === '')}
+              disabled={
+                saving || montoPagado <= 0 || !fechaPago || (esAmbiguo && tipoPagoParcialidad === '') || !recibio.valido
+              }
               onClick={handleSubmit}
             >
               {saving ? 'Registrando…' : 'Registrar pago familiar'}
