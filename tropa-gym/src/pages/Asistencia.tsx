@@ -13,7 +13,8 @@ import { useCombos, useDisciplinas, useTurnosActivos } from '@/hooks/useCatalogo
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
-import { FormDateInput, FormSelect, FormTimeInput } from '@/components/ui/FormField'
+import { FormDateInput, FormSelect } from '@/components/ui/FormField'
+import { TimeField } from '@/components/ui/TimeField'
 import { BadgeEstado } from '@/components/ui/BadgeEstado'
 import { AlumnoBuscador } from '@/components/ui/AlumnoBuscador'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
@@ -284,7 +285,7 @@ export function Asistencia() {
             )}
 
             {disciplinaId && esHorarioLibre && (
-              <FormTimeInput id="asistencia-hora-libre" label="Hora" required value={horaLibre} onChange={setHoraLibre} />
+              <TimeField id="asistencia-hora-libre" label="Hora" required value={horaLibre} onChange={setHoraLibre} />
             )}
 
             {error && <p className="font-inter text-sm text-error">{error}</p>}
@@ -312,7 +313,7 @@ export function Asistencia() {
             Control de asistencias
           </h2>
           <div className="flex flex-wrap items-end gap-4">
-            <FormDateInput id="filtro-fecha" label="Fecha" value={fechaFiltro} onChange={setFechaFiltro} />
+            <FormDateInput id="filtro-fecha" label="Fecha" min="2000-01-01" value={fechaFiltro} onChange={setFechaFiltro} />
             <SegmentedControl
               value={vista}
               onChange={setVista}
@@ -434,10 +435,10 @@ export function Asistencia() {
             )}
 
             {editEsHorarioLibre && (
-              <FormTimeInput id="editar-hora-libre" label="Hora" value={editHoraLibre} onChange={setEditHoraLibre} />
+              <TimeField id="editar-hora-libre" label="Hora" value={editHoraLibre} onChange={setEditHoraLibre} />
             )}
 
-            <FormDateInput id="editar-fecha" label="Fecha" required value={editFecha} onChange={setEditFecha} />
+            <FormDateInput id="editar-fecha" label="Fecha" required min="2000-01-01" value={editFecha} onChange={setEditFecha} />
 
             {editError && <p className="font-inter text-sm text-error">{editError}</p>}
           </div>

@@ -6,6 +6,7 @@ import { fetchHistorialAlumno, getEstadoCuenta } from '@/lib/cuenta'
 import { fetchHistorialEstado } from '@/lib/alumnos'
 import { esCargoExento, fetchAsistenciasAlumnoPeriodo } from '@/lib/cargos'
 import { formatFecha } from '@/lib/utils'
+import { fechaPagoLocal } from '@/lib/fecha'
 import { useCombos, useDisciplinas, useTurnos } from '@/hooks/useCatalogos'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
@@ -116,7 +117,7 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
               <p className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
                 Fecha de alta
               </p>
-              <p className="font-inter text-sm text-on-surface">{formatFecha(alumno.fecha_alta.slice(0, 10))}</p>
+              <p className="font-inter text-sm text-on-surface">{formatFecha(fechaPagoLocal(alumno.fecha_alta))}</p>
             </div>
             <div>
               <p className="font-oswald text-[11px] uppercase tracking-[0.05em] text-on-surface-variant">
@@ -147,7 +148,7 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
                   {historialEstado.map((h) => (
                     <div key={h.id} className="flex items-center justify-between font-inter text-xs">
                       <span className="text-on-surface-variant">
-                        {formatFecha(h.fecha_desde.slice(0, 10))} — {h.origen === 'manual' ? 'manual' : 'automático'}
+                        {formatFecha(fechaPagoLocal(h.fecha_desde))} — {h.origen === 'manual' ? 'manual' : 'automático'}
                         {h.motivo ? ` (${h.motivo})` : ''}
                       </span>
                       <span className="text-on-surface">{h.estado === 'activo' ? 'Activo' : 'Inactivo'}</span>
@@ -273,7 +274,7 @@ export function FichaAlumnoDrawer({ alumno, onClose }: FichaAlumnoDrawerProps) {
                 {historial.map((h) => (
                   <div key={h.id} className="flex items-center justify-between font-inter text-sm">
                     <div className="flex flex-col">
-                      <span className="text-on-surface">{formatFecha(h.fecha.slice(0, 10))}</span>
+                      <span className="text-on-surface">{formatFecha(fechaPagoLocal(h.fecha))}</span>
                       <span className="text-xs text-on-surface-variant">
                         {h.periodo} — {METODO_LABEL[h.metodoPago] ?? h.metodoPago}
                       </span>

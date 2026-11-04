@@ -3,45 +3,22 @@ import type {
   CajaResumenDia,
   CierreCajaPago,
   CierresParaVerificar,
-  ConfigCaja,
   PagoSinCierre,
   PagosPendientesCierre,
   PreviewVerificacion,
   Profesor,
 } from '@/types/db'
 import { supabase } from '@/lib/supabase'
-import { fechaLocalISO } from '@/lib/fecha'
-
-const TZ = 'America/Argentina/Buenos_Aires'
+import { addDays, diaArgentino, fechaLocalISO, formatDateTimeAR, horaArgentina } from '@/lib/fecha'
 
 export function pesos(valor: number): string {
   return `$${Number(valor).toLocaleString('es-AR', { maximumFractionDigits: 2 })}`
 }
 
-// Día de carga en hora argentina, YYYY-MM-DD (doc 03: la caja se cuenta así).
-export function diaLocal(instante: string): string {
-  return new Date(instante).toLocaleDateString('en-CA', { timeZone: TZ })
-}
-
-export function horaLocal(instante: string): string {
-  return new Date(instante).toLocaleTimeString('es-AR', {
-    timeZone: TZ,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
-}
-
-export function fechaHoraLocal(instante: string): string {
-  const [y, m, d] = diaLocal(instante).split('-')
-  return `${d}/${m}/${y} ${horaLocal(instante)}`
-}
-
-export function moverDia(fecha: string, dias: number): string {
-  const [y, m, d] = fecha.split('-').map(Number)
-  const nueva = new Date(y, m - 1, d + dias)
-  return `${nueva.getFullYear()}-${String(nueva.getMonth() + 1).padStart(2, '0')}-${String(nueva.getDate()).padStart(2, '0')}`
-}
+export const diaLocal = diaArgentino
+export const horaLocal = horaArgentina
+export const fechaHoraLocal = formatDateTimeAR
+export const moverDia = addDays
 
 // Monto tipeado en formato es-AR: "12.500,50". Sin coma, un punto es de miles
 // solo si separa grupos de 3 dígitos; "12500.5" es decimal. Null si no es válido.
@@ -111,10 +88,4 @@ export async function fetchPagosDeCierre(cierreId: string): Promise<CierreCajaPa
   const { data, error } = await supabase.from('cierres_caja_pagos').select('*').eq('cierre_id', cierreId)
   if (error) throw new Error(error.message)
   return data as CierreCajaPago[]
-}
-
-export async function fetchConfigCaja(): Promise<ConfigCaja | null> {
-  const { data, error } = await supabase.from('config_caja').select('*').maybeSingle()
-  if (error) throw new Error(error.message)
-  return data as ConfigCaja | null
 }

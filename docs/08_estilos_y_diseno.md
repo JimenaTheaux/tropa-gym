@@ -143,13 +143,18 @@ Mismo criterio de color que los botones Primario/Ghost — no es una variante nu
 - Borde 1px + ícono + texto en el color de estado (ver tabla de colores de estado arriba).
 - Nunca fondo sólido de color (se probó y quedaba "muy colorinche").
 
+## Campos de fecha y hora
+- `DateField`: máscara `dd/mm/aaaa`, ícono `calendar_month` y calendario propio (semana desde el lunes, días fuera de rango deshabilitados, atajos "Hoy" y "Ayer"). Error en `error`: borde + texto debajo. `FormDateInput` es el mismo campo para formularios que guardan `''` si está vacío.
+- `DateRangeField`: desde/hasta en un solo grupo con borde; cada extremo limita al otro.
+- `TimeField`: máscara `HH:mm`, 24 hs.
+- Edición: cada parte se edita por separado y una parte llena se pisa, así tocar el día no corre el año. Pegar acepta `dd/mm/aaaa`, `d/m/aa` y `aaaa-mm-dd`. Flechas ↑/↓ suman o restan un día.
+
 ## Componentes de caja (mismas reglas: borde + ícono + texto, sin fondos sólidos)
 - `ChipCaja`: chip con tono `neutro`, `ok` (`primary`), `suave` (`secondary`) o `alerta` (`error`). `ChipEstadoCierre` aplica el estado del cierre: cerrado = neutro, verificado = `primary`, reabierto = `secondary`. También "Recibió", "En cierre", "Modificado" y "Fecha distinta".
 - `RecibioField`: campo "Recibió" sobre `SegmentedControl`; con más de 6 opciones pasa a `FormSelect`.
 - `CierreCajaDrawer`: `Drawer` tamaño `lg`. "Efectivo a entregar" en Anton 26px. El único botón Sólido es la confirmación: "Confirmo: tengo $X en efectivo", o "Cerrar con diferencia" si se eligió "No coincide".
 - `ObservacionTexto`: observación visible en la fila, hasta 2 líneas con "ver más". No usar tooltip.
 - `ReabrirCierreDialog`: diálogo con textarea de motivo obligatorio, para lo que `ConfirmDialog` no cubre (solo admite texto).
-- `ConfirmDialog` suma `loadingLabel` y `neutro`: con `neutro` el botón de confirmar es Sólido en vez de color de error, para acciones que no destruyen datos.
 - Fila con diferencia: borde izquierdo `error` y monto en `error`, sin fondo sólido.
 
 ## Bordes y radios

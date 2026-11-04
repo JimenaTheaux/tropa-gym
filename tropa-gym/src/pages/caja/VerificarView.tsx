@@ -19,7 +19,8 @@ import { formatFecha } from '@/lib/utils'
 import type { ResultadoVerificacion, VerificarCierresParams } from '@/types/db'
 import { Button } from '@/components/ui/button'
 import { ChipCaja } from '@/components/ui/ChipCaja'
-import { FormCheckbox, FormDateInput, FormInput, FormTextarea } from '@/components/ui/FormField'
+import { DateRangeField } from '@/components/ui/DateField'
+import { FormCheckbox, FormInput, FormTextarea } from '@/components/ui/FormField'
 import { ObservacionTexto } from '@/components/ui/ObservacionTexto'
 
 export function VerificarView() {
@@ -162,8 +163,15 @@ export function VerificarView() {
       )}
 
       <div className="flex flex-wrap items-end gap-4">
-        <FormDateInput id="verificar-desde" label="Desde" value={desde} onChange={setDesde} />
-        <FormDateInput id="verificar-hasta" label="Hasta" value={hasta} onChange={setHasta} />
+        <DateRangeField
+          id="verificar-rango"
+          label="Cerrados entre"
+          min="2000-01-01"
+          desde={desde}
+          hasta={hasta}
+          onDesdeChange={setDesde}
+          onHastaChange={setHasta}
+        />
         <div className="pb-2">
           <FormCheckbox
             id="verificar-todos"

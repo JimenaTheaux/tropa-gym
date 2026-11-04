@@ -6,8 +6,6 @@ interface ConfirmDialogProps {
   title: string
   message: string
   confirmLabel?: string
-  loadingLabel?: string
-  neutro?: boolean
   loading?: boolean
   onConfirm: () => void
   onCancel: () => void
@@ -18,8 +16,6 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = 'Eliminar',
-  loadingLabel = 'Eliminando…',
-  neutro = false,
   loading,
   onConfirm,
   onCancel,
@@ -44,20 +40,14 @@ export function ConfirmDialog({
           <Button type="button" variant="ghost" onClick={onCancel} disabled={loading}>
             Cancelar
           </Button>
-          {neutro ? (
-            <Button type="button" variant="solido" onClick={onConfirm} disabled={loading}>
-              {loading ? loadingLabel : confirmLabel}
-            </Button>
-          ) : (
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={loading}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-error-container bg-error-container px-4 py-2 font-oswald text-[13px] font-semibold uppercase tracking-[0.03em] text-on-error-container transition-colors hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
-            >
-              {loading ? loadingLabel : confirmLabel}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-error-container bg-error-container px-4 py-2 font-oswald text-[13px] font-semibold uppercase tracking-[0.03em] text-on-error-container transition-colors hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {loading ? 'Eliminando…' : confirmLabel}
+          </button>
         </div>
       </div>
     </div>,

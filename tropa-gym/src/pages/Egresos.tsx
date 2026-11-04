@@ -172,6 +172,7 @@ export function Egresos() {
               id="egreso-fecha"
               label="Fecha"
               required
+              min="2000-01-01"
               value={form.fecha}
               onChange={(fecha) => setForm({ ...form, fecha })}
             />

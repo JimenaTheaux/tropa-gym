@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { queryKeys } from '@/lib/queryKeys'
 import { formatFecha } from '@/lib/utils'
-import { fechaPagoLocal } from '@/lib/fecha'
+import { fechaPagoLocal, formatDateTimeAR } from '@/lib/fecha'
 import { Button } from '@/components/ui/button'
 
 interface LogErrorRow {
@@ -166,7 +166,7 @@ export function LogErroresPanel() {
               {logs.map((log) => (
                 <tr key={log.id} className="border-t border-outline-variant align-top">
                   <td className="whitespace-nowrap px-4 py-3 font-inter text-sm text-on-surface-variant">
-                    {formatFecha(log.ocurrido_en.slice(0, 10))} {log.ocurrido_en.slice(11, 16)}
+                    {formatDateTimeAR(log.ocurrido_en)}
                   </td>
                   <td className="px-4 py-3 font-inter text-sm text-on-surface">{log.contexto}</td>
                   <td className="px-4 py-3 font-inter text-sm text-on-surface">{log.usuarioNombre}</td>

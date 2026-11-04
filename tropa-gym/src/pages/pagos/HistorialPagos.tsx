@@ -7,7 +7,7 @@ import { logError } from '@/lib/logErrores'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchHistorialPagos, fetchResumenPeriodo, type HistorialPagoDetalle, type ResumenCargo } from '@/lib/cuenta'
 import { formatFecha, hoyIso } from '@/lib/utils'
-import { fechaPagoLocal, validarFechaPago } from '@/lib/fecha'
+import { addDays, fechaPagoLocal, hoyAR, validarFechaPago } from '@/lib/fecha'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { fetchPagosEnCierre } from '@/lib/caja'
@@ -448,6 +448,7 @@ export function HistorialPagos() {
                                 id={`completar-fecha-${d.id}`}
                                 label="Fecha de pago"
                                 required
+                                max={addDays(hoyAR(), 1)}
                                 value={fechaCompletar}
                                 onChange={setFechaCompletar}
                               />

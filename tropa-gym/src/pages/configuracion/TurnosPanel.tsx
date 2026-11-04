@@ -7,7 +7,8 @@ import { queryKeys } from '@/lib/queryKeys'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { FormInput, FormCheckbox, FormTimeInput } from '@/components/ui/FormField'
+import { FormInput, FormCheckbox } from '@/components/ui/FormField'
+import { TimeField } from '@/components/ui/TimeField'
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable'
 import { BadgeActivo } from '@/components/ui/BadgeEstado'
 
@@ -120,7 +121,7 @@ export function TurnosPanel() {
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             />
-            <FormTimeInput
+            <TimeField
               id="turno-hora"
               label="Hora"
               required

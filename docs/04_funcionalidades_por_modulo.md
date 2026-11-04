@@ -113,7 +113,7 @@ Migraciones 35 a 38. Reglas y estados: doc 03. RPC: doc 06. Con el módulo apaga
   - **Día**: una fila por cierre con horario, cantidad de pagos, efectivo sistema/declarado/diferencia, transferencias, estado y chip "Modificado". La observación se ve siempre en la fila (hasta 2 líneas con "ver más"). Filas con diferencia destacadas, filtro "Solo con diferencia", fila desplegable con los pagos y "Reabrir" con motivo obligatorio. Abajo: lo cobrado por el dueño y el resumen del día por receptor, con diferencias y pagos sin cierre.
   - **Para verificar**: cierres en estado `cerrado` con filtro por rango de fechas y "Seleccionar todos"; avisos de turnos abiertos y profes con pagos sin cerrar. Barra fija: Σ declarado + efectivo del dueño sin verificar = esperado, efectivo contado, diferencia en vivo, nota (obligatoria si hay diferencia), "Transferencias controladas" y las observaciones de los cierres tildados.
   - **Sin cierre**: pagos sin receptor con "Asignar receptor"; pagos pendientes de cierre por profesor, con antigüedad.
-- **Configuración → Caja** (solo Admin): "Apagada" o "Activa desde dd/mm/aaaa hh:mm", con "Activar desde ahora" y "Apagar", ambos con confirmación.
+- **Activación**: no hay opción en la app. `config_caja.fecha_arranque` se fija una sola vez desde el SQL Editor.
 
 ## Asistencia Alumnos
 1. Buscar por DNI o nombre.
@@ -154,6 +154,18 @@ Pantalla en vivo sobre `cargos` (solo Admin — doc 02; migración 22 reemplaza 
 - Precios: asociados a combo, período. Cambios no afectan pagos históricos (RN-030).
 - Profesores: alta/gestión, activar/desactivar. Un profesor con cobros o turnos no se puede borrar, solo desactivar. Desactivado no aparece en "Recibió" ni en las cards de Asistencia Profesores, salvo que tenga un turno abierto o pagos por cerrar.
 - Turnos: nombre, hora única, activar/desactivar (ya no tienen hora de inicio/fin).
+
+## Campos de fecha y hora
+Todos los campos de fecha usan `DateField` (doc 08): se tipea `dd/mm/aaaa`, y solo sale hacia el formulario una fecha completa, válida y en rango. Si queda incompleta o inválida se muestra el error y el formulario conserva el valor anterior.
+
+Rango por pantalla:
+- **Por defecto**: de hoy − 2 años a hoy, igual que el servidor.
+- **Fecha de pago**: hasta mañana, como `fn_validar_fecha_pago`.
+- **Precios "Vigente desde"**: admite futuro, desde 2000.
+- **Fecha de nacimiento**: desde 1900, hasta hoy.
+- **Asistencia, Asist. Profesores, Egresos, estado del alumno y caja**: desde 2000, hasta hoy.
+
+Las horas usan `TimeField` (`HH:mm`, 24 hs), salvo el check-in de alumnos, que conserva sus selectores. Los períodos siguen con `FormMonthInput`, que se elige y no se tipea.
 
 ## Roles y Permisos
 - Ver doc 02.

@@ -105,7 +105,7 @@ export function DiaView() {
         <Button type="button" variant="ghost" aria-label="Día anterior" onClick={() => setFecha((f) => moverDia(f, -1))}>
           <span className="material-symbols-outlined !text-[18px]">chevron_left</span>
         </Button>
-        <FormDateInput id="caja-dia" label="Fecha" required value={fecha} onChange={setFecha} />
+        <FormDateInput id="caja-dia" label="Fecha" required min="2000-01-01" value={fecha} onChange={setFecha} />
         <Button type="button" variant="ghost" aria-label="Día siguiente" onClick={() => setFecha((f) => moverDia(f, 1))}>
           <span className="material-symbols-outlined !text-[18px]">chevron_right</span>
         </Button>

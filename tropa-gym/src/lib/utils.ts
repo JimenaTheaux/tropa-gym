@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { hoyAR } from "@/lib/fecha"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -15,8 +16,7 @@ export function formatFecha(fecha: string): string {
 // `new Date().toISOString()`, no se corre de día cerca de medianoche en
 // zonas con offset negativo (UTC-3).
 export function hoyIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return hoyAR()
 }
 
 // Link directo al chat de WhatsApp, con mensaje opcional. Asume Argentina: si

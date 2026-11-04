@@ -6,7 +6,6 @@ import { ProfesoresPanel } from './ProfesoresPanel'
 import { DisciplinasPanel } from './DisciplinasPanel'
 import { CombosPanel } from './CombosPanel'
 import { LogErroresPanel } from './LogErroresPanel'
-import { CajaPanel } from './CajaPanel'
 import { useAuth } from '@/contexts/AuthContext'
 
 const tabs = [
@@ -19,7 +18,6 @@ const tabs = [
 ] as const
 
 const tabsAdmin = [
-  { key: 'caja', label: 'Caja' },
   { key: 'logs', label: 'Log de errores' },
 ] as const
 
@@ -59,7 +57,6 @@ export function ConfiguracionPage() {
       {active === 'precios' && <PreciosPanel />}
       {active === 'descuentos' && <DescuentosPanel />}
       {active === 'profesores' && <ProfesoresPanel />}
-      {active === 'caja' && isAdmin && <CajaPanel />}
       {active === 'logs' && isAdmin && <LogErroresPanel />}
     </div>
   )

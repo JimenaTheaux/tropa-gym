@@ -135,6 +135,8 @@ export function PreciosPanel() {
               id="precio-vigente-desde"
               label="Vigente desde"
               required
+              allowFuture
+              min="2000-01-01"
               value={form.vigente_desde}
               onChange={(vigente_desde) => setForm({ ...form, vigente_desde })}
             />

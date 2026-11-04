@@ -30,7 +30,7 @@ export function CierresCajaPage() {
 
       {activa === false && (
         <p className="rounded-lg border border-outline-variant bg-surface-container-high px-4 py-3 font-inter text-sm text-on-surface-variant">
-          El cierre de caja está apagado. Se activa desde Configuración → Caja.
+          El cierre de caja está apagado.
         </p>
       )}
 

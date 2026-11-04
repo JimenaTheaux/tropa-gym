@@ -56,7 +56,6 @@ export const queryKeys = {
 
   caja: ['caja'] as const,
   cajaActiva: ['caja', 'activa'] as const,
-  cajaConfig: ['caja', 'config'] as const,
   cajaPendientes: (profesorId: string) => ['caja', 'pendientes', profesorId] as const,
   cajaPendientesPorProfesor: (ids: string) => ['caja', 'pendientes-por-profesor', ids] as const,
   cajaResumenDia: (fecha: string) => ['caja', 'resumen-dia', fecha] as const,

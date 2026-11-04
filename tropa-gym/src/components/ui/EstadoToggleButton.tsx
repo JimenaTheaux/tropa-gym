@@ -5,7 +5,8 @@ import type { Alumno, EstadoAlumno } from '@/types/db'
 import { useAuth } from '@/contexts/AuthContext'
 import { marcarEstadoManual } from '@/lib/alumnos'
 import { traducirError } from '@/lib/errores'
-import { formatFecha } from '@/lib/utils'
+import { formatFecha, hoyIso } from '@/lib/utils'
+import { fechaPagoLocal } from '@/lib/fecha'
 import { queryKeys } from '@/lib/queryKeys'
 import { Button } from '@/components/ui/button'
 import { FormDateInput, FormInput } from '@/components/ui/FormField'
@@ -20,11 +21,6 @@ interface EstadoToggleButtonProps {
 const ESTADO_CONFIG: Record<EstadoAlumno, { color: string; icon: string; label: string }> = {
   activo: { color: '#40e432', icon: 'check_circle', label: 'Activo' },
   inactivo: { color: '#ffb4ab', icon: 'cancel', label: 'Inactivo' },
-}
-
-function hoyIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 // Badge de estado como toggle — doc 08 (solo borde+icono+texto, sin fondo
@@ -85,7 +81,7 @@ export function EstadoToggleButton({ alumno, compact }: EstadoToggleButtonProps)
     </span>
   )
 
-  const desdeLabel = `desde ${formatFecha(alumno.estado_desde.slice(0, 10))}`
+  const desdeLabel = `desde ${formatFecha(fechaPagoLocal(alumno.estado_desde))}`
   const accionLabel = `Marcar como ${nuevoEstado === 'activo' ? 'Activo' : 'Inactivo'}`
 
   return (
@@ -127,7 +123,7 @@ export function EstadoToggleButton({ alumno, compact }: EstadoToggleButtonProps)
               </p>
 
               <div className="mt-4 flex flex-col gap-3">
-                <FormDateInput id={`estado-fecha-${alumno.id}`} label="Desde" value={fecha} onChange={setFecha} />
+                <FormDateInput id={`estado-fecha-${alumno.id}`} label="Desde" min="2000-01-01" value={fecha} onChange={setFecha} />
                 {nuevoEstado === 'inactivo' && (
                   <FormInput
                     id={`estado-motivo-${alumno.id}`}

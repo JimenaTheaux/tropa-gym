@@ -13,7 +13,8 @@ import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/Drawer'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { FormDateInput, FormInput, FormMonthInput } from '@/components/ui/FormField'
+import { FormDateInput, FormMonthInput } from '@/components/ui/FormField'
+import { TimeField } from '@/components/ui/TimeField'
 import { formatFecha } from '@/lib/utils'
 import { fechaLocalISO } from '@/lib/fecha'
 import { calcularMinutosTrabajados, formatHoras } from '@/lib/horasProfesor'
@@ -566,26 +567,23 @@ export function AsistenciaProfesores() {
                 id="asistencia-profesor-fecha"
                 label="Fecha"
                 required
+                min="2000-01-01"
                 value={editForm.fecha}
                 onChange={(fecha) => setEditForm({ ...editForm, fecha })}
               />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FormInput
+                <TimeField
                   id="asistencia-profesor-hora-entrada"
                   label="Hora entrada"
-                  type="time"
-                  lang="en-GB"
                   required
                   value={editForm.hora_entrada}
-                  onChange={(e) => setEditForm({ ...editForm, hora_entrada: e.target.value })}
+                  onChange={(hora_entrada) => setEditForm({ ...editForm, hora_entrada })}
                 />
-                <FormInput
+                <TimeField
                   id="asistencia-profesor-hora-salida"
                   label="Hora salida"
-                  type="time"
-                  lang="en-GB"
                   value={editForm.hora_salida}
-                  onChange={(e) => setEditForm({ ...editForm, hora_salida: e.target.value })}
+                  onChange={(hora_salida) => setEditForm({ ...editForm, hora_salida })}
                 />
               </div>
               {error && <p className="font-inter text-sm text-error">{error}</p>}

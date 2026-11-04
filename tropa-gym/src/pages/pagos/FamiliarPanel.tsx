@@ -13,7 +13,7 @@ import { useRecibio, useRequestId } from '@/hooks/useRecibio'
 import type { PagoReceptorParams } from '@/types/db'
 import { queryKeys } from '@/lib/queryKeys'
 import { hoyIso } from '@/lib/utils'
-import { validarFechaPago } from '@/lib/fecha'
+import { addDays, hoyAR, validarFechaPago } from '@/lib/fecha'
 import { Button } from '@/components/ui/button'
 import { FormCurrencyInput, FormDateInput, FormMonthInput, FormSelect } from '@/components/ui/FormField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -437,6 +437,7 @@ export function FamiliarPanel({ onSuccess, onCancel }: FamiliarPanelProps) {
             id="familiar-fecha-pago"
             label="Fecha de pago"
             required
+            max={addDays(hoyAR(), 1)}
             value={fechaPago}
             onChange={setFechaPago}
           />

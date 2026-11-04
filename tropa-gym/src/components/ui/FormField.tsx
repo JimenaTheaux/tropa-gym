@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import type {
-  ChangeEvent,
   FocusEvent,
   InputHTMLAttributes,
   ReactNode,
@@ -174,76 +173,7 @@ export function FormSelect({
   )
 }
 
-interface FormDateInputProps {
-  id: string
-  label: string
-  required?: boolean
-  error?: string
-  value: string
-  onChange: (value: string) => void
-}
-
-function isoADisplay(iso: string): string {
-  const [y, m, d] = iso.split('-')
-  if (!y || !m || !d) return ''
-  return `${d}/${m}/${y}`
-}
-
-// Arma dd/mm/aaaa a medida que se escribe, sólo dígitos — acepta pegar
-// "05031990" o "05/03/1990" igual. Recorta día a 31 y mes a 12 mientras
-// se tipea para no dejar escribir valores imposibles.
-function maskFecha(raw: string): string {
-  const digitos = raw.replace(/\D/g, '').slice(0, 8)
-  let dd = digitos.slice(0, 2)
-  let mm = digitos.slice(2, 4)
-  const yyyy = digitos.slice(4, 8)
-  if (dd.length === 2 && Number(dd) > 31) dd = '31'
-  if (mm.length === 2 && Number(mm) > 12) mm = '12'
-  return [dd, mm, yyyy].filter(Boolean).join('/')
-}
-
-// Reemplaza <input type="date"> nativo: el formato del picker depende del
-// sistema operativo, no de lang="es-AR". Un solo campo de texto con máscara
-// propia garantiza dd/mm/aaaa siempre, con el mismo aspecto de un input único.
-export function FormDateInput({ id, label, required, error, value, onChange }: FormDateInputProps) {
-  const [texto, setTexto] = useState(isoADisplay(value))
-
-  useEffect(() => {
-    setTexto(isoADisplay(value))
-  }, [value])
-
-  function handleChange(e: ChangeEvent<HTMLInputElement>) {
-    const masked = maskFecha(e.target.value)
-    setTexto(masked)
-    const [dd, mm, yyyy] = masked.split('/')
-    if (dd?.length === 2 && mm?.length === 2 && yyyy?.length === 4) {
-      onChange(`${yyyy}-${mm}-${dd}`)
-    } else if (masked === '') {
-      onChange('')
-    }
-  }
-
-  function handleBlur() {
-    setTexto(isoADisplay(value))
-  }
-
-  return (
-    <FieldShell label={label} htmlFor={id} error={error}>
-      <input
-        id={id}
-        type="text"
-        inputMode="numeric"
-        placeholder="DD/MM/AAAA"
-        maxLength={10}
-        required={required}
-        value={texto}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        className={fieldClass}
-      />
-    </FieldShell>
-  )
-}
+export { FormDateInput } from '@/components/ui/DateField'
 
 interface FormMonthInputProps {
   id: string

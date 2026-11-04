@@ -45,6 +45,8 @@ export function AlumnoFormFields({ idPrefix, form, onChange, disciplinas, combos
         <FormDateInput
           id={`${idPrefix}-fecha-nacimiento`}
           label="Fecha de nacimiento (opcional)"
+          min="1900-01-01"
+          atajos={false}
           value={form.fecha_nacimiento ?? ''}
           onChange={(fecha_nacimiento) => onChange({ fecha_nacimiento })}
         />

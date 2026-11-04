@@ -4,6 +4,7 @@ import { fetchPagosAlumnoPeriodo } from '@/lib/cargos'
 import { queryKeys } from '@/lib/queryKeys'
 import { STALE_OPERATIVO } from '@/lib/queryClient'
 import { formatFecha } from '@/lib/utils'
+import { fechaPagoLocal } from '@/lib/fecha'
 import { Drawer } from '@/components/ui/Drawer'
 import { BadgeEstadoCargo } from '@/components/ui/BadgeEstado'
 
@@ -113,7 +114,7 @@ export function PagosPeriodoDrawer({
                     <tr key={p.id} className="border-t border-outline-variant">
                       <td className="px-3 py-2 font-inter text-sm text-on-surface-variant">{p.periodo}</td>
                       <td className="px-3 py-2 font-inter text-sm text-on-surface">
-                        {formatFecha(p.fecha.slice(0, 10))}
+                        {formatFecha(fechaPagoLocal(p.fecha))}
                       </td>
                       <td className="px-3 py-2 font-inter text-sm text-on-surface">{money(p.monto)}</td>
                       <td className="px-3 py-2 font-inter text-sm text-on-surface">
