@@ -34,6 +34,13 @@ const TIPOS_PAGO_PARCIALIDAD: { value: TipoPagoParcialidad; label: string }[] = 
   { value: 'parcial', label: 'Parcial' },
 ]
 
+// Mismos valores con otro significado cuando se paga de más: 'completo' fija
+// el precio del mes en lo pagado, 'parcial' deja el excedente a favor.
+const TIPOS_PAGO_SOBREPAGO: { value: TipoPagoParcialidad; label: string }[] = [
+  { value: 'completo', label: 'Es el precio del mes' },
+  { value: 'parcial', label: 'Queda a favor' },
+]
+
 function periodoActual(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -152,11 +159,13 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!editar, alumno?.id, periodo])
 
-  // Ambiguo = el monto tipeado quedó por debajo de lo calculado: puede ser
-  // un pago parcial (queda deuda) o un precio especial que el dueño cobró
-  // completo (no debe quedar deuda). Si es igual o mayor, no hay ambigüedad
-  // (completo o sobrepago, ya se resuelve solo vía trigger).
-  const esAmbiguo = montoPagado > 0 && precioCalculado > 0 && montoPagado < precioCalculado
+  // Ambiguo = el monto tipeado difiere de lo calculado. Por debajo: pago
+  // parcial (queda deuda) o precio especial cobrado completo. Por encima:
+  // el precio del mes es otro (ej. lista nueva) o el excedente queda a favor.
+  // El cargo toma el precio_snapshot del pago (migración 39), así que lo que
+  // se elige acá define el cargo.
+  const esSobrepago = montoPagado > 0 && precioCalculado > 0 && montoPagado > precioCalculado
+  const esAmbiguo = esSobrepago || (montoPagado > 0 && precioCalculado > 0 && montoPagado < precioCalculado)
   const ajustarPrecio = esAmbiguo && tipoPagoParcialidad === 'completo'
   const precioSnapshotFinal = ajustarPrecio ? montoPagado : precioCalculado
 
@@ -261,7 +270,11 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
       return
     }
     if (esAmbiguo && tipoPagoParcialidad === '') {
-      setError('Indicá si fue un pago parcial o el monto completo (precio especial).')
+      setError(
+        esSobrepago
+          ? 'Indicá si el monto es el precio del mes o si el excedente queda a favor.'
+          : 'Indicá si fue un pago parcial o el monto completo (precio especial).',
+      )
       return
     }
     if (
@@ -448,25 +461,27 @@ export function IndividualPanel({ onSuccess, onCancel, editar }: IndividualPanel
             <div className="flex flex-col gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3">
               <SegmentedControl
                 id="individual-tipo-pago-parcialidad"
-                label="¿Fue un pago parcial o el monto completo?"
+                label={
+                  esSobrepago
+                    ? '¿Es el precio de este mes o el excedente queda a favor?'
+                    : '¿Fue un pago parcial o el monto completo?'
+                }
                 value={tipoPagoParcialidad}
                 onChange={setTipoPagoParcialidad}
-                options={TIPOS_PAGO_PARCIALIDAD}
+                options={esSobrepago ? TIPOS_PAGO_SOBREPAGO : TIPOS_PAGO_PARCIALIDAD}
               />
               <p className="font-inter text-xs text-on-surface-variant">
                 {tipoPagoParcialidad === 'completo'
                   ? `Se va a fijar el precio de esta cuota en $${montoPagado.toLocaleString('es-AR')} — no queda saldo pendiente.`
                   : tipoPagoParcialidad === 'parcial'
-                    ? `Queda un saldo pendiente de $${(precioCalculado - montoPagado).toLocaleString('es-AR')} en el cargo.`
-                    : 'El monto es menor al calculado — elegí una opción para continuar.'}
+                    ? esSobrepago
+                      ? `Quedan $${(montoPagado - precioCalculado).toLocaleString('es-AR')} a favor del alumno.`
+                      : `Queda un saldo pendiente de $${(precioCalculado - montoPagado).toLocaleString('es-AR')} en el cargo.`
+                    : esSobrepago
+                      ? 'El monto es mayor al calculado — elegí una opción para continuar.'
+                      : 'El monto es menor al calculado — elegí una opción para continuar.'}
               </p>
             </div>
-          )}
-
-          {montoPagado > precioCalculado && (
-            <p className="font-inter text-xs text-on-surface-variant">
-              Sobrepago — el excedente queda como saldo a favor del alumno.
-            </p>
           )}
 
           {error && <p className="font-inter text-sm text-error">{error}</p>}

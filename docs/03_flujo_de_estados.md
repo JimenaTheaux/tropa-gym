@@ -53,6 +53,13 @@ Cargo generado → [PENDIENTE]
   [PARCIAL] ──(suma pagos >= monto)──> [PAGADO]
 ```
 
+### El cargo toma el precio del pago (migración 39)
+Cada vez que se registra o se edita un pago (Individual, Familiar, Adelantado, Editar, Completar, huérfanos), el cargo de ese alumno/período pasa a valer el `precio_snapshot` del pago: lo que el sistema calculó al cobrar es la fuente de verdad, aunque el cargo se haya creado antes con un precio o combo viejo. Si el precio supera media cuota de la lista vigente, un cargo de media cuota pasa a completa (nunca al revés). No se aplica si el precio del pago es $0 ni si el cargo tiene `monto_manual = true` (monto fijado por una persona: edición en Cargos o "Completo (precio especial)" al pagar). Un pago parcial ajusta el precio pero no autovalida. Trigger `trg_pago_cargo_toma_precio` (BEFORE en `pagos_alumnos`), que además vincula `cargo_id` si el pago llega sin él.
+
+Antes de esta regla, el pago dejaba el cargo pagado y validado con el precio viejo, y la diferencia aparecía como "a favor" falso (61 casos, ~$695.000, corregidos en la misma migración; respaldo en `cargos_backup_mig39`).
+
+En la pantalla Individual, si el monto pagado difiere del calculado se pregunta siempre: por debajo, "Parcial" o "Completo (precio especial)"; por encima, "Es el precio del mes" o "Queda a favor".
+
 ### Sobrepago (saldo a favor)
 Si la suma de `monto_pagado` supera `cargos.monto`, el cargo igual queda **pagado** (no existe un estado "sobrepagado"), también si el monto es $0 definido. El excedente no se guarda en una tabla aparte: queda reflejado en el **Saldo de cuenta** general del alumno (`Saldo = Cargos − Pagos`, RN-023), que da negativo — es decir, saldo a favor.
 

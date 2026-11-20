@@ -161,6 +161,8 @@ export interface Cargo {
   monto: number
   monto_definido: boolean
   validado: boolean
+  /** Monto fijado por una persona (migración 39): un pago nuevo no lo pisa. */
+  monto_manual: boolean
   estado: EstadoPago
   created_at: string
 }
